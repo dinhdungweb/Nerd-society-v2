@@ -40,11 +40,13 @@ interface Booking {
     estimatedAmount: number
     depositAmount: number
     depositStatus: string
+    depositPaidAt: string | null
     status: string
     user: { name: string | null; email: string; phone: string | null }
     customerName: string
     customerPhone: string
     customerEmail: string | null
+    guests: number
     location: { name: string }
     room: { name: string; type: string } | null
     // ... other fields if needed for logic but table uses these

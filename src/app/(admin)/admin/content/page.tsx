@@ -1,13 +1,16 @@
 'use client'
 
 import { Button } from '@/shared/Button'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'react-hot-toast'
+import { PhotoIcon, TrashIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline'
+import Image from 'next/image'
 
 interface Settings {
     heroTitle: string
     heroSubtitle: string
     heroCta: string
+    heroBackgroundImage: string
     aboutTitle: string
     aboutContent: string
     // Carousel News Settings
@@ -22,10 +25,13 @@ interface Settings {
 export default function AdminContentPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [uploadingImage, setUploadingImage] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
     const [settings, setSettings] = useState<Settings>({
         heroTitle: 'Không gian học tập & làm việc dành riêng cho Gen Z',
         heroSubtitle: 'Trải nghiệm không gian Nerd Society với đầy đủ tiện nghi, wifi tốc độ cao và cafe miễn phí.',
         heroCta: 'Đặt chỗ ngay',
+        heroBackgroundImage: '',
         aboutTitle: 'Câu chuyện của Nerd',
         aboutContent: 'Chúng mình tin rằng một không gian tốt sẽ khơi nguồn cảm hứng vô tận. Tại Nerd Society, mỗi góc nhỏ đều được chăm chút để bạn có thể tập trung tối đa.',
         // Carousel defaults
@@ -58,6 +64,41 @@ export default function AdminContentPage() {
 
     const handleChange = (key: keyof Settings, value: string) => {
         setSettings(prev => ({ ...prev, [key]: value }))
+    }
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files
+        if (!files || files.length === 0) return
+
+        setUploadingImage(true)
+        try {
+            const formData = new FormData()
+            formData.append('files', files[0])
+
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            })
+
+            const data = await res.json()
+            if (res.ok && data.url) {
+                handleChange('heroBackgroundImage', data.url)
+                toast.success('Đã upload ảnh!')
+            } else {
+                toast.error(data.error || 'Lỗi khi upload ảnh')
+            }
+        } catch (error) {
+            toast.error('Lỗi khi upload ảnh!')
+        } finally {
+            setUploadingImage(false)
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ''
+            }
+        }
+    }
+
+    const handleRemoveImage = () => {
+        handleChange('heroBackgroundImage', '')
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -121,6 +162,63 @@ export default function AdminContentPage() {
                                 onChange={e => handleChange('heroCta', e.target.value)}
                                 className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
                             />
+                        </div>
+
+                        {/* Hero Background Image Upload */}
+                        <div className="col-span-2">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700">Ảnh nền Hero Section</label>
+                            <div className="flex items-start gap-4">
+                                {/* Preview */}
+                                <div className="relative h-36 w-64 overflow-hidden rounded-lg border-2 border-dashed border-neutral-300 bg-neutral-100">
+                                    {settings.heroBackgroundImage ? (
+                                        <>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={settings.heroBackgroundImage}
+                                                alt="Hero background preview"
+                                                className="absolute inset-0 h-full w-full object-cover"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleRemoveImage}
+                                                className="absolute right-2 top-2 rounded-full bg-red-500 p-1.5 text-white shadow-lg transition hover:bg-red-600"
+                                            >
+                                                <TrashIcon className="size-4" />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <div className="flex size-full flex-col items-center justify-center text-neutral-400">
+                                            <PhotoIcon className="size-12" />
+                                            <span className="mt-2 text-xs">Chưa có ảnh nền</span>
+                                            <span className="text-xs">(Dùng ảnh mặc định)</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Upload Button */}
+                                <div className="flex flex-col gap-2">
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                        className="hidden"
+                                    />
+                                    <Button
+                                        type="button"
+                                        outline
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploadingImage}
+                                    >
+                                        <CloudArrowUpIcon className="size-5" />
+                                        {uploadingImage ? 'Đang upload...' : 'Upload ảnh mới'}
+                                    </Button>
+                                    <p className="text-xs text-neutral-500">
+                                        Kích thước khuyến nghị: 1920x1080px<br />
+                                        Định dạng: JPG, PNG, WebP
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

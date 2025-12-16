@@ -43,6 +43,7 @@ export default async function Page() {
           heroTitle={settings.heroTitle}
           heroSubtitle={settings.heroSubtitle}
           heroCta={settings.heroCta}
+          heroBackgroundImage={settings.heroBackgroundImage}
         />
         <AboutNerd
           aboutTitle={settings.aboutTitle}

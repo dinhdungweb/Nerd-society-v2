@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
-import { calculateBookingPrice, calculateDeposit, PRICING } from '@/lib/pricing'
+import { calculateBookingPriceFromDB, calculateDeposit, SYSTEM_CONFIG } from '@/lib/pricing-db'
 import { isSlotAvailable, generateBookingCode, getBookingDateTime, parseTimeToMinutes, OPERATING_HOURS } from '@/lib/booking-utils'
 import { parseISO, addMinutes, format } from 'date-fns'
 
@@ -84,9 +84,9 @@ export async function POST(req: Request) {
         if (room.type === 'POD_MONO') serviceType = 'POD_MONO'
         if (room.type === 'POD_MULTI') serviceType = 'POD_MULTI'
 
-        let finalAmount = calculateBookingPrice(serviceType, durationMinutes, 1)
+        let finalAmount = await calculateBookingPriceFromDB(serviceType, durationMinutes, 1)
         if (serviceType === 'MEETING' && body.guests) {
-            finalAmount = calculateBookingPrice('MEETING', durationMinutes, body.guests)
+            finalAmount = await calculateBookingPriceFromDB('MEETING', durationMinutes, body.guests)
         }
 
         const depositAmount = calculateDeposit(finalAmount)

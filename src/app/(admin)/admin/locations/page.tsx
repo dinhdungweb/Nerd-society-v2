@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
     PlusIcon,
     MapPinIcon,
@@ -9,9 +9,12 @@ import {
     TrashIcon,
     CheckCircleIcon,
     XCircleIcon,
+    PhotoIcon,
+    CloudArrowUpIcon,
 } from '@heroicons/react/24/outline'
 import { Button } from '@/shared/Button'
 import NcModal from '@/shared/NcModal'
+import { toast } from 'react-hot-toast'
 
 interface Location {
     id: string
@@ -19,6 +22,7 @@ interface Location {
     address: string
     phone: string
     mapUrl: string | null
+    image: string | null
     isActive: boolean
     _count?: { bookings: number }
 }
@@ -28,6 +32,8 @@ export default function LocationsPage() {
     const [loading, setLoading] = useState(true)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingLocation, setEditingLocation] = useState<Location | null>(null)
+    const [uploadingImage, setUploadingImage] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Form state
     const [formData, setFormData] = useState({
@@ -35,6 +41,7 @@ export default function LocationsPage() {
         address: '',
         phone: '',
         mapUrl: '',
+        image: '',
         isActive: true,
     })
     const [saving, setSaving] = useState(false)
@@ -64,6 +71,7 @@ export default function LocationsPage() {
             address: '',
             phone: '',
             mapUrl: '',
+            image: '',
             isActive: true,
         })
         setIsModalOpen(true)
@@ -76,6 +84,7 @@ export default function LocationsPage() {
             address: location.address,
             phone: location.phone,
             mapUrl: location.mapUrl || '',
+            image: location.image || '',
             isActive: location.isActive,
         })
         setIsModalOpen(true)
@@ -122,6 +131,41 @@ export default function LocationsPage() {
         } catch (error) {
             console.error('Error toggling status:', error)
         }
+    }
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files
+        if (!files || files.length === 0) return
+
+        setUploadingImage(true)
+        try {
+            const formDataUpload = new FormData()
+            formDataUpload.append('files', files[0])
+
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                body: formDataUpload,
+            })
+
+            const data = await res.json()
+            if (res.ok && data.url) {
+                setFormData(prev => ({ ...prev, image: data.url }))
+                toast.success('Đã upload ảnh!')
+            } else {
+                toast.error(data.error || 'Lỗi khi upload ảnh')
+            }
+        } catch (error) {
+            toast.error('Lỗi khi upload ảnh!')
+        } finally {
+            setUploadingImage(false)
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ''
+            }
+        }
+    }
+
+    const handleRemoveImage = () => {
+        setFormData(prev => ({ ...prev, image: '' }))
     }
 
     const deleteLocation = async (location: Location) => {
@@ -177,86 +221,106 @@ export default function LocationsPage() {
             </div>
 
             {/* Locations Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {locations.map(location => (
                     <div
                         key={location.id}
                         className={`bg-white dark:bg-neutral-800 rounded-xl border ${location.isActive
                             ? 'border-neutral-200 dark:border-neutral-700'
                             : 'border-red-200 dark:border-red-800 opacity-60'
-                            } p-5 hover:shadow-lg transition-shadow`}
+                            } overflow-hidden hover:shadow-lg transition-shadow`}
                     >
-                        {/* Header */}
-                        <div className="flex items-start justify-between mb-4">
-                            <div>
-                                <h3 className="font-semibold text-lg text-neutral-900 dark:text-white">
-                                    {location.name}
-                                </h3>
-                                <span className={`inline-block px-2 py-0.5 text-xs rounded-full mt-1 ${location.isActive
-                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                    }`}>
-                                    {location.isActive ? 'Đang hoạt động' : 'Tạm đóng'}
-                                </span>
-                            </div>
-                            <button
-                                onClick={() => toggleStatus(location)}
-                                className={`p-1.5 rounded-full transition-colors ${location.isActive
-                                    ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                                    : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
-                                    }`}
-                                title={location.isActive ? 'Đang hoạt động' : 'Đã tắt'}
-                            >
-                                {location.isActive ? (
-                                    <CheckCircleIcon className="w-5 h-5" />
-                                ) : (
-                                    <XCircleIcon className="w-5 h-5" />
-                                )}
-                            </button>
-                        </div>
-
-                        {/* Info */}
-                        <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
-                            <div className="flex items-start gap-2">
-                                <MapPinIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                <span>{location.address}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <PhoneIcon className="w-4 h-4" />
-                                <span>{location.phone}</span>
-                            </div>
-                            {location.mapUrl && (
-                                <a
-                                    href={location.mapUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 dark:text-primary-400"
-                                >
-                                    Xem trên bản đồ →
-                                </a>
+                        {/* Location Image */}
+                        <div className="relative h-52 bg-neutral-100 dark:bg-neutral-700">
+                            {location.image ? (
+                                <>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        src={location.image}
+                                        alt={location.name}
+                                        className="h-full w-full object-cover"
+                                    />
+                                </>
+                            ) : (
+                                <div className="flex h-full w-full items-center justify-center text-neutral-400 dark:text-neutral-500">
+                                    <PhotoIcon className="h-12 w-12" />
+                                </div>
                             )}
                         </div>
 
-                        {/* Footer */}
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-neutral-100 dark:border-neutral-700">
-                            <span className="text-xs text-neutral-500">
-                                {location._count?.bookings || 0} lượt đặt
-                            </span>
-                            <div className="flex items-center gap-2">
+                        <div className="p-5">
+                            {/* Header */}
+                            <div className="flex items-start justify-between mb-4">
+                                <div>
+                                    <h3 className="font-semibold text-lg text-neutral-900 dark:text-white">
+                                        {location.name}
+                                    </h3>
+                                    <span className={`inline-block px-2 py-0.5 text-xs rounded-full mt-1 ${location.isActive
+                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                        }`}>
+                                        {location.isActive ? 'Đang hoạt động' : 'Tạm đóng'}
+                                    </span>
+                                </div>
                                 <button
-                                    onClick={() => openEditModal(location)}
-                                    className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
+                                    onClick={() => toggleStatus(location)}
+                                    className={`p-1.5 rounded-full transition-colors ${location.isActive
+                                        ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                                        : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                                        }`}
+                                    title={location.isActive ? 'Đang hoạt động' : 'Đã tắt'}
                                 >
-                                    <PencilSquareIcon className="w-4 h-4" />
-                                    Sửa
+                                    {location.isActive ? (
+                                        <CheckCircleIcon className="w-5 h-5" />
+                                    ) : (
+                                        <XCircleIcon className="w-5 h-5" />
+                                    )}
                                 </button>
-                                <button
-                                    onClick={() => deleteLocation(location)}
-                                    className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700"
-                                >
-                                    <TrashIcon className="w-4 h-4" />
-                                    Xóa
-                                </button>
+                            </div>
+
+                            {/* Info */}
+                            <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
+                                <div className="flex items-start gap-2">
+                                    <MapPinIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <span>{location.address}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <PhoneIcon className="w-4 h-4" />
+                                    <span>{location.phone}</span>
+                                </div>
+                                {location.mapUrl && (
+                                    <a
+                                        href={location.mapUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                                    >
+                                        Xem trên bản đồ →
+                                    </a>
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-neutral-100 dark:border-neutral-700">
+                                <span className="text-xs text-neutral-500">
+                                    {location._count?.bookings || 0} lượt đặt
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => openEditModal(location)}
+                                        className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
+                                    >
+                                        <PencilSquareIcon className="w-4 h-4" />
+                                        Sửa
+                                    </button>
+                                    <button
+                                        onClick={() => deleteLocation(location)}
+                                        className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                        Xóa
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -323,6 +387,62 @@ export default function LocationsPage() {
                             />
                         </div>
 
+                        {/* Image Upload */}
+                        <div>
+                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                                Ảnh cơ sở (tuỳ chọn)
+                            </label>
+
+                            {formData.image ? (
+                                /* Preview when image exists */
+                                <div className="relative h-40 w-full overflow-hidden rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-800">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        src={formData.image}
+                                        alt="Location preview"
+                                        className="h-full w-full object-cover"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleRemoveImage}
+                                        className="absolute right-2 top-2 rounded-full bg-red-500 p-1.5 text-white shadow-lg transition hover:bg-red-600"
+                                    >
+                                        <TrashIcon className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ) : (
+                                /* Upload zone when no image */
+                                <div
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50 px-6 py-10 transition hover:border-primary-400 hover:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:border-primary-500 dark:hover:bg-neutral-700"
+                                >
+                                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-neutral-200 dark:bg-neutral-700">
+                                        <CloudArrowUpIcon className="h-7 w-7 text-neutral-500 dark:text-neutral-400" />
+                                    </div>
+                                    <p className="text-center font-medium text-neutral-900 dark:text-white">
+                                        Kéo thả ảnh vào đây
+                                    </p>
+                                    <p className="mt-1 text-center text-sm text-neutral-500 dark:text-neutral-400">
+                                        PNG, JPG, WebP hoặc{' '}
+                                        <span className="text-primary-600 hover:text-primary-700 dark:text-primary-400">
+                                            chọn file
+                                        </span>
+                                    </p>
+                                    {uploadingImage && (
+                                        <p className="mt-2 text-sm text-primary-600">Đang upload...</p>
+                                    )}
+                                </div>
+                            )}
+
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="hidden"
+                            />
+                        </div>
+
                         <div className="flex items-center gap-2">
                             <input
                                 type="checkbox"
@@ -347,6 +467,6 @@ export default function LocationsPage() {
                     </form>
                 )}
             />
-        </div>
+        </div >
     )
 }

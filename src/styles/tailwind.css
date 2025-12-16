@@ -127,8 +127,27 @@
   @apply hidden;
 }
 
+/* React Datepicker Popup Container */
+.react-datepicker-popper {
+  z-index: 50 !important;
+}
+
+.react-datepicker-popper[data-placement^="bottom"] {
+  @apply pt-2;
+}
+
+.react-datepicker-popper[data-placement^="top"] {
+  @apply pb-2;
+}
+
+/* Single month calendar - grid cols 1 */
 .react-datepicker {
-  @apply relative grid grid-cols-1 gap-10 md:grid-cols-2;
+  @apply relative grid grid-cols-1 gap-0 font-sans;
+}
+
+/* Two month calendar - grid cols 2 */
+.react-datepicker--two-months {
+  @apply grid-cols-2 gap-10;
 }
 
 .react-datepicker__aria-live {

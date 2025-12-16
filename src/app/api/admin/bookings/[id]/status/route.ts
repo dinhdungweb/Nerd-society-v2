@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
-import { calculateSurcharge, getNerdCoinReward } from '@/lib/pricing'
+import { calculateSurchargeFromDB, getNerdCoinRewardFromDB } from '@/lib/pricing-db'
 import { differenceInMinutes, parseISO } from 'date-fns'
 import { getBookingDateTime } from '@/lib/booking-utils'
 
@@ -44,13 +44,16 @@ export async function POST(
                 return NextResponse.json({ error: 'Invalid status for check-in' }, { status: 400 })
             }
 
+            // Warning if no deposit paid (PENDING status usually means no deposit)
+            const hasDeposit = booking.depositStatus === 'PAID_ONLINE' || booking.depositStatus === 'PAID_CASH'
+
             // Logic Check-in
             // Determine Service Type for Nerd Coin
             let serviceType: any = 'MEETING'
             if (booking.room.type === 'POD_MONO') serviceType = 'POD_MONO'
             if (booking.room.type === 'POD_MULTI') serviceType = 'POD_MULTI'
 
-            const nerdCoins = getNerdCoinReward(serviceType)
+            const nerdCoins = await getNerdCoinRewardFromDB(serviceType)
 
             const updatedBooking = await prisma.booking.update({
                 where: { id },
@@ -65,7 +68,11 @@ export async function POST(
 
             // TODO: Update Customer's wallet if account exists (Not implemented yet based on instructions)
 
-            return NextResponse.json(updatedBooking)
+            return NextResponse.json({
+                ...updatedBooking,
+                nerdCoinIssued: nerdCoins,
+                warning: !hasDeposit ? 'Khách chưa thanh toán cọc. Vui lòng thu tiền tại quầy.' : null
+            })
         }
 
         if (action === 'CHECK_OUT') {
@@ -88,7 +95,7 @@ export async function POST(
             if (booking.room.type === 'POD_MULTI') serviceType = 'POD_MULTI'
             if (booking.room.type === 'MEETING_LONG' || booking.room.type === 'MEETING_ROUND') serviceType = 'MEETING'
 
-            const surcharge = calculateSurcharge(
+            const surcharge = await calculateSurchargeFromDB(
                 serviceType,
                 actualDuration,
                 scheduledDuration,

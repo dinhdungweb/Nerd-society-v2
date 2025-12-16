@@ -1,6 +1,7 @@
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 export default async function ProfileLayout({ children }: { children: React.ReactNode }) {
@@ -19,12 +20,12 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                 <div className="grid gap-8 lg:grid-cols-4">
                     {/* Sidebar */}
                     <div className="space-y-1 lg:col-span-1">
-                        <a href="/profile" className="block rounded-lg bg-primary-50 px-4 py-2 text-sm font-medium text-primary-700 dark:bg-primary-900/10 dark:text-primary-400">
+                        <Link href="/profile" className="block rounded-lg px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800">
                             Lịch sử đặt lịch
-                        </a>
-                        <a href="/profile/settings" className="block rounded-lg px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800">
+                        </Link>
+                        <Link href="/profile/settings" className="block rounded-lg px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800">
                             Cài đặt tài khoản
-                        </a>
+                        </Link>
                     </div>
 
                     {/* Content */}

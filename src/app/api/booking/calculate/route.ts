@@ -1,9 +1,9 @@
 import {
-    calculateBookingPrice,
+    calculateBookingPriceFromDB,
     calculateDeposit,
-    getNerdCoinReward,
-    getPriceBreakdown,
-} from '@/lib/pricing'
+    getNerdCoinRewardFromDB,
+    getPriceBreakdownFromDB,
+} from '@/lib/pricing-db'
 import { ServiceType } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -15,7 +15,7 @@ interface CalculateRequest {
 
 /**
  * POST /api/booking/calculate
- * Tính giá trước khi booking
+ * Tính giá trước khi booking (đọc từ database)
  */
 export async function POST(request: NextRequest) {
     try {
@@ -46,11 +46,11 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Calculate pricing
-        const estimatedAmount = calculateBookingPrice(serviceType, durationMinutes, guests)
+        // Calculate pricing from database
+        const estimatedAmount = await calculateBookingPriceFromDB(serviceType, durationMinutes, guests)
         const depositAmount = calculateDeposit(estimatedAmount)
-        const nerdCoinReward = getNerdCoinReward(serviceType)
-        const breakdown = getPriceBreakdown(serviceType, durationMinutes, guests)
+        const nerdCoinReward = await getNerdCoinRewardFromDB(serviceType)
+        const breakdown = await getPriceBreakdownFromDB(serviceType, durationMinutes, guests)
 
         return NextResponse.json({
             estimatedAmount,

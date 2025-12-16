@@ -6,8 +6,9 @@ import { NextResponse } from 'next/server'
 // GET - Lấy thông tin 1 location
 export async function GET(
     req: Request,
-    { params }: { params: { id: string } }
+    props: { params: Promise<{ id: string }> }
 ) {
+    const params = await props.params
     try {
         const location = await prisma.location.findUnique({
             where: { id: params.id },
@@ -27,8 +28,9 @@ export async function GET(
 // PUT - Cập nhật location
 export async function PUT(
     req: Request,
-    { params }: { params: { id: string } }
+    props: { params: Promise<{ id: string }> }
 ) {
+    const params = await props.params
     try {
         const session = await getServerSession(authOptions)
         if (!session || session.user.role !== 'ADMIN') {
@@ -36,7 +38,7 @@ export async function PUT(
         }
 
         const body = await req.json()
-        const { name, address, phone, mapUrl, isActive } = body
+        const { name, address, phone, mapUrl, image, isActive } = body
 
         const location = await prisma.location.update({
             where: { id: params.id },
@@ -45,6 +47,7 @@ export async function PUT(
                 ...(address && { address }),
                 ...(phone && { phone }),
                 ...(mapUrl !== undefined && { mapUrl }),
+                ...(image !== undefined && { image }),
                 ...(isActive !== undefined && { isActive }),
             },
         })
@@ -59,8 +62,9 @@ export async function PUT(
 // DELETE - Xóa location
 export async function DELETE(
     req: Request,
-    { params }: { params: { id: string } }
+    props: { params: Promise<{ id: string }> }
 ) {
+    const params = await props.params
     try {
         const session = await getServerSession(authOptions)
         if (!session || session.user.role !== 'ADMIN') {

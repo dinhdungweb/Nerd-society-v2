@@ -58,40 +58,62 @@ export async function isSlotAvailable(
     startTime: string,
     endTime: string
 ): Promise<boolean> {
-    // Normalize date (chỉ lấy ngày, không có giờ)
-    const bookingDate = new Date(date)
-    bookingDate.setHours(0, 0, 0, 0)
+    // Normalize date to UTC midnight to match DB storage format
+    // DB stores dates as UTC midnight (e.g., "2025-12-15T00:00:00.000Z")
+    const dateStr = date.toISOString().split('T')[0] // Get YYYY-MM-DD
+    const bookingDate = new Date(`${dateStr}T00:00:00.000Z`) // Create UTC midnight
+
+    // Threshold: Ignore PENDING bookings older than 5 minutes (they will be auto-cancelled)
+    const pendingTimeout = new Date()
+    pendingTimeout.setMinutes(pendingTimeout.getMinutes() - 5)
 
     // Tìm booking trùng thời gian
     const conflictingBooking = await prisma.booking.findFirst({
         where: {
             roomId,
             date: bookingDate,
-            status: {
-                notIn: ['CANCELLED', 'NO_SHOW'],
-            },
-            // Overlap check: slot mới không được overlap với slot đã book
-            // A overlaps B if: A.start < B.end AND A.end > B.start
+            // Only consider:
+            // - CONFIRMED/IN_PROGRESS/COMPLETED bookings
+            // - PENDING bookings created within last 5 minutes
             OR: [
                 {
-                    // Slot mới bắt đầu trong khoảng slot cũ
-                    AND: [
-                        { startTime: { lte: startTime } },
-                        { endTime: { gt: startTime } },
-                    ],
+                    status: {
+                        in: ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'],
+                    },
                 },
                 {
-                    // Slot mới kết thúc trong khoảng slot cũ
-                    AND: [
-                        { startTime: { lt: endTime } },
-                        { endTime: { gte: endTime } },
-                    ],
+                    status: 'PENDING',
+                    createdAt: {
+                        gt: pendingTimeout, // Only fresh PENDING bookings
+                    },
                 },
+            ],
+            // Overlap check: slot mới không được overlap với slot đã book
+            // A overlaps B if: A.start < B.end AND A.end > B.start
+            AND: [
                 {
-                    // Slot mới bao trùm slot cũ
-                    AND: [
-                        { startTime: { gte: startTime } },
-                        { endTime: { lte: endTime } },
+                    OR: [
+                        {
+                            // Slot mới bắt đầu trong khoảng slot cũ
+                            AND: [
+                                { startTime: { lte: startTime } },
+                                { endTime: { gt: startTime } },
+                            ],
+                        },
+                        {
+                            // Slot mới kết thúc trong khoảng slot cũ
+                            AND: [
+                                { startTime: { lt: endTime } },
+                                { endTime: { gte: endTime } },
+                            ],
+                        },
+                        {
+                            // Slot mới bao trùm slot cũ
+                            AND: [
+                                { startTime: { gte: startTime } },
+                                { endTime: { lte: endTime } },
+                            ],
+                        },
                     ],
                 },
             ],
@@ -112,12 +134,6 @@ export async function getBookedSlots(roomId: string, dateStr: string) {
     // So we need to query with exact UTC midnight
     const targetDate = new Date(`${dateStr}T00:00:00.000Z`)
 
-    console.log('[DEBUG getBookedSlots]', {
-        roomId,
-        dateStr,
-        targetDate: targetDate.toISOString(),
-    })
-
     const bookings = await prisma.booking.findMany({
         where: {
             roomId,
@@ -134,8 +150,6 @@ export async function getBookedSlots(roomId: string, dateStr: string) {
             startTime: 'asc',
         },
     })
-
-    console.log('[DEBUG getBookedSlots] Found bookings:', bookings)
 
     return bookings
 }

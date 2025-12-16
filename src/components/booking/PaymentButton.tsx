@@ -2,8 +2,10 @@
 
 
 import { Button } from '@/shared/Button'
+import { QrCodeIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 
 interface PaymentButtonProps {
     bookingId: string
@@ -12,43 +14,21 @@ interface PaymentButtonProps {
 
 export default function PaymentButton({ bookingId, amount }: PaymentButtonProps) {
     const [loading, setLoading] = useState(false)
-    const paymentMethod = 'VNPAY' // Only VNPAY available for online bookings
+    const [paymentMethod, setPaymentMethod] = useState<'BANK_TRANSFER' | 'VNPAY' | 'MOMO'>('BANK_TRANSFER')
     const router = useRouter()
 
     const handlePayment = async () => {
         setLoading(true)
         try {
-            if (paymentMethod === 'VNPAY') {
-                const res = await fetch('/api/payment/vnpay/create-url', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bookingId }),
-                })
-
-                const data = await res.json()
-                if (data.paymentUrl) {
-                    window.location.href = data.paymentUrl
-                } else {
-                    alert('Lỗi tạo thanh toán')
-                }
-            } else {
-                // Pay at counter - update payment method to CASH and confirm booking
-                const res = await fetch('/api/payment/cash', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bookingId }),
-                })
-
-                if (res.ok) {
-                    router.push(`/booking/success?id=${bookingId}&payment=cash`)
-                    router.refresh()
-                } else {
-                    alert('Lỗi xử lý thanh toán')
-                }
+            if (paymentMethod === 'BANK_TRANSFER') {
+                // Redirect to VietQR payment page
+                router.push(`/booking/payment?id=${bookingId}`)
+            } else if (paymentMethod === 'VNPAY') {
+                // ... Existing VNPay logic (disabled for now) ...
             }
         } catch (error) {
             console.error(error)
-            alert('Đã xảy ra lỗi')
+            toast.error('Đã xảy ra lỗi')
         } finally {
             setLoading(false)
         }
@@ -61,12 +41,35 @@ export default function PaymentButton({ bookingId, amount }: PaymentButtonProps)
                     Chọn phương thức thanh toán:
                 </p>
                 <div className="space-y-2">
-                    <label className="flex items-center justify-between rounded-lg border border-primary-500 bg-white p-3 shadow-sm dark:bg-neutral-900">
+                    {/* Bank Transfer (VietQR) - Default */}
+                    <label className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 shadow-sm transition-all ${paymentMethod === 'BANK_TRANSFER'
+                        ? 'border-primary-500 bg-white ring-1 ring-primary-500 dark:bg-neutral-900'
+                        : 'border-neutral-200 bg-white hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800'
+                        }`}>
                         <div className="flex items-center gap-3">
-                            <input type="radio" name="payment" checked readOnly className="text-primary-500 focus:ring-primary-500" />
-                            <span className="font-medium text-neutral-900 dark:text-white">VNPay</span>
+                            <input
+                                type="radio"
+                                name="payment"
+                                value="BANK_TRANSFER"
+                                checked={paymentMethod === 'BANK_TRANSFER'}
+                                onChange={() => setPaymentMethod('BANK_TRANSFER')}
+                                className="text-primary-500 focus:ring-primary-500"
+                            />
+                            <div className="flex flex-col">
+                                <span className="font-medium text-neutral-900 dark:text-white">Chuyển khoản (VietQR)</span>
+                                <span className="text-xs text-neutral-500">Quét mã QR - Xác nhận ngay</span>
+                            </div>
                         </div>
-                        <img src="https://vnpay.vn/assets/images/logo-icon/logo-primary.svg" alt="VNPay" className="h-6" />
+                        <QrCodeIcon className="h-6 w-6 text-neutral-400" />
+                    </label>
+
+                    {/* VNPay - Coming Soon */}
+                    <label className="flex cursor-not-allowed items-center justify-between rounded-lg border border-neutral-200 bg-neutral-100 p-3 opacity-60 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div className="flex items-center gap-3">
+                            <input type="radio" name="payment" disabled className="text-neutral-400" />
+                            <span className="font-medium text-neutral-500">VNPay (Sắp có)</span>
+                        </div>
+                        <img src="https://vnpay.vn/assets/images/logo-icon/logo-primary.svg" alt="VNPay" className="h-6 opacity-50" />
                     </label>
 
                     {/* MoMo - Coming soon */}

@@ -232,99 +232,98 @@ export default function ServicesPage() {
             </div>
 
             {/* Services List */}
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {services.map(service => (
                     <div
                         key={service.id}
-                        className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 p-5"
+                        className="group flex flex-col bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 hover:shadow-lg transition-all"
                     >
-                        <div className="flex items-start justify-between">
-                            {/* Left: Info */}
-                            <div className="flex items-start gap-4">
-                                <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-neutral-100 dark:bg-neutral-700">
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white">
                                     <ServiceTypeIcon type={service.type} />
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                            {service.name}
-                                        </h3>
-                                        <span className={`px-2 py-0.5 text-xs rounded-full ${serviceTypeColors[service.type]}`}>
-                                            {serviceTypeLabels[service.type]}
-                                        </span>
-                                    </div>
-                                    {service.description && (
-                                        <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
-                                            {service.description}
-                                        </p>
-                                    )}
-
-                                    {/* Pricing */}
-                                    <div className="flex flex-wrap gap-4 text-sm">
-                                        {service.type === 'MEETING' ? (
-                                            <>
-                                                <div className="flex items-center gap-1.5">
-                                                    <CurrencyDollarIcon className="w-4 h-4 text-neutral-400" />
-                                                    <span className="text-neutral-600 dark:text-neutral-300">
-                                                        &lt;8 người: <strong>{formatPrice(service.priceSmall)}/h</strong>
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <CurrencyDollarIcon className="w-4 h-4 text-neutral-400" />
-                                                    <span className="text-neutral-600 dark:text-neutral-300">
-                                                        8-20 người: <strong>{formatPrice(service.priceLarge)}/h</strong>
-                                                    </span>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="flex items-center gap-1.5">
-                                                    <CurrencyDollarIcon className="w-4 h-4 text-neutral-400" />
-                                                    <span className="text-neutral-600 dark:text-neutral-300">
-                                                        Giờ đầu: <strong>{formatPrice(service.priceFirstHour)}</strong>
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <CurrencyDollarIcon className="w-4 h-4 text-neutral-400" />
-                                                    <span className="text-neutral-600 dark:text-neutral-300">
-                                                        Sau đó: <strong>{formatPrice(service.pricePerHour)}/h</strong>
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <SparklesIcon className="w-4 h-4 text-amber-500" />
-                                                    <span className="text-neutral-600 dark:text-neutral-300">
-                                                        Tặng <strong>{service.nerdCoinReward} Nerd Coin</strong>
-                                                    </span>
-                                                </div>
-                                            </>
-                                        )}
-                                        <div className="flex items-center gap-1.5">
-                                            <ClockIcon className="w-4 h-4 text-neutral-400" />
-                                            <span className="text-neutral-600 dark:text-neutral-300">
-                                                Tối thiểu: {service.minDuration} phút
-                                            </span>
-                                        </div>
-                                    </div>
+                                    <h3 className="font-bold text-neutral-900 dark:text-white">
+                                        {service.name}
+                                    </h3>
+                                    <span className={`inline-block mt-0.5 px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border ${service.type === 'MEETING' ? 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' :
+                                        service.type === 'POD_MONO' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800' :
+                                            'bg-teal-50 text-teal-700 border-teal-100 dark:bg-teal-900/20 dark:text-teal-400 dark:border-teal-800'
+                                        }`}>
+                                        {serviceTypeLabels[service.type]}
+                                    </span>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Right: Actions */}
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => openEditModal(service)}
-                                    className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
-                                >
-                                    <PencilSquareIcon className="w-4 h-4" />
-                                    Sửa
-                                </button>
-                                <button
-                                    onClick={() => deleteService(service)}
-                                    className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700"
-                                >
-                                    <TrashIcon className="w-4 h-4" />
-                                    Xóa
-                                </button>
+                        {/* Content */}
+                        <div className="flex-1 space-y-4">
+                            {service.description && (
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-2">
+                                    {service.description}
+                                </p>
+                            )}
+
+                            {/* Pricing Grid */}
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                                {service.type === 'MEETING' ? (
+                                    <>
+                                        <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 space-y-1">
+                                            <p className="text-xs text-neutral-500">Dưới 8 người</p>
+                                            <p className="font-semibold text-neutral-900 dark:text-white">{formatPrice(service.priceSmall)}/h</p>
+                                        </div>
+                                        <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 space-y-1">
+                                            <p className="text-xs text-neutral-500">8-20 người</p>
+                                            <p className="font-semibold text-neutral-900 dark:text-white">{formatPrice(service.priceLarge)}/h</p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 space-y-1">
+                                            <p className="text-xs text-neutral-500">Giờ đầu</p>
+                                            <p className="font-semibold text-neutral-900 dark:text-white">{formatPrice(service.priceFirstHour)}</p>
+                                        </div>
+                                        <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 space-y-1">
+                                            <p className="text-xs text-neutral-500">Giờ sau</p>
+                                            <p className="font-semibold text-neutral-900 dark:text-white">{formatPrice(service.pricePerHour)}/h</p>
+                                        </div>
+                                    </>
+                                )}
                             </div>
+
+                            {/* Extra Info */}
+                            <div className="flex flex-wrap gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+                                <div className="flex items-center gap-1 bg-neutral-50 dark:bg-neutral-800 px-2 py-1 rounded">
+                                    <ClockIcon className="w-3.5 h-3.5" />
+                                    <span>Min {service.minDuration}p</span>
+                                </div>
+                                {service.nerdCoinReward > 0 && (
+                                    <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/10 text-amber-600 dark:text-amber-500 px-2 py-1 rounded">
+                                        <SparklesIcon className="w-3.5 h-3.5" />
+                                        <span>+{service.nerdCoinReward} Coin</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div className="flex items-center justify-end gap-3 mt-5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                            <button
+                                onClick={() => openEditModal(service)}
+                                className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-primary-600 dark:text-neutral-400 dark:hover:text-primary-500 transition-colors"
+                            >
+                                <PencilSquareIcon className="w-4 h-4" />
+                                <span>Chỉnh sửa</span>
+                            </button>
+                            <button
+                                onClick={() => deleteService(service)}
+                                className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-500 transition-colors"
+                            >
+                                <TrashIcon className="w-4 h-4" />
+                                <span>Xóa</span>
+                            </button>
                         </div>
                     </div>
                 ))}

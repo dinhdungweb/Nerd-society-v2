@@ -1,7 +1,7 @@
 import PaymentButton from '@/components/booking/PaymentButton'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { CalendarDaysIcon, ClockIcon, MapPinIcon, UserIcon } from '@heroicons/react/24/outline'
+import { CalendarDaysIcon, ClockIcon, MapPinIcon, UserIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline'
 import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
@@ -141,14 +141,20 @@ export default async function BookingDetailsPage({
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-neutral-600 dark:text-neutral-400">Phương thức</span>
                                 <span className="font-medium text-neutral-900 dark:text-white">
-                                    {booking.payment ? paymentMethodLabels[booking.payment.method] : 'Chưa thanh toán'}
+                                    {booking.payment?.status === 'COMPLETED' || booking.depositPaidAt ? paymentMethodLabels[booking.payment?.method || 'BANK_TRANSFER'] : '---'}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-neutral-600 dark:text-neutral-400">Trạng thái cọc</span>
                                 <span className={`font-medium ${booking.payment?.status === 'COMPLETED' ? 'text-green-600' : 'text-yellow-600'
                                     }`}>
-                                    {booking.payment?.status === 'COMPLETED' ? 'Đã thanh toán' : 'Chờ thanh toán'}
+                                    {booking.status === 'CANCELLED'
+                                        ? 'Đã hủy'
+                                        : booking.payment?.status === 'COMPLETED'
+                                            ? 'Đã thanh toán'
+                                            : booking.depositPaidAt
+                                                ? 'Chờ xác nhận'
+                                                : 'Chờ thanh toán'}
                                 </span>
                             </div>
 
@@ -156,16 +162,28 @@ export default async function BookingDetailsPage({
                             {booking.nerdCoinIssued > 0 && (
                                 <div className="flex items-center justify-between text-sm border-t border-neutral-200 pt-3 dark:border-neutral-700">
                                     <span className="text-neutral-600 dark:text-neutral-400">Nerd Coin</span>
-                                    <span className="font-medium text-yellow-600">
-                                        +{booking.nerdCoinIssued} 🪙
+                                    <span className="flex items-center gap-1 font-medium text-yellow-600">
+                                        +{booking.nerdCoinIssued} <CurrencyDollarIcon className="size-4" />
                                     </span>
                                 </div>
                             )}
 
-                            {/* Show Payment Button if pending */}
-                            {booking.payment?.status === 'PENDING' && (
+                            {/* Show Payment Button if pending and not cancelled and not reported yet */}
+                            {booking.status !== 'CANCELLED' && booking.payment?.status === 'PENDING' && !booking.depositPaidAt && (
                                 <div className="mt-4 border-t border-neutral-200 pt-4 dark:border-neutral-700">
                                     <PaymentButton bookingId={booking.id} amount={booking.depositAmount} />
+                                </div>
+                            )}
+
+                            {/* Show verification message if reported */}
+                            {booking.status !== 'CANCELLED' && booking.payment?.status === 'PENDING' && booking.depositPaidAt && (
+                                <div className="mt-4 border-t border-neutral-200 pt-4 text-center dark:border-neutral-700">
+                                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                                        Đang chờ xác nhận thanh toán
+                                    </p>
+                                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                        Chúng tôi đã nhận được thông báo của bạn
+                                    </p>
                                 </div>
                             )}
                         </div>

@@ -28,19 +28,25 @@ interface HeroNerdProps {
   heroTitle?: string
   heroSubtitle?: string
   heroCta?: string
+  heroBackgroundImage?: string
 }
+
+const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?q=80&w=2070'
 
 export default function HeroNerd({
   heroTitle = 'Nerd Society',
   heroSubtitle = 'Cộng đồng học tập năng động tại Hà Nội. Không gian làm việc chung, học nhóm lý tưởng với đầy đủ tiện nghi và đồ uống miễn phí!',
   heroCta = 'Đặt lịch ngay',
+  heroBackgroundImage,
 }: HeroNerdProps) {
+  const backgroundSrc = heroBackgroundImage || DEFAULT_HERO_IMAGE
+
   return (
     <section className="relative min-h-screen overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0">
         <Image
-          src="https://images.unsplash.com/photo-1521017432531-fbd92d768814?q=80&w=2070"
+          src={backgroundSrc}
           alt="Nerd Society Space"
           fill
           className="object-cover"

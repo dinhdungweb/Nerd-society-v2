@@ -39,7 +39,17 @@ export async function GET(req: Request) {
         const bookingId = payment.bookingId
 
         if (rspCode === '00') {
-            // Success
+            // Success - Check idempotency first (booking might already be confirmed by IPN)
+            const currentBooking = await prisma.booking.findUnique({
+                where: { id: bookingId },
+                select: { status: true }
+            })
+
+            // If already confirmed (by IPN), just redirect to success
+            if (currentBooking?.status === 'CONFIRMED') {
+                return Response.redirect(`${process.env.NEXTAUTH_URL}/booking/success?id=${bookingId}&payment=already_confirmed`)
+            }
+
             const [_, updatedBooking] = await prisma.$transaction([
                 prisma.payment.update({
                     where: { bookingId },

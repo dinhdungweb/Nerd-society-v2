@@ -18,6 +18,10 @@ model User {
   name          String
   phone         String?
   avatar        String?
+  gender        String?
+  dateOfBirth   DateTime?
+  address       String?
+  bio           String?   @db.Text
   role          Role      @default(CUSTOMER)
   emailVerified DateTime?
   bookings      Booking[]

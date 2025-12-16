@@ -2,34 +2,66 @@
 
 import { Button } from '@/shared/Button'
 import {
-    BuildingOffice2Icon,
-    BuildingStorefrontIcon,
     MapIcon,
     MapPinIcon,
     PhoneIcon,
+    BuildingOffice2Icon,
 } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 
-const locations = [
-    {
-        name: 'Cơ sở Hồ Tùng Mậu',
-        address: 'Tập thể trường múa, Khu Văn hóa & Nghệ Thuật, đường Hồ Tùng Mậu, P. Mai Dịch, Hà Nội',
-        hotline: '036 848 3689',
-        mapUrl: 'https://maps.app.goo.gl/1hdXj2VDtcScxGKm9',
-        icon: BuildingOffice2Icon,
-        image: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&h=400&fit=crop',
-    },
-    {
-        name: 'Cơ sở Tây Sơn',
-        address: 'Tầng 2, 3 ngõ 167 Tây Sơn, Hà Nội',
-        hotline: '036 848 3689',
-        mapUrl: 'https://maps.app.goo.gl/RVeYRTPuWTuiTymq9',
-        icon: BuildingStorefrontIcon,
-        image: 'https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=800&h=400&fit=crop',
-    },
-]
+interface Location {
+    id: string
+    name: string
+    address: string
+    phone: string
+    mapUrl: string | null
+    image: string | null
+    isActive: boolean
+}
+
+const DEFAULT_LOCATION_IMAGE = 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&h=400&fit=crop'
 
 export default function LocationsNerd() {
+    const [locations, setLocations] = useState<Location[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        async function fetchLocations() {
+            try {
+                const res = await fetch('/api/admin/locations')
+                if (res.ok) {
+                    const data = await res.json()
+                    // Filter only active locations
+                    setLocations(data.filter((loc: Location) => loc.isActive))
+                }
+            } catch (error) {
+                console.error('Failed to fetch locations:', error)
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchLocations()
+    }, [])
+
+    if (loading) {
+        return (
+            <section id="locations" className="py-20 lg:py-28 bg-neutral-50 dark:bg-neutral-800/50">
+                <div className="container">
+                    <div className="mx-auto max-w-2xl text-center">
+                        <div className="h-6 w-24 bg-neutral-200 dark:bg-neutral-700 rounded-full mx-auto animate-pulse" />
+                        <div className="h-10 w-64 bg-neutral-200 dark:bg-neutral-700 rounded-lg mx-auto mt-4 animate-pulse" />
+                    </div>
+                    <div className="mt-16 grid gap-8 lg:grid-cols-2">
+                        {[1, 2].map((i) => (
+                            <div key={i} className="h-96 bg-neutral-200 dark:bg-neutral-700 rounded-3xl animate-pulse" />
+                        ))}
+                    </div>
+                </div>
+            </section>
+        )
+    }
+
     return (
         <section id="locations" className="py-20 lg:py-28 bg-neutral-50 dark:bg-neutral-800/50">
             <div className="container">
@@ -51,7 +83,7 @@ export default function LocationsNerd() {
                         transition={{ delay: 0.1 }}
                         className="mt-4 text-3xl font-bold text-neutral-900 sm:text-4xl dark:text-white"
                     >
-                        2 Cơ sở tại Hà Nội
+                        {locations.length} Cơ sở tại Hà Nội
                     </motion.h2>
 
                     <motion.p
@@ -69,7 +101,7 @@ export default function LocationsNerd() {
                 <div className="mt-16 grid gap-8 lg:grid-cols-2">
                     {locations.map((location, index) => (
                         <motion.div
-                            key={location.name}
+                            key={location.id}
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
@@ -78,8 +110,9 @@ export default function LocationsNerd() {
                         >
                             {/* Location Image */}
                             <div className="relative h-80 overflow-hidden">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                    src={location.image}
+                                    src={location.image || DEFAULT_LOCATION_IMAGE}
                                     alt={location.name}
                                     className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
                                 />
@@ -99,19 +132,21 @@ export default function LocationsNerd() {
                                     <div className="flex items-center gap-3">
                                         <PhoneIcon className="size-5 shrink-0 text-primary-500" />
                                         <a
-                                            href={`tel:${location.hotline.replace(/\s/g, '')}`}
+                                            href={`tel:${location.phone.replace(/\s/g, '')}`}
                                             className="font-medium text-primary-600 hover:underline dark:text-primary-400"
                                         >
-                                            {location.hotline}
+                                            {location.phone}
                                         </a>
                                     </div>
                                 </div>
 
                                 <div className="mt-6 flex gap-3">
-                                    <Button outline href={location.mapUrl} className="flex-1 justify-center">
-                                        <MapIcon className="size-5" />
-                                        Xem bản đồ
-                                    </Button>
+                                    {location.mapUrl && (
+                                        <Button outline href={location.mapUrl} className="flex-1 justify-center">
+                                            <MapIcon className="size-5" />
+                                            Xem bản đồ
+                                        </Button>
+                                    )}
                                     <Button color="primary" href="/booking" className="flex-1 justify-center">
                                         Đặt lịch
                                     </Button>

@@ -1,4 +1,3 @@
-import { authOptions } from '@/lib/auth'
 import {
     calculateDuration,
     generateBookingCode,
@@ -9,14 +8,14 @@ import {
 } from '@/lib/booking-utils'
 import { sendBookingEmail } from '@/lib/email'
 import {
-    calculateBookingPrice,
+    calculateBookingPriceFromDB,
     calculateDeposit,
-    getNerdCoinReward,
-} from '@/lib/pricing'
+    getNerdCoinRewardFromDB,
+} from '@/lib/pricing-db'
 import { prisma } from '@/lib/prisma'
-import { generateVNPayUrl } from '@/lib/vnpay'
+// VNPay disabled - using VietQR instead
+// import { generateVNPayUrl } from '@/lib/vnpay'
 import { RoomType, ServiceType } from '@prisma/client'
-import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 interface CreateBookingRequest {
@@ -178,23 +177,30 @@ export async function POST(request: NextRequest) {
         }
 
 
-        // Calculate pricing (durationMinutes already validated above)
-
-        const estimatedAmount = calculateBookingPrice(serviceType, durationMinutes, guests)
+        // Calculate pricing from database (durationMinutes already validated above)
+        const estimatedAmount = await calculateBookingPriceFromDB(serviceType, durationMinutes, guests)
         const depositAmount = calculateDeposit(estimatedAmount)
-        const nerdCoinReward = getNerdCoinReward(serviceType)
+        const nerdCoinReward = await getNerdCoinRewardFromDB(serviceType)
 
         // Generate booking code
         const bookingCode = await generateBookingCode(bookingDate)
 
-        // Get session if user is logged in
-        const session = await getServerSession(authOptions)
+        // Find user by customerEmail (not session) - so booking links to correct profile
+        // This allows: logged in as A, book for B → booking appears in B's profile
+        let validUserId: string | null = null
+        if (customerEmail) {
+            const userByEmail = await prisma.user.findUnique({
+                where: { email: customerEmail.toLowerCase() },
+                select: { id: true }
+            })
+            validUserId = userByEmail?.id || null
+        }
 
         // Create booking
         const booking = await prisma.booking.create({
             data: {
                 bookingCode,
-                userId: session?.user?.id || null,
+                userId: validUserId,
                 roomId,
                 locationId,
                 customerName,
@@ -211,15 +217,10 @@ export async function POST(request: NextRequest) {
                 status: 'PENDING',
                 depositStatus: 'PENDING',
                 note,
-                payment: {
-                    create: {
-                        amount: depositAmount,
-                        method: 'VNPAY',
-                        status: 'PENDING',
-                    },
-                },
+                // Payment record will be created when user selects a payment method
             },
             include: {
+                user: true,
                 room: {
                     select: {
                         id: true,
@@ -238,18 +239,13 @@ export async function POST(request: NextRequest) {
             },
         })
 
-        // Generate VNPay payment URL
-        const paymentUrl = generateVNPayUrl({
-            amount: depositAmount,
-            orderId: booking.id,
-            orderInfo: `Dat coc ${bookingCode} - ${customerName}`,
-            ipAddr: request.headers.get('x-forwarded-for') || '127.0.0.1',
-        })
+        // Use VietQR payment page instead of VNPay
+        const paymentUrl = `/booking/payment?id=${booking.id}`
 
         // Send email notification (async, don't wait)
         sendBookingEmail({
             ...booking,
-            user: session?.user || null,
+            user: booking.user || null,
         }).catch(console.error)
 
         return NextResponse.json({

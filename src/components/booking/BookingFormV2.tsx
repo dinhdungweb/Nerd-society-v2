@@ -1,13 +1,17 @@
 'use client'
 
 import { Button } from '@/shared/Button'
-import { CalendarDaysIcon, ClockIcon, UsersIcon } from '@heroicons/react/24/outline'
+import { CalendarDaysIcon, UsersIcon } from '@heroicons/react/24/outline'
 import { ServiceType } from '@prisma/client'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
-import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import { useEffect, useState, useMemo } from 'react'
 import DatePicker, { registerLocale } from 'react-datepicker'
-import 'react-datepicker/dist/react-datepicker.css'
+import TimeSelect from './TimeSelect'
+import DatePickerCustomHeaderSingleMonth from '@/components/DatePickerCustomHeaderSingleMonth'
+import DatePickerCustomDay from '@/components/DatePickerCustomDay'
+
 
 registerLocale('vi', vi)
 
@@ -87,6 +91,8 @@ export default function BookingFormV2({
     onSubmit,
     loading = false,
 }: BookingFormV2Props) {
+    const { data: session } = useSession()
+
     const [date, setDate] = useState<Date | null>(null)
     const [startTime, setStartTime] = useState('')
     const [endTime, setEndTime] = useState('')
@@ -104,6 +110,21 @@ export default function BookingFormV2({
     const timeStep = serviceType === 'MEETING' ? 30 : 15
     const allTimeSlots = generateTimeSlots(timeStep)
     const isMeeting = serviceType === 'MEETING'
+
+    // Auto-fill customer info from session when logged in
+    useEffect(() => {
+        if (session?.user) {
+            if (!customerName && session.user.name) {
+                setCustomerName(session.user.name)
+            }
+            if (!customerEmail && session.user.email) {
+                setCustomerEmail(session.user.email)
+            }
+            if (!customerPhone && (session.user as any).phone) {
+                setCustomerPhone((session.user as any).phone)
+            }
+        }
+    }, [session])
 
     // Check if selected date is today
     const today = new Date()
@@ -130,8 +151,7 @@ export default function BookingFormV2({
             : allTimeSlots.filter(t => t >= currentTimeWithBuffer))
         : allTimeSlots
 
-    // Debug log
-    console.log('[DEBUG TIME FILTER]', { isToday, currentTimeWithBuffer, currentHour, isPastClosingTime, timeSlotsCount: timeSlots.length, firstSlot: timeSlots[0] })
+
 
     // Fetch booked slots when date changes
     useEffect(() => {
@@ -147,10 +167,8 @@ export default function BookingFormV2({
             setLoadingSlots(true)
             try {
                 const dateStr = format(date, 'yyyy-MM-dd')
-                console.log('[DEBUG] Fetching availability for:', { roomId, dateStr })
                 const res = await fetch(`/api/booking/availability?roomId=${roomId}&date=${dateStr}`)
                 const data = await res.json()
-                console.log('[DEBUG] API Response:', data)
                 setBookedSlots(data.bookedSlots || [])
             } catch (error) {
                 console.error('Error fetching slots:', error)
@@ -240,6 +258,9 @@ export default function BookingFormV2({
                         className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 pl-11 text-neutral-900 focus:border-primary-500 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
                         placeholderText="Chọn ngày"
                         wrapperClassName="w-full"
+                        calendarClassName="!border !border-neutral-200 !rounded-xl !shadow-xl !p-4 !bg-white dark:!bg-neutral-900 dark:!border-neutral-700 font-sans"
+                        renderCustomHeader={(props) => <DatePickerCustomHeaderSingleMonth {...props} />}
+                        renderDayContents={(day, date) => <DatePickerCustomDay dayOfMonth={day} date={date} />}
                     />
                     <CalendarDaysIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400" />
                 </div>
@@ -251,58 +272,37 @@ export default function BookingFormV2({
                     <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                         Giờ bắt đầu
                     </label>
-                    <div className="relative">
-                        <select
-                            key={`start-${bookedSlots.length}-${date?.toISOString() || 'nodate'}`}
-                            value={startTime}
-                            onChange={(e) => {
-                                setStartTime(e.target.value)
-                                setEndTime('')
-                            }}
-                            disabled={!date || loadingSlots}
-                            className="w-full appearance-none rounded-xl border border-neutral-300 bg-white px-4 py-3 pl-11 text-neutral-900 focus:border-primary-500 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                        >
-                            <option value="">Chọn giờ bắt đầu</option>
-                            {timeSlots.map((time, idx) => {
-                                const isBooked = isTimeSlotBooked(time, bookedSlots)
-                                // Debug slots around 11:30 (index ~14-16 for 15min step)
-                                if (time === '11:15' || time === '11:30' || time === '11:45') {
-                                    console.log('[DEBUG 11:XX]', { time, isBooked, bookedSlotsLength: bookedSlots.length })
-                                }
-                                return (
-                                    <option key={time} value={time} disabled={isBooked}>
-                                        {time} {isBooked ? '(Đã đặt)' : ''}
-                                    </option>
-                                )
-                            })}
-                        </select>
-                        <ClockIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400" />
-                    </div>
+                    <TimeSelect
+                        value={startTime}
+                        onChange={(value) => {
+                            setStartTime(value)
+                            setEndTime('')
+                        }}
+                        options={timeSlots.map(time => ({
+                            value: time,
+                            label: time,
+                            disabled: isTimeSlotBooked(time, bookedSlots)
+                        }))}
+                        placeholder="Chọn giờ bắt đầu"
+                        disabled={!date || loadingSlots}
+                    />
                 </div>
 
                 <div>
                     <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                         Giờ kết thúc
                     </label>
-                    <div className="relative">
-                        <select
-                            value={endTime}
-                            onChange={(e) => setEndTime(e.target.value)}
-                            disabled={!startTime}
-                            className="w-full appearance-none rounded-xl border border-neutral-300 bg-white px-4 py-3 pl-11 text-neutral-900 focus:border-primary-500 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                        >
-                            <option value="">Chọn giờ kết thúc</option>
-                            {endTimeOptions.map((time) => {
-                                const isBooked = isTimeSlotBooked(time, bookedSlots)
-                                return (
-                                    <option key={time} value={time} disabled={isBooked}>
-                                        {time} {isBooked ? '(Đã đặt)' : ''}
-                                    </option>
-                                )
-                            })}
-                        </select>
-                        <ClockIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400" />
-                    </div>
+                    <TimeSelect
+                        value={endTime}
+                        onChange={setEndTime}
+                        options={endTimeOptions.map(time => ({
+                            value: time,
+                            label: time,
+                            disabled: isTimeSlotBooked(time, bookedSlots)
+                        }))}
+                        placeholder="Chọn giờ kết thúc"
+                        disabled={!startTime}
+                    />
                 </div>
             </div>
 

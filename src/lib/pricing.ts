@@ -19,7 +19,8 @@ export const PRICING = {
         PER_HOUR: 25000,      // Từ giờ 2: 25,000đ/giờ (tính phút)
         NERD_COIN: 2,
     },
-    DEPOSIT_RATE: 0.5,    // Cọc 50%
+    DEPOSIT_RATE: 0.5,           // Cọc 50%
+    GRACE_PERIOD_MINUTES: 15,    // Thời gian ân hạn (phút) không tính phụ trội
 } as const
 
 /**
@@ -143,7 +144,7 @@ export function calculateSurcharge(
     guests: number = 1
 ): number {
     const overtimeMinutes = actualDuration - scheduledDuration
-    if (overtimeMinutes <= 15) return 0 // 15 mins grace period
+    if (overtimeMinutes <= PRICING.GRACE_PERIOD_MINUTES) return 0 // Grace period
 
     if (serviceType === 'MEETING') {
         // Meeting: Làm tròn lên theo block 1h

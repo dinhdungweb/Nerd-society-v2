@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { XMarkIcon, ClockIcon, CurrencyDollarIcon, UserIcon, MapPinIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, ClockIcon, CurrencyDollarIcon, UserIcon, MapPinIcon, CheckCircleIcon, BoltIcon } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
@@ -18,14 +18,15 @@ interface Booking {
     estimatedAmount: number
     depositAmount: number
     depositStatus: string
+    depositPaidAt: string | null  // User reported payment time
     actualStartTime: string | null
     actualEndTime: string | null
     actualAmount: number | null
     remainingAmount: number | null
     nerdCoinIssued: number
     note: string | null
-    room?: { name: string; type: string }
-    location?: { name: string }
+    room: { name: string; type: string } | null
+    location: { name: string } | null
 }
 
 interface BookingDetailModalProps {
@@ -86,10 +87,48 @@ export default function BookingDetailModal({ open, setOpen, booking, onRefresh }
                 throw new Error(error.error || 'Có lỗi xảy ra')
             }
 
-            toast.success(
-                action === 'CHECK_IN' ? 'Check-in thành công' :
-                    action === 'CHECK_OUT' ? 'Check-out thành công' : 'Đã hủy booking'
-            )
+            const data = await res.json()
+
+            // Show warning if customer hasn't paid deposit
+            if (data.warning) {
+                toast(data.warning, { icon: '⚠️', duration: 5000 })
+            }
+
+            // Show Nerd Coin info for Pod check-in
+            if (action === 'CHECK_IN' && data.nerdCoinIssued > 0) {
+                toast.success(`Check-in thành công! Phát ${data.nerdCoinIssued} Nerd Coin cho khách.`)
+            } else {
+                toast.success(
+                    action === 'CHECK_IN' ? 'Check-in thành công' :
+                        action === 'CHECK_OUT' ? 'Check-out thành công' : 'Đã hủy booking'
+                )
+            }
+            onRefresh()
+            setOpen(false)
+        } catch (error: any) {
+            toast.error(error.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleConfirmPayment = async () => {
+        if (!booking) return
+        if (!confirm('Xác nhận đã nhận được thanh toán từ khách hàng?')) return
+
+        setLoading(true)
+        try {
+            const res = await fetch(`/api/admin/bookings/${booking.id}/confirm-payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            })
+
+            if (!res.ok) {
+                const error = await res.json()
+                throw new Error(error.error || 'Có lỗi xảy ra')
+            }
+
+            toast.success('Đã xác nhận thanh toán!')
             onRefresh()
             setOpen(false)
         } catch (error: any) {
@@ -199,16 +238,23 @@ export default function BookingDetailModal({ open, setOpen, booking, onRefresh }
                                                 <div>
                                                     <p className="text-neutral-500">
                                                         {booking.depositStatus === 'PAID_CASH' ? 'Đã thu tiền mặt' :
-                                                            booking.depositStatus === 'PAID_TRANSFER' ? 'Đã chuyển khoản' :
+                                                            booking.depositStatus === 'PAID_ONLINE' ? 'Đã chuyển khoản' :
                                                                 booking.depositStatus === 'WAIVED' ? 'Miễn cọc (Khách quen)' :
-                                                                    'Chưa cọc'}
+                                                                    booking.depositPaidAt ? 'Chờ xác nhận CK' :
+                                                                        'Chưa cọc'}
                                                     </p>
                                                     <p className={`font-medium ${booking.depositStatus === 'WAIVED' ? 'text-neutral-500' :
-                                                        booking.depositStatus === 'PENDING' ? 'text-amber-600' :
-                                                            'text-emerald-600'
+                                                        booking.depositPaidAt && booking.depositStatus === 'PENDING' ? 'text-orange-600' :
+                                                            booking.depositStatus === 'PENDING' ? 'text-amber-600' :
+                                                                'text-emerald-600'
                                                         }`}>
                                                         {booking.depositStatus === 'WAIVED' ? 'Không thu' : formatCurrency(booking.depositAmount)}
                                                     </p>
+                                                    {booking.depositPaidAt && booking.depositStatus === 'PENDING' && (
+                                                        <p className="text-xs text-orange-500 mt-1">
+                                                            Khách báo CK lúc {new Date(booking.depositPaidAt).toLocaleTimeString('vi-VN')}
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 {booking.actualAmount && (
                                                     <div className="col-span-2 border-t border-neutral-200 dark:border-neutral-700 pt-2 mt-2">
@@ -235,8 +281,8 @@ export default function BookingDetailModal({ open, setOpen, booking, onRefresh }
                                                                 <div className="flex justify-between text-sm border-t pt-2 mt-2">
                                                                     <span className="text-neutral-500">Đã thu cọc:</span>
                                                                     <span className={`font-medium ${booking.depositStatus === 'WAIVED' || booking.depositStatus === 'PENDING'
-                                                                            ? 'text-neutral-500'
-                                                                            : 'text-emerald-600'
+                                                                        ? 'text-neutral-500'
+                                                                        : 'text-emerald-600'
                                                                         }`}>
                                                                         {booking.depositStatus === 'WAIVED' ? 'Không thu (Miễn cọc)' :
                                                                             booking.depositStatus === 'PENDING' ? 'Chưa thu' :
@@ -300,12 +346,27 @@ export default function BookingDetailModal({ open, setOpen, booking, onRefresh }
                                                 >
                                                     Hủy booking
                                                 </button>
+                                                {/* Show confirm payment button for PENDING bookings
+                                                    - If depositPaidAt exists: Customer reported payment (highlight urgency)
+                                                    - Otherwise: Admin can manually verify and confirm */}
+                                                {booking.status === 'PENDING' && (
+                                                    <button
+                                                        onClick={handleConfirmPayment}
+                                                        disabled={loading}
+                                                        className={`px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 ${booking.depositPaidAt
+                                                            ? 'bg-orange-500 hover:bg-orange-600'
+                                                            : 'bg-emerald-600 hover:bg-emerald-700'
+                                                            }`}
+                                                    >
+                                                        {loading ? 'Đang xử lý...' : 'Xác nhận CK'}
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => handleAction('CHECK_IN')}
                                                     disabled={loading}
                                                     className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-50"
                                                 >
-                                                    {loading ? 'Đang xử lý...' : 'Check-in ngay'}
+                                                    {loading ? 'Đang xử lý...' : 'Check-in'}
                                                 </button>
                                             </>
                                         )}

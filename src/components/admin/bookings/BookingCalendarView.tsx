@@ -41,13 +41,13 @@ interface BookingCalendarViewProps {
     onLocationChange: (locationId: string) => void
 }
 
-const statusColors: Record<string, { bg: string; border: string; text: string }> = {
-    PENDING: { bg: 'bg-amber-100 dark:bg-amber-900/30', border: 'border-amber-300 dark:border-amber-700', text: 'text-amber-800 dark:text-amber-300' },
-    CONFIRMED: { bg: 'bg-blue-100 dark:bg-blue-900/30', border: 'border-blue-300 dark:border-blue-700', text: 'text-blue-800 dark:text-blue-300' },
-    IN_PROGRESS: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', border: 'border-emerald-300 dark:border-emerald-700', text: 'text-emerald-800 dark:text-emerald-300' },
-    COMPLETED: { bg: 'bg-neutral-100 dark:bg-neutral-800', border: 'border-neutral-300 dark:border-neutral-700', text: 'text-neutral-600 dark:text-neutral-400' },
-    CANCELLED: { bg: 'bg-red-100 dark:bg-red-900/30', border: 'border-red-300 dark:border-red-700', text: 'text-red-800 dark:text-red-300' },
-    NO_SHOW: { bg: 'bg-neutral-100 dark:bg-neutral-800', border: 'border-neutral-300 dark:border-neutral-700', text: 'text-neutral-500 dark:text-neutral-500' },
+const statusColors: Record<string, { bg: string; border: string; text: string; accent: string }> = {
+    PENDING: { bg: 'bg-amber-100 dark:bg-amber-900/30', border: 'border-amber-200 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-400', accent: 'bg-amber-500' },
+    CONFIRMED: { bg: 'bg-blue-100 dark:bg-blue-900/30', border: 'border-blue-200 dark:border-blue-700', text: 'text-blue-700 dark:text-blue-400', accent: 'bg-blue-500' },
+    IN_PROGRESS: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', border: 'border-emerald-200 dark:border-emerald-700', text: 'text-emerald-700 dark:text-emerald-400', accent: 'bg-emerald-500' },
+    COMPLETED: { bg: 'bg-neutral-100 dark:bg-neutral-800', border: 'border-neutral-200 dark:border-neutral-700', text: 'text-neutral-600 dark:text-neutral-400', accent: 'bg-neutral-500' },
+    CANCELLED: { bg: 'bg-red-100 dark:bg-red-900/30', border: 'border-red-200 dark:border-red-700', text: 'text-red-700 dark:text-red-400', accent: 'bg-red-500' },
+    NO_SHOW: { bg: 'bg-neutral-100 dark:bg-neutral-800', border: 'border-neutral-200 dark:border-neutral-700', text: 'text-neutral-500 dark:text-neutral-500', accent: 'bg-neutral-500' },
 }
 
 const statusLabels: Record<string, string> = {
@@ -86,33 +86,18 @@ export default function BookingCalendarView({
 }: BookingCalendarViewProps) {
     const timeSlots = useMemo(() => generateTimeSlots(), [])
 
-    // Filter bookings for selected date
+    // Filter bookings for selected date (exclude CANCELLED)
     const dayBookings = useMemo(() => {
         const dateStr = format(selectedDate, 'yyyy-MM-dd')
         return bookings.filter(b => {
+            // Exclude cancelled bookings - they shouldn't block the slot
+            if (b.status === 'CANCELLED') return false
             const bookingDate = new Date(b.date)
             return format(bookingDate, 'yyyy-MM-dd') === dateStr
         })
     }, [bookings, selectedDate])
 
-    // Get booking for a specific room and time
-    const getBookingAt = (roomName: string, timeSlot: string): Booking | null => {
-        const slotMinutes = timeToMinutes(timeSlot)
-        return dayBookings.find(b => {
-            if (b.room?.name !== roomName) return false
-            const startMinutes = timeToMinutes(b.startTime)
-            const endMinutes = timeToMinutes(b.endTime)
-            return slotMinutes >= startMinutes && slotMinutes < endMinutes
-        }) || null
-    }
 
-    // Check if this is the start of a booking
-    const isBookingStart = (roomName: string, timeSlot: string): boolean => {
-        return dayBookings.some(b =>
-            b.room?.name === roomName &&
-            b.startTime === timeSlot
-        )
-    }
 
     // Get booking duration in slots
     const getBookingDuration = (booking: Booking): number => {
@@ -239,39 +224,68 @@ export default function BookingCalendarView({
                                 style={{ gridTemplateColumns: `80px repeat(${rooms.length}, 1fr)` }}
                             >
                                 {/* Time Label */}
-                                <div className="p-2 text-xs font-medium text-neutral-500 dark:text-neutral-400 flex items-start justify-end pr-3">
+                                <div className="p-2 text-xs font-medium text-neutral-500 dark:text-neutral-400 flex items-start justify-center">
                                     {timeSlot}
                                 </div>
 
                                 {/* Room Cells */}
                                 {rooms.map(room => {
-                                    const booking = getBookingAt(room.name, timeSlot)
-                                    const isStart = booking && isBookingStart(room.name, timeSlot)
+                                    // Find booking starting in this specific hour slot
+                                    const slotStartMinutes = timeToMinutes(timeSlot)
+                                    const slotEndMinutes = slotStartMinutes + 60
+
+                                    const booking = dayBookings.find(b => {
+                                        if (b.room?.name !== room.name) return false
+                                        const start = timeToMinutes(b.startTime)
+                                        return start >= slotStartMinutes && start < slotEndMinutes
+                                    })
+
                                     const duration = booking ? getBookingDuration(booking) : 0
                                     const colors = booking ? statusColors[booking.status] || statusColors.PENDING : null
+
+                                    // Calculate top offset for bookings not starting exactly at the hour
+                                    const startMinutes = booking ? timeToMinutes(booking.startTime) : 0
+                                    const HOUR_HEIGHT = 100
+                                    const topOffset = ((startMinutes - slotStartMinutes) / 60) * HOUR_HEIGHT
 
                                     return (
                                         <div
                                             key={room.id}
-                                            className="relative border-l border-neutral-100 dark:border-neutral-800 min-h-[48px]"
+                                            className="relative border-l border-neutral-100 dark:border-neutral-800"
+                                            style={{ minHeight: `${HOUR_HEIGHT}px` }}
                                         >
-                                            {isStart && booking && (
+                                            {booking && (
                                                 <button
                                                     onClick={() => onBookingClick(booking)}
-                                                    className={`absolute inset-x-1 top-1 rounded-lg border p-2 text-left transition-all hover:shadow-md hover:scale-[1.02] z-10 ${colors?.bg} ${colors?.border}`}
-                                                    style={{ height: `calc(${duration * 48}px - 8px)` }}
+                                                    className={`absolute inset-x-1 rounded shadow-sm text-left transition-all hover:shadow-md hover:scale-[1.02] z-10 overflow-hidden group flex flex-col ${colors?.bg} border border-transparent`}
+                                                    style={{
+                                                        height: `calc(${duration * HOUR_HEIGHT}px - 2px)`, // Reduced gap to 2px
+                                                        top: `${topOffset + 1}px` // Reduced top padding to 1px
+                                                    }}
                                                 >
-                                                    <p className={`text-xs font-semibold truncate ${colors?.text}`}>
-                                                        {booking.customerName}
-                                                    </p>
-                                                    <p className={`text-[10px] ${colors?.text} opacity-75`}>
-                                                        {booking.startTime} - {booking.endTime}
-                                                    </p>
-                                                    {duration > 1 && (
-                                                        <p className={`text-[10px] mt-1 ${colors?.text} opacity-75`}>
-                                                            {statusLabels[booking.status]}
-                                                        </p>
-                                                    )}
+                                                    {/* Accent Bar */}
+                                                    <div className={`absolute left-0 inset-y-0 w-1 ${colors?.accent}`} />
+
+                                                    <div className="pl-3 pr-2 py-1.5 flex flex-col h-full justify-between">
+                                                        <div>
+                                                            <p className={`text-xs font-semibold truncate leading-tight ${colors?.text}`}>
+                                                                {booking.customerName}
+                                                            </p>
+                                                            {/* Only show time if height > 20px */}
+                                                            {(duration * HOUR_HEIGHT) > 20 && (
+                                                                <p className={`text-[10px] ${colors?.text} opacity-75 leading-tight mt-0.5`}>
+                                                                    {booking.startTime} - {booking.endTime}
+                                                                </p>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Only show status if height > 40px */}
+                                                        {(duration * HOUR_HEIGHT) > 40 && (
+                                                            <p className={`text-[10px] font-medium ${colors?.text} opacity-90 truncate mt-1`}>
+                                                                {statusLabels[booking.status]}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </button>
                                             )}
                                         </div>

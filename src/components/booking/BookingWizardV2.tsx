@@ -195,43 +195,85 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
 
     return (
         <div>
-            {/* Steps Indicator */}
-            <div className="mb-12">
-                <div className="relative flex items-center justify-between">
-                    {/* Progress Bar */}
-                    <div className="absolute left-[40px] right-[40px] top-5 h-0.5">
-                        <div className="absolute inset-0 bg-neutral-700" />
+            {/* Modern Steps Indicator */}
+            <div className="mx-auto mb-12 max-w-4xl">
+                <div className="relative">
+                    {/* Background Card */}
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary-100/50 via-secondary-100/30 to-primary-100/50 dark:from-primary-900/20 dark:via-secondary-900/10 dark:to-primary-900/20 blur-xl" />
+
+                    <div className="relative rounded-2xl border border-primary-200/50 bg-white/80 px-12 py-6 backdrop-blur-sm dark:border-primary-800/30 dark:bg-neutral-900/80">
+                        {/* Progress Line Background - starts from center of first circle to center of last circle */}
                         <div
-                            className="absolute inset-y-0 left-0 bg-primary-500 transition-all duration-300"
-                            style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+                            className="absolute h-1 rounded-full bg-neutral-200 dark:bg-neutral-700"
+                            style={{
+                                left: 'calc(48px + 24px)', // px-12 (48px) + half circle (24px)
+                                right: 'calc(48px + 24px)', // same for right
+                                top: '46px' // py-6(24px) + half circle(24px) - half line height(2px)
+                            }}
                         />
+
+                        {/* Progress Line Fill */}
+                        <div
+                            className="absolute h-1 rounded-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-500 ease-out"
+                            style={{
+                                left: 'calc(48px + 24px)',
+                                top: '46px',
+                                width: currentStep === 1
+                                    ? '0%'
+                                    : `calc((100% - 48px - 48px - 48px) * ${(currentStep - 1) / (steps.length - 1)})`
+                            }}
+                        />
+
+                        <div className="relative flex items-start justify-between">
+                            {steps.map((step) => {
+                                const isCompleted = currentStep > step.id
+                                const isCurrent = currentStep === step.id
+
+                                return (
+                                    <div key={step.id} className="flex flex-col items-center">
+                                        {/* Step Circle */}
+                                        <div className="relative">
+                                            {/* Glow Effect for Current */}
+                                            {isCurrent && (
+                                                <div className="absolute -inset-2 animate-pulse rounded-full bg-primary-400/30 blur-md dark:bg-primary-500/20" />
+                                            )}
+
+                                            <button
+                                                onClick={() => {
+                                                    if (isCompleted) setCurrentStep(step.id)
+                                                }}
+                                                disabled={!isCompleted && !isCurrent}
+                                                className={`relative z-10 flex size-12 items-center justify-center rounded-full border-2 font-semibold transition-all duration-300 ${isCompleted
+                                                    ? 'cursor-pointer border-primary-500 bg-gradient-to-br from-primary-400 to-primary-600 text-white shadow-lg shadow-primary-500/30 hover:scale-110'
+                                                    : isCurrent
+                                                        ? 'border-primary-500 bg-white text-primary-600 shadow-lg shadow-primary-500/20 dark:bg-neutral-800 dark:text-primary-400'
+                                                        : 'cursor-not-allowed border-neutral-300 bg-neutral-100 text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-500'
+                                                    }`}
+                                            >
+                                                {isCompleted ? (
+                                                    <CheckIcon className="size-6" />
+                                                ) : (
+                                                    <span className="text-lg">{step.id}</span>
+                                                )}
+                                            </button>
+                                        </div>
+
+                                        {/* Step Name */}
+                                        <span
+                                            className={`mt-3 text-sm font-medium transition-colors ${isCompleted
+                                                ? 'text-primary-600 dark:text-primary-400'
+                                                : isCurrent
+                                                    ? 'text-primary-700 dark:text-primary-300'
+                                                    : 'text-neutral-400 dark:text-neutral-500'
+                                                }`}
+                                        >
+                                            {step.name}
+                                        </span>
+                                    </div>
+                                )
+                            })}
+                        </div>
                     </div>
-
-                    {steps.map((step) => {
-                        const isCompleted = currentStep > step.id
-                        const isCurrent = currentStep === step.id
-
-                        return (
-                            <div key={step.id} className="relative z-10 flex flex-col items-center gap-2">
-                                <div
-                                    className={`flex size-10 items-center justify-center rounded-full border-2 transition-colors duration-300 ${isCompleted
-                                        ? 'border-primary-500 bg-primary-500 text-white'
-                                        : isCurrent
-                                            ? 'border-primary-500 bg-neutral-950 text-primary-500'
-                                            : 'border-neutral-700 bg-neutral-950 text-neutral-400'
-                                        }`}
-                                >
-                                    {isCompleted ? <CheckIcon className="size-6" /> : <span>{step.id}</span>}
-                                </div>
-                                <span
-                                    className={`text-sm font-medium ${isCurrent ? 'text-primary-400' : 'text-neutral-400'
-                                        }`}
-                                >
-                                    {step.name}
-                                </span>
-                            </div>
-                        )
-                    })}
                 </div>
             </div>
 

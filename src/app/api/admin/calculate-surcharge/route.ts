@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { calculateSurcharge, calculateBookingPrice, PRICING } from '@/lib/pricing'
+import { calculateSurchargeFromDB, SYSTEM_CONFIG } from '@/lib/pricing-db'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
         if (booking.room.type === 'POD_MULTI') serviceType = 'POD_MULTI'
         if (booking.room.type === 'MEETING_LONG' || booking.room.type === 'MEETING_ROUND') serviceType = 'MEETING'
 
-        const surcharge = calculateSurcharge(
+        const surcharge = await calculateSurchargeFromDB(
             serviceType,
             actualDuration,
             scheduledDuration,

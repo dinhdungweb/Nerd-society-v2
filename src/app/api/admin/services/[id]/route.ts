@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { invalidateServicePricingCache } from '@/lib/pricing-db'
 
 // GET - Lấy chi tiết Service
 export async function GET(
@@ -63,6 +64,9 @@ export async function PUT(
                 isActive,
             },
         })
+
+        // Invalidate pricing cache so new prices take effect immediately
+        invalidateServicePricingCache()
 
         return NextResponse.json(service)
     } catch (error) {

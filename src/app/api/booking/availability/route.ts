@@ -35,7 +35,6 @@ export async function GET(request: NextRequest) {
             )
         }
 
-        console.log('[DEBUG availability API]', { roomId, dateStr })
 
         // Get booked slots - pass dateStr directly (getBookedSlots now expects string)
         const bookedSlots = await getBookedSlots(roomId, dateStr)
