@@ -23,6 +23,9 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                         <Link href="/profile" className="block rounded-lg px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800">
                             Lịch sử đặt lịch
                         </Link>
+                        <Link href="/profile/nerdcoin" className="block rounded-lg px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800">
+                            Nerd Coin
+                        </Link>
                         <Link href="/profile/settings" className="block rounded-lg px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800">
                             Cài đặt tài khoản
                         </Link>

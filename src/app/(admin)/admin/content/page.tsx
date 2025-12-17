@@ -3,8 +3,15 @@
 import { Button } from '@/shared/Button'
 import { useState, useEffect, useRef } from 'react'
 import { toast } from 'react-hot-toast'
-import { PhotoIcon, TrashIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline'
-import Image from 'next/image'
+import {
+    PhotoIcon,
+    TrashIcon,
+    CloudArrowUpIcon,
+    DocumentTextIcon,
+    NewspaperIcon,
+    Cog6ToothIcon,
+    SparklesIcon,
+} from '@heroicons/react/24/outline'
 
 interface Settings {
     heroTitle: string
@@ -121,62 +128,94 @@ export default function AdminContentPage() {
         }
     }
 
-    if (loading) return <div className="p-8">Đang tải...</div>
+    if (loading) {
+        return (
+            <div className="flex min-h-[400px] items-center justify-center">
+                <div className="animate-pulse text-lg text-neutral-500 dark:text-neutral-400">Đang tải cấu hình...</div>
+            </div>
+        )
+    }
 
     return (
-        <div className="space-y-6 p-8">
-            <div>
-                <h1 className="text-2xl font-bold text-neutral-900">Quản lý nội dung Landing Page</h1>
-                <p className="text-neutral-500">Chỉnh sửa các đoạn văn bản trên trang chủ</p>
+        <div className="space-y-6">
+            {/* Page Header */}
+            <div className="flex flex-col gap-1">
+                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Quản lý nội dung</h1>
+                <p className="text-neutral-500 dark:text-neutral-400">Chỉnh sửa nội dung hiển thị trên trang chủ</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8 divide-y divide-neutral-200">
+            <form onSubmit={handleSubmit} className="space-y-6">
 
-                {/* HERO SECTION */}
-                <div className="pt-6">
-                    <h2 className="mb-4 text-lg font-medium text-neutral-900">Hero Section (Phần đầu trang)</h2>
-                    <div className="grid gap-6 md:grid-cols-2">
-                        <div className="col-span-2">
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Tiêu đề chính</label>
+                {/* HERO SECTION CARD */}
+                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-6 flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white">
+                            <SparklesIcon className="size-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Hero Section</h2>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">Phần đầu trang chủ</p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-5 lg:grid-cols-2">
+                        {/* Title */}
+                        <div className="lg:col-span-2">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Tiêu đề chính
+                            </label>
                             <input
                                 type="text"
                                 value={settings.heroTitle}
                                 onChange={e => handleChange('heroTitle', e.target.value)}
-                                className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="Nhập tiêu đề..."
                             />
                         </div>
-                        <div className="col-span-2">
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Mô tả phụ</label>
+
+                        {/* Subtitle */}
+                        <div className="lg:col-span-2">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Mô tả phụ
+                            </label>
                             <textarea
                                 rows={3}
                                 value={settings.heroSubtitle}
                                 onChange={e => handleChange('heroSubtitle', e.target.value)}
-                                className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
+                                className="w-full resize-none rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="Nhập mô tả..."
                             />
                         </div>
+
+                        {/* CTA Button */}
                         <div>
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Nút hành động (CTA)</label>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Nút hành động (CTA)
+                            </label>
                             <input
                                 type="text"
                                 value={settings.heroCta}
                                 onChange={e => handleChange('heroCta', e.target.value)}
-                                className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="Đặt chỗ ngay"
                             />
                         </div>
 
-                        {/* Hero Background Image Upload */}
-                        <div className="col-span-2">
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Ảnh nền Hero Section</label>
-                            <div className="flex items-start gap-4">
+                        {/* Background Image Upload */}
+                        <div className="lg:col-span-2">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Ảnh nền Hero
+                            </label>
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                                 {/* Preview */}
-                                <div className="relative h-36 w-64 overflow-hidden rounded-lg border-2 border-dashed border-neutral-300 bg-neutral-100">
+                                <div className="relative h-52 w-full overflow-hidden rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 sm:w-64">
                                     {settings.heroBackgroundImage ? (
                                         <>
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                                 src={settings.heroBackgroundImage}
                                                 alt="Hero background preview"
-                                                className="absolute inset-0 h-full w-full object-cover"
+                                                className="absolute inset-0 size-full object-cover"
                                             />
                                             <button
                                                 type="button"
@@ -188,9 +227,9 @@ export default function AdminContentPage() {
                                         </>
                                     ) : (
                                         <div className="flex size-full flex-col items-center justify-center text-neutral-400">
-                                            <PhotoIcon className="size-12" />
+                                            <PhotoIcon className="size-10" />
                                             <span className="mt-2 text-xs">Chưa có ảnh nền</span>
-                                            <span className="text-xs">(Dùng ảnh mặc định)</span>
+                                            <span className="text-xs text-neutral-400">(Dùng ảnh mặc định)</span>
                                         </div>
                                     )}
                                 </div>
@@ -204,17 +243,17 @@ export default function AdminContentPage() {
                                         onChange={handleImageUpload}
                                         className="hidden"
                                     />
-                                    <Button
+                                    <button
                                         type="button"
-                                        outline
                                         onClick={() => fileInputRef.current?.click()}
                                         disabled={uploadingImage}
+                                        className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
                                     >
                                         <CloudArrowUpIcon className="size-5" />
                                         {uploadingImage ? 'Đang upload...' : 'Upload ảnh mới'}
-                                    </Button>
-                                    <p className="text-xs text-neutral-500">
-                                        Kích thước khuyến nghị: 1920x1080px<br />
+                                    </button>
+                                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                        Khuyến nghị: 1920x1080px<br />
                                         Định dạng: JPG, PNG, WebP
                                     </p>
                                 </div>
@@ -223,66 +262,107 @@ export default function AdminContentPage() {
                     </div>
                 </div>
 
-                {/* ABOUT SECTION */}
-                <div className="pt-6">
-                    <h2 className="mb-4 text-lg font-medium text-neutral-900">About Section (Giới thiệu)</h2>
-                    <div className="grid gap-6">
+                {/* ABOUT SECTION CARD */}
+                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-6 flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+                            <DocumentTextIcon className="size-5" />
+                        </div>
                         <div>
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Tiêu đề</label>
+                            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">About Section</h2>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">Phần giới thiệu</p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-5">
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Tiêu đề
+                            </label>
                             <input
                                 type="text"
                                 value={settings.aboutTitle}
                                 onChange={e => handleChange('aboutTitle', e.target.value)}
-                                className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="Câu chuyện của Nerd"
                             />
                         </div>
                         <div>
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Nội dung</label>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Nội dung
+                            </label>
                             <textarea
                                 rows={5}
                                 value={settings.aboutContent}
                                 onChange={e => handleChange('aboutContent', e.target.value)}
-                                className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
+                                className="w-full resize-none rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="Nhập nội dung giới thiệu..."
                             />
                         </div>
                     </div>
                 </div>
 
-                {/* NEWS CAROUSEL SECTION */}
-                <div className="pt-6">
-                    <h2 className="mb-4 text-lg font-medium text-neutral-900">Tin tức & Sự kiện (Carousel)</h2>
-                    <div className="grid gap-6 md:grid-cols-2">
-                        <div className="col-span-2">
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Tiêu đề section</label>
+                {/* NEWS CAROUSEL SECTION CARD */}
+                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-6 flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                            <NewspaperIcon className="size-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Tin tức & Sự kiện</h2>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">Cấu hình carousel tin tức</p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-5 lg:grid-cols-2">
+                        {/* Title */}
+                        <div className="lg:col-span-2">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Tiêu đề section
+                            </label>
                             <input
                                 type="text"
                                 value={settings.newsTitle}
                                 onChange={e => handleChange('newsTitle', e.target.value)}
-                                className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="Tin tức & Sự kiện"
                             />
                         </div>
-                        <div className="col-span-2">
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Mô tả</label>
+
+                        {/* Subtitle */}
+                        <div className="lg:col-span-2">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Mô tả
+                            </label>
                             <input
                                 type="text"
                                 value={settings.newsSubtitle}
                                 onChange={e => handleChange('newsSubtitle', e.target.value)}
-                                className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="Cập nhật những hoạt động mới nhất..."
                             />
                         </div>
+
+                        {/* News Limit */}
                         <div>
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Số bài viết hiển thị</label>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Số bài viết hiển thị
+                            </label>
                             <input
                                 type="number"
                                 min="1"
                                 max="12"
                                 value={settings.newsLimit}
                                 onChange={e => handleChange('newsLimit', e.target.value)}
-                                className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
                             />
                         </div>
+
+                        {/* Autoplay Delay */}
                         <div>
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Thời gian chuyển slide (ms)</label>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Thời gian chuyển slide (ms)
+                            </label>
                             <input
                                 type="number"
                                 min="1000"
@@ -290,26 +370,34 @@ export default function AdminContentPage() {
                                 step="500"
                                 value={settings.newsAutoplayDelay}
                                 onChange={e => handleChange('newsAutoplayDelay', e.target.value)}
-                                className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
                             />
                         </div>
+
+                        {/* Autoplay Toggle */}
                         <div>
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Tự động chuyển slide</label>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Tự động chuyển slide
+                            </label>
                             <select
                                 value={settings.newsAutoplay}
                                 onChange={e => handleChange('newsAutoplay', e.target.value)}
-                                className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
                             >
                                 <option value="true">Bật</option>
                                 <option value="false">Tắt</option>
                             </select>
                         </div>
+
+                        {/* Show Navigation */}
                         <div>
-                            <label className="mb-2 block text-sm font-medium text-neutral-700">Hiển thị nút điều hướng</label>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Hiển thị nút điều hướng
+                            </label>
                             <select
                                 value={settings.newsShowNavigation}
                                 onChange={e => handleChange('newsShowNavigation', e.target.value)}
-                                className="w-full rounded-lg border border-neutral-300 p-2.5 focus:border-primary-500 focus:ring-primary-500"
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
                             >
                                 <option value="true">Bật</option>
                                 <option value="false">Tắt</option>
@@ -318,13 +406,18 @@ export default function AdminContentPage() {
                     </div>
                 </div>
 
-                <div className="pt-6">
-                    <Button type="submit" loading={saving} disabled={saving} color="primary">
-                        Lưu thay đổi
+                {/* Save Button */}
+                <div className="flex justify-end">
+                    <Button
+                        type="submit"
+                        loading={saving}
+                        disabled={saving}
+                        className="px-6"
+                    >
+                        {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
                     </Button>
                 </div>
             </form>
         </div>
     )
 }
-

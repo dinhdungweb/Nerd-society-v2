@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 // GET - Lấy danh sách phòng
 export async function GET() {
@@ -30,9 +32,14 @@ export async function GET() {
     }
 }
 
-// POST - Tạo phòng mới
+// POST - Tạo phòng mới (ADMIN only)
 export async function POST(request: Request) {
     try {
+        const session = await getServerSession(authOptions)
+        if (!session || session.user.role !== 'ADMIN') {
+            return NextResponse.json({ error: 'Chỉ Admin mới có thể thêm phòng' }, { status: 403 })
+        }
+
         const body = await request.json()
         const { name, type, description, capacity, amenities, image, locationId } = body
 

@@ -37,8 +37,7 @@ Phiên bản: Gửi dev tham khảo & triển khai
 
 0. NGUYÊN TẮC HỆ THỐNG (BẮT BUỘC)
 Mỗi phòng (Meeting / Pod) = 1 tài nguyên độc lập
-Google Calendar là nguồn dữ liệu duy nhất quyết định giờ trống
-Booking online & booking tại quầy đều phải tạo event trên calendar
+database là nguồn dữ liệu duy nhất quyết định giờ trống
 Cọc 50% là điều kiện để giữ phòng
 Sapo chỉ dùng để thu tiền, không quyết định giờ
 Không còn khái niệm gói nước → toàn bộ chuyển sang Nerd Coin
@@ -163,11 +162,7 @@ Thanh toán chưa thành công. Phòng chỉ được giữ khi Nerd nhận đ�
 Meeting & Pod đều book online + cọc
 Pod giờ đầu tặng Nerd Coin (Mono: 1, Multi: 2)
 Không còn gói nước
-Google Calendar quyết định giờ trống
 Sapo chỉ dùng để thu tiền
 
 
-Admin UI: Trang quản lý Rooms, Services, xem Calendar
-Booking API: API cho luồng đặt phòng mới
-Frontend Booking: Giao diện đặt phòng cho khách
 

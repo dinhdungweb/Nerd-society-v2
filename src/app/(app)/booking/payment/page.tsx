@@ -29,7 +29,8 @@ interface BookingInfo {
     guests: number
     estimatedAmount: number
     depositAmount: number
-    createdAt: string // Add createdAt to calculate remaining time
+    createdAt: string
+    paymentStartedAt: string | null // Thời điểm bắt đầu thanh toán (khi chọn phương thức)
     location: {
         id: string
         name: string
@@ -133,12 +134,18 @@ const CheckoutContent = () => {
                     const data = await res.json()
                     setBookingInfo(data.booking)
 
-                    // Calculate remaining time based on booking creation time
-                    const createdAt = new Date(data.booking.createdAt)
-                    const now = new Date()
-                    const elapsedSeconds = Math.floor((now.getTime() - createdAt.getTime()) / 1000)
-                    const remainingSeconds = Math.max(0, 5 * 60 - elapsedSeconds)
-                    setCountdown(remainingSeconds)
+                    // Calculate remaining time based on paymentStartedAt (when user selected payment)
+                    // If paymentStartedAt is not set yet, show full 5 minutes
+                    if (data.booking.paymentStartedAt) {
+                        const paymentStarted = new Date(data.booking.paymentStartedAt)
+                        const now = new Date()
+                        const elapsedSeconds = Math.floor((now.getTime() - paymentStarted.getTime()) / 1000)
+                        const remainingSeconds = Math.max(0, 5 * 60 - elapsedSeconds)
+                        setCountdown(remainingSeconds)
+                    } else {
+                        // Timer hasn't started yet - show full 5 minutes
+                        setCountdown(5 * 60)
+                    }
 
                     // If payment already selected AND user is on QR step (via URL param), restore that state
                     if (data.booking.payment?.method) {

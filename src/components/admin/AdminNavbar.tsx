@@ -3,17 +3,16 @@
 import { ThemeContext } from '@/app/theme-provider'
 import {
     Bars3Icon,
-    BellIcon,
     MagnifyingGlassIcon,
     MoonIcon,
     SunIcon,
     ChevronDownIcon,
     ArrowLeftOnRectangleIcon,
-    UserCircleIcon,
 } from '@heroicons/react/24/outline'
 import { signOut, useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useContext, useState, useRef, useEffect } from 'react'
+import NotificationBell from './NotificationBell'
 
 interface AdminNavbarProps {
     onMenuClick: () => void
@@ -90,13 +89,7 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                 </button>
 
                 {/* Notifications */}
-                <button
-                    type="button"
-                    className="relative rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
-                >
-                    <BellIcon className="size-5" />
-                    <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500" />
-                </button>
+                <NotificationBell />
 
                 {/* Divider */}
                 <div className="mx-2 h-6 w-px bg-neutral-200 dark:bg-neutral-700" />
@@ -133,7 +126,7 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                                     </div>
                                     <div>
                                         <p className="font-medium text-neutral-900 dark:text-white">
-                                            Admin {session?.user?.name?.split(' ')[0] || 'Nerd Society'}
+                                            {session?.user?.role === 'ADMIN' ? 'Admin' : 'Staff'} {session?.user?.name?.split(' ')[0] || 'Nerd Society'}
                                         </p>
                                         <p className="text-xs text-neutral-500 dark:text-neutral-400">
                                             {session?.user?.email || 'admin@nerdsociety.com'}

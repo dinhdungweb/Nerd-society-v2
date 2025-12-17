@@ -248,6 +248,11 @@ export async function POST(request: NextRequest) {
             user: booking.user || null,
         }).catch(console.error)
 
+        // Create admin notification (async, don't wait)
+        import('@/lib/notifications').then(({ notifyNewBooking }) => {
+            notifyNewBooking(booking.bookingCode, customerName, booking.id).catch(console.error)
+        })
+
         return NextResponse.json({
             booking: {
                 id: booking.id,

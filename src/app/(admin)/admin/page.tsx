@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { format } from 'date-fns'
+import { format, subDays, startOfDay, endOfDay } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import Link from 'next/link'
 import {
@@ -13,15 +13,21 @@ import {
     PhotoIcon,
     PlusIcon,
     ArrowRightIcon,
+    ChartBarIcon,
 } from '@heroicons/react/24/outline'
+import { RevenueChart, BookingChart, RoomUsageChart } from '@/components/admin/DashboardCharts'
 
 async function getStats() {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+
     const [
         totalBookings,
         todayBookings,
+        yesterdayBookings,
         pendingBookings,
         totalCustomers,
     ] = await Promise.all([
@@ -32,6 +38,11 @@ async function getStats() {
             },
         }),
         prisma.booking.count({
+            where: {
+                createdAt: { gte: yesterday, lt: today },
+            },
+        }),
+        prisma.booking.count({
             where: { status: 'PENDING' },
         }),
         prisma.user.count({
@@ -39,15 +50,19 @@ async function getStats() {
         }),
     ])
 
-    // Calculate revenue (simplified)
+    // Calculate revenue
     const payments = await prisma.payment.aggregate({
         where: { status: 'COMPLETED' },
         _sum: { amount: true },
     })
 
+    // Calculate booking change
+    const bookingChange = todayBookings - yesterdayBookings
+
     return {
         totalBookings,
         todayBookings,
+        bookingChange,
         pendingBookings,
         totalCustomers,
         totalRevenue: payments._sum.amount || 0,
@@ -64,7 +79,6 @@ async function getRecentBookings() {
             room: { select: { name: true, type: true } },
         },
     })
-    // Transform for backward compatibility
     return bookings.map(b => ({
         ...b,
         combo: b.room ? { name: b.room.name } : { name: 'N/A' },
@@ -74,6 +88,69 @@ async function getRecentBookings() {
             email: b.customerEmail || b.user?.email || '',
         },
     }))
+}
+
+async function getChartData() {
+    const today = new Date()
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const date = subDays(today, 6 - i)
+        return {
+            start: startOfDay(date),
+            end: endOfDay(date),
+            label: format(date, 'dd/MM'),
+        }
+    })
+
+    // Get revenue data for last 7 days
+    const revenueData = await Promise.all(
+        last7Days.map(async ({ start, end, label }) => {
+            const payments = await prisma.payment.aggregate({
+                where: {
+                    status: 'COMPLETED',
+                    paidAt: { gte: start, lte: end },
+                },
+                _sum: { amount: true },
+            })
+            return {
+                date: label,
+                amount: payments._sum.amount || 0,
+            }
+        })
+    )
+
+    // Get booking data for last 7 days
+    const bookingData = await Promise.all(
+        last7Days.map(async ({ start, end, label }) => {
+            const count = await prisma.booking.count({
+                where: {
+                    createdAt: { gte: start, lte: end },
+                },
+            })
+            return {
+                date: label,
+                bookings: count,
+            }
+        })
+    )
+
+    // Get top rooms by bookings
+    const roomStats = await prisma.room.findMany({
+        select: {
+            name: true,
+            _count: { select: { bookings: true } },
+        },
+        orderBy: {
+            bookings: { _count: 'desc' },
+        },
+        take: 5,
+    })
+
+    const roomUsageData = roomStats.map(r => ({
+        name: r.name,
+        bookings: r._count.bookings,
+    }))
+
+    return { revenueData, bookingData, roomUsageData }
 }
 
 const statusLabels: Record<string, string> = {
@@ -104,6 +181,7 @@ const quickActions = [
 export default async function AdminDashboard() {
     const stats = await getStats()
     const recentBookings = await getRecentBookings()
+    const chartData = await getChartData()
 
     const statCards = [
         {
@@ -114,24 +192,27 @@ export default async function AdminDashboard() {
             icon: BanknotesIcon,
             gradient: 'from-emerald-500 to-teal-600',
             bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
+            iconColor: 'text-emerald-600 dark:text-emerald-400',
         },
         {
             name: 'Booking hôm nay',
             value: stats.todayBookings.toString(),
-            change: '+2',
-            trend: 'up',
+            change: stats.bookingChange >= 0 ? `+${stats.bookingChange}` : stats.bookingChange.toString(),
+            trend: stats.bookingChange >= 0 ? 'up' : 'down',
             icon: CalendarDaysIcon,
             gradient: 'from-blue-500 to-indigo-600',
             bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+            iconColor: 'text-blue-600 dark:text-blue-400',
         },
         {
             name: 'Chờ xác nhận',
             value: stats.pendingBookings.toString(),
-            change: '-1',
-            trend: 'down',
+            change: stats.pendingBookings > 0 ? 'Cần xử lý' : 'OK',
+            trend: stats.pendingBookings > 0 ? 'down' : 'up',
             icon: ClockIcon,
             gradient: 'from-amber-500 to-orange-600',
             bgColor: 'bg-amber-50 dark:bg-amber-900/20',
+            iconColor: 'text-amber-600 dark:text-amber-400',
         },
         {
             name: 'Tổng khách hàng',
@@ -141,13 +222,14 @@ export default async function AdminDashboard() {
             icon: UsersIcon,
             gradient: 'from-purple-500 to-pink-600',
             bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+            iconColor: 'text-purple-600 dark:text-purple-400',
         },
     ]
 
     return (
         <div className="space-y-8">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
                         Xin chào! 👋
@@ -170,12 +252,11 @@ export default async function AdminDashboard() {
                 {statCards.map((stat) => (
                     <div
                         key={stat.name}
-                        className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-neutral-200/50 transition-all hover:shadow-lg hover:border-neutral-300 dark:bg-neutral-900 dark:border-neutral-800 dark:hover:border-neutral-700"
+                        className="group relative overflow-hidden rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm transition-all hover:border-neutral-300 hover:shadow-lg dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-700"
                     >
                         <div className="flex items-start justify-between">
                             <div className={`rounded-xl p-3 ${stat.bgColor}`}>
-                                <stat.icon className={`size-6 bg-gradient-to-br ${stat.gradient} bg-clip-text text-transparent`} style={{ stroke: 'url(#gradient)' }} />
-                                <stat.icon className={`size-6 text-${stat.gradient.includes('emerald') ? 'emerald' : stat.gradient.includes('blue') ? 'blue' : stat.gradient.includes('amber') ? 'amber' : 'purple'}-600 dark:text-${stat.gradient.includes('emerald') ? 'emerald' : stat.gradient.includes('blue') ? 'blue' : stat.gradient.includes('amber') ? 'amber' : 'purple'}-400`} />
+                                <stat.icon className={`size-6 ${stat.iconColor}`} />
                             </div>
                             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${stat.trend === 'up'
                                 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
@@ -193,16 +274,66 @@ export default async function AdminDashboard() {
                             <h3 className="text-2xl font-bold text-neutral-900 dark:text-white">{stat.value}</h3>
                             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{stat.name}</p>
                         </div>
-                        {/* Decorative gradient */}
                         <div className={`absolute -right-8 -top-8 size-24 rounded-full bg-gradient-to-br ${stat.gradient} opacity-10 blur-2xl transition-opacity group-hover:opacity-20`} />
                     </div>
                 ))}
             </div>
 
+            {/* Charts Section */}
+            <div className="grid gap-6 lg:grid-cols-2">
+                {/* Revenue Chart */}
+                <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+                                <BanknotesIcon className="size-5 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-neutral-900 dark:text-white">Doanh thu 7 ngày</h3>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Theo ngày</p>
+                            </div>
+                        </div>
+                    </div>
+                    <RevenueChart data={chartData.revenueData} />
+                </div>
+
+                {/* Booking Chart */}
+                <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="flex size-10 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/30">
+                                <CalendarDaysIcon className="size-5 text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-neutral-900 dark:text-white">Booking 7 ngày</h3>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Số lượng booking</p>
+                            </div>
+                        </div>
+                    </div>
+                    <BookingChart data={chartData.bookingData} />
+                </div>
+
+                {/* Room Usage Chart */}
+                <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 lg:col-span-2">
+                    <div className="mb-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="flex size-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/30">
+                                <ChartBarIcon className="size-5 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-neutral-900 dark:text-white">Phòng được đặt nhiều</h3>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Top 5 phòng</p>
+                            </div>
+                        </div>
+                    </div>
+                    <RoomUsageChart data={chartData.roomUsageData} />
+                </div>
+            </div>
+
             {/* Quick Actions */}
-            <div className="rounded-2xl bg-white p-6 shadow-sm border border-neutral-200/50 dark:bg-neutral-900 dark:border-neutral-800">
-                <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">Thao tác nhanh</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                <h2 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-white">Thao tác nhanh</h2>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     {quickActions.map((action) => (
                         <Link
                             key={action.name}
@@ -212,7 +343,7 @@ export default async function AdminDashboard() {
                             <div className={`flex size-12 items-center justify-center rounded-xl ${action.color} text-white shadow-lg`}>
                                 <action.icon className="size-6" />
                             </div>
-                            <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300 group-hover:text-neutral-900 dark:group-hover:text-white">
+                            <span className="text-sm font-medium text-neutral-700 group-hover:text-neutral-900 dark:text-neutral-300 dark:group-hover:text-white">
                                 {action.name}
                             </span>
                         </Link>
@@ -221,7 +352,7 @@ export default async function AdminDashboard() {
             </div>
 
             {/* Recent Bookings */}
-            <div className="rounded-2xl bg-white shadow-sm border border-neutral-200/50 dark:bg-neutral-900 dark:border-neutral-800">
+            <div className="rounded-2xl border border-neutral-200/50 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                 <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4 dark:border-neutral-800">
                     <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Booking gần đây</h2>
                     <Link
@@ -250,7 +381,7 @@ export default async function AdminDashboard() {
                                     <tr key={booking.id} className="text-sm transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
                                         <td className="whitespace-nowrap px-6 py-4">
                                             <Link
-                                                href={`/admin/bookings/${booking.id}`}
+                                                href={`/admin/bookings`}
                                                 className="font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400"
                                             >
                                                 {booking.bookingCode}

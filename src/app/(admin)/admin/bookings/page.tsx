@@ -12,12 +12,13 @@ import {
     ChevronLeftIcon,
     ChevronRightIcon,
     CalendarDaysIcon,
-    PlusIcon
+    PlusIcon,
+    BanknotesIcon,
 } from '@heroicons/react/24/outline'
 import BookingDetailModal from '@/components/admin/bookings/BookingDetailModal'
 import CreateBookingModal from '@/components/admin/bookings/CreateBookingModal'
 import BookingCalendarView from '@/components/admin/bookings/BookingCalendarView'
-import { TableCellsIcon, CalendarIcon } from '@heroicons/react/24/outline'
+import { TableCellsIcon, CalendarIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 
 interface Room {
     id: string
@@ -253,6 +254,32 @@ export default function BookingsPage() {
                             <TableCellsIcon className="size-4" />
                             Bảng
                         </button>
+                    </div>
+
+                    {/* Export Dropdown */}
+                    <div className="relative group">
+                        <button
+                            className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-all hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                        >
+                            <ArrowDownTrayIcon className="size-5" />
+                            Export
+                        </button>
+                        <div className="absolute right-0 top-full z-20 mt-1 hidden w-48 rounded-xl border border-neutral-200 bg-white py-1 shadow-lg group-hover:block dark:border-neutral-700 dark:bg-neutral-800">
+                            <a
+                                href="/api/admin/export?type=bookings"
+                                className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                            >
+                                <CalendarDaysIcon className="size-4" />
+                                Xuất Bookings (CSV)
+                            </a>
+                            <a
+                                href="/api/admin/export?type=revenue"
+                                className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                            >
+                                <BanknotesIcon className="size-4" />
+                                Xuất Doanh thu (CSV)
+                            </a>
+                        </div>
                     </div>
 
                     <button

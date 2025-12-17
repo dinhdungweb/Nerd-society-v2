@@ -3,7 +3,6 @@
 import {
     CalendarDaysIcon,
     ChartBarIcon,
-    ChevronLeftIcon,
     Cog6ToothIcon,
     CubeIcon,
     Squares2X2Icon,
@@ -13,45 +12,66 @@ import {
     PencilSquareIcon,
     PhotoIcon,
     UsersIcon,
+    UserGroupIcon,
     XMarkIcon,
     BuildingStorefrontIcon,
+    SparklesIcon,
+    ShieldCheckIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useSession } from 'next-auth/react'
+import { usePermissions, StaffPermissions } from '@/contexts/PermissionsContext'
 
-// Navigation grouped by sections
-const navigationGroups = [
+// Navigation items with permission keys
+interface NavItem {
+    name: string
+    href: string
+    icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
+    permissionKey?: keyof StaffPermissions
+    adminOnly?: boolean
+}
+
+interface NavGroup {
+    name: string
+    items: NavItem[]
+    adminOnly?: boolean
+}
+
+const navigationGroups: NavGroup[] = [
     {
         name: 'Tổng quan',
         items: [
-            { name: 'Dashboard', href: '/admin', icon: HomeIcon },
+            { name: 'Dashboard', href: '/admin', icon: HomeIcon, permissionKey: 'canViewDashboard' },
         ]
     },
     {
         name: 'Quản lý đặt lịch',
         items: [
-            { name: 'Bookings', href: '/admin/bookings', icon: CalendarDaysIcon },
-            { name: 'Phòng', href: '/admin/rooms', icon: CubeIcon },
-            { name: 'Dịch vụ', href: '/admin/services', icon: Squares2X2Icon },
-            { name: 'Cơ sở', href: '/admin/locations', icon: BuildingStorefrontIcon },
+            { name: 'Bookings', href: '/admin/bookings', icon: CalendarDaysIcon, permissionKey: 'canViewBookings' },
+            { name: 'Phòng', href: '/admin/rooms', icon: CubeIcon, permissionKey: 'canViewRooms' },
+            { name: 'Dịch vụ', href: '/admin/services', icon: Squares2X2Icon, permissionKey: 'canViewServices' },
+            { name: 'Cơ sở', href: '/admin/locations', icon: BuildingStorefrontIcon, permissionKey: 'canViewLocations' },
         ]
     },
     {
         name: 'Nội dung',
         items: [
-            { name: 'Tin tức', href: '/admin/posts', icon: NewspaperIcon },
-            { name: 'Gallery', href: '/admin/gallery', icon: PhotoIcon },
-            { name: 'Media', href: '/admin/media', icon: FolderIcon },
-            { name: 'Content', href: '/admin/content', icon: PencilSquareIcon },
+            { name: 'Tin tức', href: '/admin/posts', icon: NewspaperIcon, permissionKey: 'canViewPosts' },
+            { name: 'Gallery', href: '/admin/gallery', icon: PhotoIcon, permissionKey: 'canViewPosts' },
+            { name: 'Media', href: '/admin/media', icon: FolderIcon, permissionKey: 'canViewPosts' },
+            { name: 'Content', href: '/admin/content', icon: PencilSquareIcon, permissionKey: 'canViewPosts' },
         ]
     },
     {
         name: 'Hệ thống',
         items: [
-            { name: 'Customers', href: '/admin/customers', icon: UsersIcon },
-            { name: 'Reports', href: '/admin/reports', icon: ChartBarIcon },
-            { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
+            { name: 'Khách hàng', href: '/admin/customers', icon: UsersIcon, permissionKey: 'canViewCustomers' },
+            { name: 'Nerd Coin', href: '/admin/nerdcoin', icon: SparklesIcon, permissionKey: 'canViewNerdCoin' },
+            { name: 'Nhân viên', href: '/admin/staff', icon: UserGroupIcon, adminOnly: true },
+            { name: 'Phân quyền', href: '/admin/permissions', icon: ShieldCheckIcon, adminOnly: true },
+            { name: 'Reports', href: '/admin/reports', icon: ChartBarIcon, permissionKey: 'canViewReports' },
+            { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon, permissionKey: 'canViewSettings' },
         ]
     },
 ]
@@ -72,9 +92,24 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ isOpen, onClose, isCollapsed, onCollapse }: AdminSidebarProps) {
     const pathname = usePathname()
-    // Local collapsed state removed in favor of props
+    const { data: session } = useSession()
+    const { hasPermission, isAdmin, loading } = usePermissions()
 
     const sidebarWidth = isCollapsed ? 'w-64 lg:w-[72px]' : 'w-64'
+
+    // Filter navigation based on permissions
+    const filteredNavGroups = navigationGroups
+        .map(group => ({
+            ...group,
+            items: group.items.filter(item => {
+                // Admin-only items
+                if (item.adminOnly) return isAdmin
+                // Permission-based items
+                if (item.permissionKey) return hasPermission(item.permissionKey)
+                return true
+            })
+        }))
+        .filter(group => group.items.length > 0)
 
     return (
         <>
@@ -99,7 +134,9 @@ export default function AdminSidebar({ isOpen, onClose, isCollapsed, onCollapse 
                         </div>
                         <div className={`flex flex-col ${isCollapsed ? 'lg:hidden' : ''}`}>
                             <span className="text-sm font-bold text-neutral-900 dark:text-white">Nerd Society</span>
-                            <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400">Admin Panel</span>
+                            <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400">
+                                {isAdmin ? 'Admin Panel' : 'Staff Panel'}
+                            </span>
                         </div>
                     </Link>
                     <button
@@ -113,41 +150,49 @@ export default function AdminSidebar({ isOpen, onClose, isCollapsed, onCollapse 
 
                 {/* Navigation */}
                 <nav className="flex-1 overflow-y-auto p-3 scrollbar-thin">
-                    <div className="space-y-6">
-                        {navigationGroups.map((group) => (
-                            <div key={group.name}>
-                                {/* Section header */}
-                                <h3 className={`mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 ${isCollapsed ? 'lg:hidden' : ''}`}>
-                                    {group.name}
-                                </h3>
-                                <ul className="space-y-1">
-                                    {group.items.map((item) => {
-                                        const isActive = pathname === item.href ||
-                                            (item.href !== '/admin' && pathname.startsWith(item.href))
-                                        return (
-                                            <li key={item.name}>
-                                                <Link
-                                                    href={item.href}
-                                                    className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${isActive
-                                                        ? 'bg-primary-50 text-primary-600 shadow-sm dark:bg-primary-900/30 dark:text-primary-400'
-                                                        : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
-                                                        } ${isCollapsed ? 'justify-center' : ''}`}
-                                                    onClick={onClose}
-                                                    title={isCollapsed ? item.name : undefined}
-                                                >
-                                                    <item.icon className={`size-5 flex-shrink-0 ${isActive ? '' : 'text-neutral-500 dark:text-neutral-500 group-hover:text-neutral-700 dark:group-hover:text-neutral-300'}`} />
-                                                    <span className={isCollapsed ? 'lg:hidden' : ''}>{item.name}</span>
-                                                    {isActive && (
-                                                        <div className={`ml-auto size-1.5 rounded-full bg-primary-500 ${isCollapsed ? 'lg:hidden' : ''}`} />
-                                                    )}
-                                                </Link>
-                                            </li>
-                                        )
-                                    })}
-                                </ul>
-                            </div>
-                        ))}
-                    </div>
+                    {loading ? (
+                        <div className="space-y-2">
+                            {[1, 2, 3, 4, 5].map(i => (
+                                <div key={i} className="h-10 animate-pulse rounded-xl bg-neutral-200 dark:bg-neutral-700" />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {filteredNavGroups.map((group) => (
+                                <div key={group.name}>
+                                    {/* Section header */}
+                                    <h3 className={`mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 ${isCollapsed ? 'lg:hidden' : ''}`}>
+                                        {group.name}
+                                    </h3>
+                                    <ul className="space-y-1">
+                                        {group.items.map((item) => {
+                                            const isActive = pathname === item.href ||
+                                                (item.href !== '/admin' && pathname.startsWith(item.href))
+                                            return (
+                                                <li key={item.name}>
+                                                    <Link
+                                                        href={item.href}
+                                                        className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${isActive
+                                                            ? 'bg-primary-50 text-primary-600 shadow-sm dark:bg-primary-900/30 dark:text-primary-400'
+                                                            : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
+                                                            } ${isCollapsed ? 'justify-center' : ''}`}
+                                                        onClick={onClose}
+                                                        title={isCollapsed ? item.name : undefined}
+                                                    >
+                                                        <item.icon className={`size-5 flex-shrink-0 ${isActive ? '' : 'text-neutral-500 dark:text-neutral-500 group-hover:text-neutral-700 dark:group-hover:text-neutral-300'}`} />
+                                                        <span className={isCollapsed ? 'lg:hidden' : ''}>{item.name}</span>
+                                                        {isActive && (
+                                                            <div className={`ml-auto size-1.5 rounded-full bg-primary-500 ${isCollapsed ? 'lg:hidden' : ''}`} />
+                                                        )}
+                                                    </Link>
+                                                </li>
+                                            )
+                                        })}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </nav>
             </aside>
         </>

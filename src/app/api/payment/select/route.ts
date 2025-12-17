@@ -48,19 +48,28 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Upsert payment record
-        const payment = await prisma.payment.upsert({
-            where: { bookingId },
-            create: {
-                bookingId,
-                amount: booking.depositAmount,
-                method: method as PaymentMethod,
-                status: 'PENDING',
-            },
-            update: {
-                method: method as PaymentMethod,
-            },
-        })
+        // Upsert payment record and set paymentStartedAt on booking
+        const [payment] = await prisma.$transaction([
+            prisma.payment.upsert({
+                where: { bookingId },
+                create: {
+                    bookingId,
+                    amount: booking.depositAmount,
+                    method: method as PaymentMethod,
+                    status: 'PENDING',
+                },
+                update: {
+                    method: method as PaymentMethod,
+                },
+            }),
+            // Set paymentStartedAt only if not already set (first time selecting payment)
+            prisma.booking.update({
+                where: { id: bookingId },
+                data: {
+                    paymentStartedAt: booking.paymentStartedAt ?? new Date(),
+                },
+            }),
+        ])
 
         // Return response based on method
         let redirectUrl: string | null = null

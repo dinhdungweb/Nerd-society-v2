@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 // GET - Lấy chi tiết phòng
 export async function GET(
@@ -30,12 +32,17 @@ export async function GET(
     }
 }
 
-// PUT - Cập nhật phòng
+// PUT - Cập nhật phòng (ADMIN only)
 export async function PUT(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const session = await getServerSession(authOptions)
+        if (!session || session.user.role !== 'ADMIN') {
+            return NextResponse.json({ error: 'Chỉ Admin mới có thể sửa phòng' }, { status: 403 })
+        }
+
         const { id } = await params
         const body = await request.json()
         const { name, type, description, capacity, amenities, image, isActive, locationId } = body
@@ -69,12 +76,17 @@ export async function PUT(
     }
 }
 
-// DELETE - Xóa phòng
+// DELETE - Xóa phòng (ADMIN only)
 export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const session = await getServerSession(authOptions)
+        if (!session || session.user.role !== 'ADMIN') {
+            return NextResponse.json({ error: 'Chỉ Admin mới có thể xóa phòng' }, { status: 403 })
+        }
+
         const { id } = await params
 
         // Check if room has bookings

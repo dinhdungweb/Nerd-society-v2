@@ -55,7 +55,8 @@ export async function GET(
                 depositAmount: booking.depositAmount,
                 depositPaidAt: booking.depositPaidAt,
                 status: booking.status,
-                createdAt: booking.createdAt, // Add createdAt for countdown calculation
+                createdAt: booking.createdAt,
+                paymentStartedAt: booking.paymentStartedAt, // For countdown calculation
                 location: booking.location,
                 room: booking.room,
                 payment: booking.payment ? {

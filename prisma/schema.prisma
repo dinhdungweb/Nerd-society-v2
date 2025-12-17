@@ -12,29 +12,39 @@ datasource db {
 
 // User model - for both customers and admins
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  name          String
-  phone         String?
-  avatar        String?
-  gender        String?
-  dateOfBirth   DateTime?
-  address       String?
-  bio           String?   @db.Text
-  role          Role      @default(CUSTOMER)
-  emailVerified DateTime?
-  bookings      Booking[]
-  accounts      Account[]
-  sessions      Session[]
-  posts         Post[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  password           String
+  name               String
+  phone              String?
+  avatar             String?
+  gender             String?
+  dateOfBirth        DateTime?
+  address            String?
+  bio                String?   @db.Text
+  role               Role      @default(CUSTOMER)
+  emailVerified      DateTime?
+  nerdCoinBalance    Int       @default(0)  // Tổng Nerd Coin hiện có
+  nerdCoinTier       String    @default("BRONZE") // BRONZE, SILVER, GOLD
+  
+  // Staff assignment (chỉ áp dụng cho STAFF role)
+  assignedLocationId String?   // Location mà staff được phân công
+  assignedLocation   Location? @relation(fields: [assignedLocationId], references: [id])
+  
+  bookings           Booking[]
+  accounts           Account[]
+  sessions           Session[]
+  posts              Post[]
+  nerdCoinTxns       NerdCoinTransaction[]
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }
 
 enum Role {
   ADMIN
+  MANAGER        // Quản lý cơ sở - quyền cao hơn Staff
   STAFF
+  CONTENT_EDITOR // Biên tập nội dung - chỉ quản lý tin tức, media
   CUSTOMER
 }
 
@@ -115,6 +125,7 @@ model Location {
   isActive  Boolean   @default(true)
   rooms     Room[]
   bookings  Booking[]
+  staff     User[]    // Staff được phân công tại cơ sở này
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -237,6 +248,7 @@ model Booking {
   depositAmount   Int           // Tiền cọc (50%)
   depositStatus   DepositStatus @default(PENDING)
   depositPaidAt   DateTime?
+  paymentStartedAt DateTime?     // Thời điểm khách chọn phương thức và bắt đầu thanh toán
   
   actualAmount    Int?          // Giá thực tế sau check-out
   remainingAmount Int?          // Số tiền còn lại cần thu
@@ -345,4 +357,91 @@ enum PostStatus {
   DRAFT     // Bản nháp
   PUBLISHED // Đã xuất bản
   ARCHIVED  // Đã lưu trữ
+}
+
+// =====================================================
+// NERD COIN LOYALTY SYSTEM
+// =====================================================
+
+enum NerdCoinTxnType {
+  EARN          // Nhận coin từ booking
+  REDEEM        // Đổi coin lấy ưu đãi
+  BONUS         // Thưởng đặc biệt
+  EXPIRED       // Coin hết hạn
+  ADJUSTMENT    // Admin điều chỉnh
+}
+
+model NerdCoinTransaction {
+  id          String          @id @default(cuid())
+  user        User            @relation(fields: [userId], references: [id])
+  userId      String
+  amount      Int             // Số coin (+/-)
+  type        NerdCoinTxnType
+  description String?         // "Booking #ABC123", "Đổi voucher 50k"
+  bookingId   String?         // Liên kết với booking nếu có
+  createdAt   DateTime        @default(now())
+  
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// =====================================================
+// NOTIFICATION SYSTEM
+// =====================================================
+
+enum NotificationType {
+  BOOKING_NEW       // Booking mới
+  BOOKING_CONFIRMED // Booking đã xác nhận
+  BOOKING_CANCELLED // Booking đã hủy
+  PAYMENT_RECEIVED  // Thanh toán thành công
+  CHECKIN           // Khách check-in
+  CHECKOUT          // Khách check-out
+  SYSTEM            // Thông báo hệ thống
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  type        NotificationType
+  title       String
+  message     String
+  link        String?          // Link đến trang liên quan (vd: /admin/bookings/xxx)
+  isRead      Boolean          @default(false)
+  bookingId   String?          // Liên kết với booking nếu có
+  createdAt   DateTime         @default(now())
+  
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([type])
+}
+
+// Audit Log - Lịch sử thao tác admin
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String   // User thực hiện thao tác
+  userName    String   // Tên user (cache lại để không mất khi user bị xóa)
+  action      String   // CREATE, UPDATE, DELETE, LOGIN, etc.
+  resource    String   // booking, user, post, etc.
+  resourceId  String?  // ID của resource bị tác động
+  details     String?  @db.Text // JSON chứa thông tin chi tiết
+  ipAddress   String?  // IP address của request
+  userAgent   String?  // User agent của request
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+}
+
+// Email Templates - Mẫu email gửi khách
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique // booking_confirmation, payment_reminder, etc.
+  subject     String   // Tiêu đề email
+  content     String   @db.Text // Nội dung email (HTML)
+  variables   String?  // JSON array các biến có thể dùng: ["customerName", "bookingCode", etc.]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

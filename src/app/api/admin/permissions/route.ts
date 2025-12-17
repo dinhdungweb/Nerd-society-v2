@@ -1,0 +1,139 @@
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { NextResponse } from 'next/server'
+
+// Default permissions for each role
+const DEFAULT_ROLE_PERMISSIONS = {
+    MANAGER: {
+        canViewDashboard: true,
+        canViewBookings: true,
+        canCreateBookings: true,
+        canEditBookings: true,
+        canDeleteBookings: true,
+        canCheckIn: true,
+        canCheckOut: true,
+        canViewCustomers: true,
+        canViewRooms: true,
+        canViewServices: true,
+        canViewLocations: true,
+        canViewPosts: true,
+        canViewNerdCoin: true,
+        canViewReports: true,
+        canViewSettings: true,
+    },
+    STAFF: {
+        canViewDashboard: true,
+        canViewBookings: true,
+        canCreateBookings: true,
+        canEditBookings: true,
+        canDeleteBookings: false,
+        canCheckIn: true,
+        canCheckOut: true,
+        canViewCustomers: true,
+        canViewRooms: false,
+        canViewServices: false,
+        canViewLocations: false,
+        canViewPosts: false,
+        canViewNerdCoin: false,
+        canViewReports: false,
+        canViewSettings: false,
+    },
+    CONTENT_EDITOR: {
+        canViewDashboard: true,
+        canViewBookings: false,
+        canCreateBookings: false,
+        canEditBookings: false,
+        canDeleteBookings: false,
+        canCheckIn: false,
+        canCheckOut: false,
+        canViewCustomers: false,
+        canViewRooms: false,
+        canViewServices: false,
+        canViewLocations: false,
+        canViewPosts: true,
+        canViewNerdCoin: false,
+        canViewReports: false,
+        canViewSettings: false,
+    },
+}
+
+const PERMISSION_KEY_PREFIX = 'role_permissions_'
+
+// GET - Get permissions for all roles or specific role
+export async function GET(req: Request) {
+    try {
+        const session = await getServerSession(authOptions)
+        if (!session || session.user.role !== 'ADMIN') {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        }
+
+        const { searchParams } = new URL(req.url)
+        const role = searchParams.get('role')
+
+        // If specific role requested
+        if (role && role in DEFAULT_ROLE_PERMISSIONS) {
+            const setting = await prisma.setting.findUnique({
+                where: { key: `${PERMISSION_KEY_PREFIX}${role}` },
+            })
+
+            const permissions = setting
+                ? { ...DEFAULT_ROLE_PERMISSIONS[role as keyof typeof DEFAULT_ROLE_PERMISSIONS], ...JSON.parse(setting.value) }
+                : DEFAULT_ROLE_PERMISSIONS[role as keyof typeof DEFAULT_ROLE_PERMISSIONS]
+
+            return NextResponse.json({
+                role,
+                permissions,
+                defaults: DEFAULT_ROLE_PERMISSIONS[role as keyof typeof DEFAULT_ROLE_PERMISSIONS]
+            })
+        }
+
+        // Get all role permissions
+        const allPermissions: Record<string, any> = {}
+
+        for (const roleKey of Object.keys(DEFAULT_ROLE_PERMISSIONS)) {
+            const setting = await prisma.setting.findUnique({
+                where: { key: `${PERMISSION_KEY_PREFIX}${roleKey}` },
+            })
+
+            allPermissions[roleKey] = setting
+                ? { ...DEFAULT_ROLE_PERMISSIONS[roleKey as keyof typeof DEFAULT_ROLE_PERMISSIONS], ...JSON.parse(setting.value) }
+                : DEFAULT_ROLE_PERMISSIONS[roleKey as keyof typeof DEFAULT_ROLE_PERMISSIONS]
+        }
+
+        return NextResponse.json({
+            permissions: allPermissions,
+            defaults: DEFAULT_ROLE_PERMISSIONS
+        })
+    } catch (error) {
+        console.error('Error fetching permissions:', error)
+        return NextResponse.json({ error: 'Failed to fetch permissions' }, { status: 500 })
+    }
+}
+
+// POST - Update permissions for a role
+export async function POST(req: Request) {
+    try {
+        const session = await getServerSession(authOptions)
+        if (!session || session.user.role !== 'ADMIN') {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        }
+
+        const { role, permissions } = await req.json()
+
+        if (!role || !(role in DEFAULT_ROLE_PERMISSIONS)) {
+            return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+        }
+
+        await prisma.setting.upsert({
+            where: { key: `${PERMISSION_KEY_PREFIX}${role}` },
+            update: { value: JSON.stringify(permissions) },
+            create: { key: `${PERMISSION_KEY_PREFIX}${role}`, value: JSON.stringify(permissions) },
+        })
+
+        return NextResponse.json({ success: true, role, permissions })
+    } catch (error) {
+        console.error('Error updating permissions:', error)
+        return NextResponse.json({ error: 'Failed to update permissions' }, { status: 500 })
+    }
+}

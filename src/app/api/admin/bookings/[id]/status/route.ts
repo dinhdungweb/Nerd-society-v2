@@ -66,7 +66,49 @@ export async function POST(
                 }
             })
 
-            // TODO: Update Customer's wallet if account exists (Not implemented yet based on instructions)
+            // Credit Nerd Coins to customer's wallet if coins > 0 and user has account
+            if (nerdCoins > 0 && booking.userId) {
+                await prisma.$transaction([
+                    // Create transaction record
+                    prisma.nerdCoinTransaction.create({
+                        data: {
+                            userId: booking.userId,
+                            amount: nerdCoins,
+                            type: 'EARN',
+                            description: `Booking #${booking.bookingCode}`,
+                            bookingId: booking.id,
+                        }
+                    }),
+                    // Update user balance
+                    prisma.user.update({
+                        where: { id: booking.userId },
+                        data: {
+                            nerdCoinBalance: { increment: nerdCoins },
+                        }
+                    })
+                ])
+
+                // Update tier after balance change
+                const user = await prisma.user.findUnique({
+                    where: { id: booking.userId },
+                    select: { nerdCoinBalance: true }
+                })
+                if (user) {
+                    let newTier = 'BRONZE'
+                    if (user.nerdCoinBalance >= 100) newTier = 'GOLD'
+                    else if (user.nerdCoinBalance >= 50) newTier = 'SILVER'
+
+                    await prisma.user.update({
+                        where: { id: booking.userId },
+                        data: { nerdCoinTier: newTier }
+                    })
+                }
+            }
+
+            // Create notification for check-in
+            import('@/lib/notifications').then(({ notifyCheckIn }) => {
+                notifyCheckIn(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
+            })
 
             return NextResponse.json({
                 ...updatedBooking,
@@ -119,6 +161,11 @@ export async function POST(
                     // Assuming payment of remaining amount happens immediately via Cash/Sapo
                     // Ideally we should record a separate Payment transaction, but for simplicity we assume settled if 0 or Staff handled it.
                 }
+            })
+
+            // Create notification for check-out
+            import('@/lib/notifications').then(({ notifyCheckOut }) => {
+                notifyCheckOut(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
             })
 
             return NextResponse.json({ ...updatedBooking, surcharge })

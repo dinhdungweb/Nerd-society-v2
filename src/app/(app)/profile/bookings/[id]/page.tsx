@@ -1,10 +1,13 @@
 import PaymentButton from '@/components/booking/PaymentButton'
+import CancelBookingButton from '@/components/booking/CancelBookingButton'
+import RescheduleBookingButton from '@/components/booking/RescheduleBookingButton'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { CalendarDaysIcon, ClockIcon, MapPinIcon, UserIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline'
 import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
+import { differenceInMinutes } from 'date-fns'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,6 +57,15 @@ export default async function BookingDetailsPage({
     })
 
     if (!booking || booking.userId !== session.user.id) notFound()
+
+    // Calculate if can cancel (30 minutes before start)
+    const bookingStart = new Date(booking.date)
+    const [hours, minutes] = booking.startTime.split(':').map(Number)
+    bookingStart.setHours(hours, minutes, 0, 0)
+    const now = new Date()
+    const minutesToStart = differenceInMinutes(bookingStart, now)
+    const canCancel = ['PENDING', 'CONFIRMED'].includes(booking.status) && minutesToStart >= 30
+    const canReschedule = booking.status === 'CONFIRMED' && minutesToStart >= 60
 
     return (
         <div>
@@ -202,6 +214,45 @@ export default async function BookingDetailsPage({
                             </div>
                         </div>
                     </div>
+
+                    {/* Reschedule Booking */}
+                    {booking.status === 'CONFIRMED' && (
+                        <div className="rounded-xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                            <h3 className="mb-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">ĐỔI LỊCH</h3>
+                            <RescheduleBookingButton
+                                bookingId={booking.id}
+                                bookingCode={booking.bookingCode}
+                                currentDate={booking.date.toISOString()}
+                                currentStartTime={booking.startTime}
+                                currentEndTime={booking.endTime}
+                                canReschedule={canReschedule}
+                                minutesToStart={minutesToStart}
+                            />
+                            {canReschedule && (
+                                <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
+                                    Có thể đổi lịch trước 60 phút
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Cancel Booking */}
+                    {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && booking.status !== 'IN_PROGRESS' && (
+                        <div className="rounded-xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                            <h3 className="mb-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">HỦY ĐẶT LỊCH</h3>
+                            <CancelBookingButton
+                                bookingId={booking.id}
+                                bookingCode={booking.bookingCode}
+                                canCancel={canCancel}
+                                minutesToStart={minutesToStart}
+                            />
+                            {canCancel && (
+                                <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
+                                    Có thể hủy trước 30 phút
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
