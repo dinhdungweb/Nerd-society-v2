@@ -3,7 +3,7 @@
 import { Button } from '@/shared/Button'
 import { useRouter, useParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import RichTextEditor from '@/components/admin/RichTextEditor'
+import TiptapEditor from '@/components/admin/TiptapEditor'
 import ImageUploader from '@/components/admin/ImageUploader'
 
 function generateSlug(title: string): string {
@@ -261,7 +261,7 @@ export default function EditPostPage() {
                 {/* Content */}
                 <div className="bg-white p-6 rounded-xl shadow-sm dark:bg-neutral-900 space-y-4">
                     <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Nội dung</h2>
-                    <RichTextEditor
+                    <TiptapEditor
                         value={content}
                         onChange={setContent}
                         placeholder="Nhập nội dung bài viết..."
