@@ -12,8 +12,10 @@ import {
     LinkIcon,
     EyeIcon,
     PhotoIcon,
+    FolderOpenIcon,
 } from '@heroicons/react/24/outline'
 import Image from 'next/image'
+import MediaPickerModal from '@/components/admin/MediaPickerModal'
 
 interface GalleryImage {
     id: string
@@ -36,6 +38,7 @@ export default function AdminGalleryPage() {
     const [saving, setSaving] = useState(false)
     const [uploading, setUploading] = useState(false)
     const [showPreview, setShowPreview] = useState(false)
+    const [showMediaPicker, setShowMediaPicker] = useState(false)
 
     useEffect(() => {
         fetchGallery()
@@ -190,6 +193,10 @@ export default function AdminGalleryPage() {
                         <LinkIcon className="size-4 mr-2" />
                         Thêm từ URL
                     </Button>
+                    <Button color="white" onClick={() => setShowMediaPicker(true)}>
+                        <FolderOpenIcon className="size-4 mr-2" />
+                        Chọn từ thư viện
+                    </Button>
                     <Button color="white" onClick={() => setShowPreview(!showPreview)}>
                         <EyeIcon className="size-4 mr-2" />
                         {showPreview ? 'Ẩn preview' : 'Xem preview'}
@@ -323,6 +330,24 @@ export default function AdminGalleryPage() {
                     ))}
                 </div>
             )}
+
+            {/* Media Picker Modal */}
+            <MediaPickerModal
+                isOpen={showMediaPicker}
+                onClose={() => setShowMediaPicker(false)}
+                multiple
+                onSelect={(urls) => {
+                    const newImages = urls.map((url, idx) => ({
+                        id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                        src: url,
+                        alt: 'Gallery image',
+                        span: 'col-span-1 row-span-1',
+                        order: images.length + idx,
+                    }))
+                    setImages(prev => [...prev, ...newImages])
+                    toast.success(`Đã thêm ${urls.length} ảnh!`)
+                }}
+            />
         </div>
     )
 }

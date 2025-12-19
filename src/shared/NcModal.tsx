@@ -47,7 +47,8 @@ const NcModal: FC<NcModalProps> = ({
 
   return (
     <div className="nc-NcModal">
-      {renderTrigger ? renderTrigger(openModal) : <Button onClick={openModal}> {triggerText} </Button>}
+      {/* Only render trigger if not controlled externally via isOpenProp */}
+      {typeof isOpenProp !== 'boolean' && (renderTrigger ? renderTrigger(openModal) : <Button onClick={openModal}> {triggerText} </Button>)}
 
       <Transition appear show={isOpen} as={Fragment}>
         <Dialog as="div" className="fixed inset-0 z-[9999] overflow-y-auto" onClose={closeModal}>

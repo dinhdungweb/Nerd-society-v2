@@ -45,7 +45,7 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                 {/* Mobile menu toggle */}
                 <button
                     type="button"
-                    className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 lg:hidden dark:text-neutral-400 dark:hover:bg-neutral-800"
+                    className="cursor-pointer rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 lg:hidden dark:text-neutral-400 dark:hover:bg-neutral-800"
                     onClick={onMenuClick}
                 >
                     <Bars3Icon className="size-5" />
@@ -54,7 +54,7 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                 {/* Desktop collapse toggle */}
                 <button
                     type="button"
-                    className="hidden rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 lg:block dark:text-neutral-400 dark:hover:bg-neutral-800"
+                    className="hidden cursor-pointer rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 lg:block dark:text-neutral-400 dark:hover:bg-neutral-800"
                     onClick={() => onCollapse?.(!isCollapsed)}
                 >
                     <Bars3Icon className="size-5" />
@@ -82,7 +82,7 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                 <button
                     type="button"
                     onClick={() => themeContext?.toggleDarkMode()}
-                    className="rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                    className="cursor-pointer rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
                     title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
                 >
                     {isDarkMode ? <SunIcon className="size-5" /> : <MoonIcon className="size-5" />}
@@ -99,7 +99,7 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                     <button
                         type="button"
                         onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                        className="flex items-center gap-3 rounded-lg p-1.5 pr-3 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                        className="flex cursor-pointer items-center gap-3 rounded-lg p-1.5 pr-3 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
                     >
                         <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-sm font-bold text-white">
                             {session?.user?.name?.[0]?.toUpperCase() || 'A'}
@@ -139,14 +139,14 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                             <div className="py-2">
                                 <button
                                     onClick={() => themeContext?.toggleDarkMode()}
-                                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                    className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-sm text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-700"
                                 >
                                     {isDarkMode ? <SunIcon className="size-5" /> : <MoonIcon className="size-5" />}
                                     {isDarkMode ? 'Light Mode' : 'Dark Mode'}
                                 </button>
                                 <button
                                     onClick={() => signOut({ callbackUrl: '/' })}
-                                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                    className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                                 >
                                     <ArrowLeftOnRectangleIcon className="size-5" />
                                     Đăng xuất

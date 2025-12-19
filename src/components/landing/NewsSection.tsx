@@ -137,7 +137,7 @@ export default function NewsSection() {
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === tab
+                                className={`cursor-pointer px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === tab
                                     ? 'bg-primary-500 text-white'
                                     : 'bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'
                                     }`}
@@ -171,13 +171,13 @@ export default function NewsSection() {
                                 <>
                                     <button
                                         onClick={scrollPrev}
-                                        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 size-10 rounded-full bg-white dark:bg-neutral-800 shadow-lg flex items-center justify-center text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors z-10 hidden lg:flex"
+                                        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 size-10 cursor-pointer rounded-full bg-white dark:bg-neutral-800 shadow-lg flex items-center justify-center text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors z-10 hidden lg:flex"
                                     >
                                         <ChevronLeftIcon className="size-5" />
                                     </button>
                                     <button
                                         onClick={scrollNext}
-                                        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 size-10 rounded-full bg-white dark:bg-neutral-800 shadow-lg flex items-center justify-center text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors z-10 hidden lg:flex"
+                                        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 size-10 cursor-pointer rounded-full bg-white dark:bg-neutral-800 shadow-lg flex items-center justify-center text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors z-10 hidden lg:flex"
                                     >
                                         <ChevronRightIcon className="size-5" />
                                     </button>

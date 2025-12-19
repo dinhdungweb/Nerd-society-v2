@@ -66,6 +66,15 @@
     @apply border-t border-neutral-200 dark:border-neutral-700;
   }
 
+  /* Global cursor pointer for all buttons */
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
   input[type='time']::-webkit-calendar-picker-indicator {
     @apply rounded-md dark:bg-neutral-500;
   }
@@ -306,6 +315,16 @@
 
   100% {
     opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
   }
 }
 

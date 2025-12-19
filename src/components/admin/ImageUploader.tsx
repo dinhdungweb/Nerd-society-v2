@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { PhotoIcon, XMarkIcon, FolderOpenIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
+import MediaPickerModal from './MediaPickerModal'
 
 interface ImageUploaderProps {
     images: string[]
@@ -18,6 +19,7 @@ export default function ImageUploader({
     label = 'Upload hình ảnh'
 }: ImageUploaderProps) {
     const [uploading, setUploading] = useState(false)
+    const [showMediaPicker, setShowMediaPicker] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,6 +64,16 @@ export default function ImageUploader({
         onChange(newImages)
     }
 
+    const handleMediaSelect = (urls: string[]) => {
+        if (multiple) {
+            // Add new URLs, avoid duplicates
+            const newUrls = urls.filter(url => !images.includes(url))
+            onChange([...images, ...newUrls])
+        } else {
+            onChange(urls)
+        }
+    }
+
     return (
         <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
@@ -93,19 +105,33 @@ export default function ImageUploader({
                 </div>
             )}
 
-            {/* Upload button */}
-            <div
-                onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-lg p-6 text-center cursor-pointer hover:border-primary-500 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
-            >
-                <PhotoIcon className="size-10 mx-auto text-neutral-400" />
-                <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                    {uploading ? 'Đang upload...' : 'Click để chọn ảnh hoặc kéo thả vào đây'}
-                </p>
-                <p className="mt-1 text-xs text-neutral-400">
-                    PNG, JPG, GIF, WebP (Tối đa 5MB)
-                </p>
+            {/* Action buttons */}
+            <div className="flex gap-3">
+                {/* Choose from library button */}
+                <button
+                    type="button"
+                    onClick={() => setShowMediaPicker(true)}
+                    className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-lg p-4 text-neutral-600 dark:text-neutral-400 hover:border-primary-500 hover:text-primary-600 transition-colors"
+                >
+                    <FolderOpenIcon className="size-6" />
+                    <span className="text-sm font-medium">Chọn từ thư viện</span>
+                </button>
+
+                {/* Upload button */}
+                <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-lg p-4 text-center cursor-pointer hover:border-primary-500 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+                >
+                    <PhotoIcon className="size-6 text-neutral-400" />
+                    <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                        {uploading ? 'Đang upload...' : 'Tải lên mới'}
+                    </span>
+                </div>
             </div>
+
+            <p className="mt-2 text-xs text-neutral-400 text-center">
+                PNG, JPG, GIF, WebP (Tối đa 5MB)
+            </p>
 
             <input
                 ref={fileInputRef}
@@ -114,6 +140,15 @@ export default function ImageUploader({
                 multiple={multiple}
                 onChange={handleUpload}
                 className="hidden"
+            />
+
+            {/* Media Picker Modal */}
+            <MediaPickerModal
+                isOpen={showMediaPicker}
+                onClose={() => setShowMediaPicker(false)}
+                onSelect={handleMediaSelect}
+                multiple={multiple}
+                selectedUrls={images}
             />
         </div>
     )

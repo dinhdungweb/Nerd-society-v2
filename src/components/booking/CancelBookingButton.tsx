@@ -58,7 +58,7 @@ export default function CancelBookingButton({
         <>
             <button
                 onClick={() => setIsOpen(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
             >
                 <XMarkIcon className="size-4" />
                 Hủy đặt lịch
@@ -83,14 +83,14 @@ export default function CancelBookingButton({
                         <div className="mt-6 flex gap-3">
                             <button
                                 onClick={() => setIsOpen(false)}
-                                className="flex-1 rounded-lg border border-neutral-300 px-4 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                className="flex-1 cursor-pointer rounded-lg border border-neutral-300 px-4 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                             >
                                 Đóng
                             </button>
                             <button
                                 onClick={handleCancel}
                                 disabled={loading}
-                                className="flex-1 rounded-lg bg-red-600 px-4 py-2 font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                                className="flex-1 cursor-pointer rounded-lg bg-red-600 px-4 py-2 font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {loading ? 'Đang hủy...' : 'Xác nhận hủy'}
                             </button>

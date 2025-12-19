@@ -26,6 +26,7 @@ interface ServiceSelectorProps {
     services: Service[]
     selectedServiceType: ServiceType | null
     onSelect: (service: Service) => void
+    loading?: boolean
 }
 
 const serviceIcons: Record<ServiceType, React.ReactNode> = {
@@ -74,7 +75,36 @@ export default function ServiceSelector({
     services,
     selectedServiceType,
     onSelect,
+    loading = false,
 }: ServiceSelectorProps) {
+    if (loading) {
+        return (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="overflow-hidden rounded-xl border-2 border-transparent bg-white p-6 shadow-sm dark:bg-neutral-900">
+                        {/* Icon skeleton */}
+                        <div className="relative mb-4 inline-flex overflow-hidden rounded-xl bg-neutral-100 p-3 dark:bg-neutral-800">
+                            <div className="size-8 rounded bg-neutral-200 dark:bg-neutral-700" />
+                            <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                        </div>
+                        {/* Title skeleton */}
+                        <div className="h-6 w-36 rounded bg-neutral-200 dark:bg-neutral-700" />
+                        <div className="mt-2 h-4 w-44 rounded bg-neutral-100 dark:bg-neutral-800" />
+                        {/* Price skeleton */}
+                        <div className="mt-4 h-5 w-32 rounded bg-neutral-200 dark:bg-neutral-700" />
+                        {/* Badge skeleton */}
+                        <div className="mt-3 h-6 w-28 rounded-full bg-neutral-100 dark:bg-neutral-800" />
+                        {/* Features skeleton */}
+                        <div className="mt-4 space-y-2">
+                            <div className="h-3 w-24 rounded bg-neutral-100 dark:bg-neutral-800" />
+                            <div className="h-3 w-32 rounded bg-neutral-100 dark:bg-neutral-800" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )
+    }
+
     return (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {services.map((service) => {

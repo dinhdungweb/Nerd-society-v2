@@ -103,7 +103,7 @@ export default function HeaderNerd() {
                             <button
                                 type="button"
                                 onClick={toggleTheme}
-                                className="flex size-10 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                className="flex size-10 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
                                 aria-label="Toggle dark mode"
                             >
                                 {isDarkMode ? (
@@ -118,7 +118,7 @@ export default function HeaderNerd() {
 
                         {session ? (
                             <Menu as="div" className="relative">
-                                <MenuButton className="flex items-center gap-2 rounded-xl bg-white p-1 pr-3 shadow-md transition-shadow hover:shadow-lg dark:bg-neutral-800">
+                                <MenuButton className="flex cursor-pointer items-center gap-2 rounded-xl bg-white p-1 pr-3 shadow-md transition-shadow hover:shadow-lg dark:bg-neutral-800">
                                     {session.user?.image ? (
                                         <img
                                             src={session.user.image}
@@ -182,7 +182,7 @@ export default function HeaderNerd() {
                                                     <button
                                                         onClick={() => signOut()}
                                                         className={`${active ? 'bg-neutral-100 dark:bg-neutral-700' : ''
-                                                            } flex w-full items-center px-4 py-2 text-sm text-red-600 dark:text-red-400`}
+                                                            } flex w-full cursor-pointer items-center px-4 py-2 text-sm text-red-600 dark:text-red-400`}
                                                     >
                                                         <ArrowRightStartOnRectangleIcon className="mr-3 size-5" />
                                                         Đăng xuất
@@ -196,7 +196,7 @@ export default function HeaderNerd() {
                         ) : (
                             <>
                                 <Menu as="div" className="relative">
-                                    <MenuButton className="flex size-10 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700">
+                                    <MenuButton className="flex size-10 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700">
                                         <UserIcon className="size-5" />
                                     </MenuButton>
                                     <Transition
@@ -253,7 +253,7 @@ export default function HeaderNerd() {
                             <button
                                 type="button"
                                 onClick={toggleTheme}
-                                className="inline-flex size-10 items-center justify-center rounded-xl bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                className="inline-flex size-10 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
                                 aria-label="Toggle dark mode"
                             >
                                 {isDarkMode ? (
@@ -266,7 +266,7 @@ export default function HeaderNerd() {
                         <button
                             type="button"
                             onClick={() => setMobileMenuOpen(true)}
-                            className="inline-flex size-10 items-center justify-center rounded-xl bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                            className="inline-flex size-10 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
                         >
                             <span className="sr-only">Open menu</span>
                             <Bars3Icon className="size-6" aria-hidden="true" />
@@ -313,7 +313,7 @@ export default function HeaderNerd() {
                                 <button
                                     type="button"
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className="inline-flex size-10 items-center justify-center rounded-xl bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                    className="inline-flex size-10 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
                                 >
                                     <span className="sr-only">Close menu</span>
                                     <XMarkIcon className="size-6" aria-hidden="true" />
@@ -373,7 +373,7 @@ export default function HeaderNerd() {
                                         </Link>
                                         <button
                                             onClick={() => signOut()}
-                                            className="block w-full rounded-xl px-4 py-3 text-left text-base font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                            className="block w-full cursor-pointer rounded-xl px-4 py-3 text-left text-base font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                                         >
                                             Đăng xuất
                                         </button>
@@ -433,6 +433,6 @@ export default function HeaderNerd() {
                     </TransitionChild>
                 </Dialog>
             </Transition>
-        </header>
+        </header >
     )
 }

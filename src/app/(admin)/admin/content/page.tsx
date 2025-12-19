@@ -11,7 +11,9 @@ import {
     NewspaperIcon,
     Cog6ToothIcon,
     SparklesIcon,
+    FolderOpenIcon,
 } from '@heroicons/react/24/outline'
+import MediaPickerModal from '@/components/admin/MediaPickerModal'
 
 interface Settings {
     heroTitle: string
@@ -33,6 +35,7 @@ export default function AdminContentPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [uploadingImage, setUploadingImage] = useState(false)
+    const [showMediaPicker, setShowMediaPicker] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [settings, setSettings] = useState<Settings>({
         heroTitle: 'Không gian học tập & làm việc dành riêng cho Gen Z',
@@ -250,12 +253,30 @@ export default function AdminContentPage() {
                                         className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
                                     >
                                         <CloudArrowUpIcon className="size-5" />
-                                        {uploadingImage ? 'Đang upload...' : 'Upload ảnh mới'}
+                                        {uploadingImage ? 'Đang upload...' : 'Tải lên mới'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowMediaPicker(true)}
+                                        className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                    >
+                                        <FolderOpenIcon className="size-5" />
+                                        Chọn từ thư viện
                                     </button>
                                     <p className="text-xs text-neutral-500 dark:text-neutral-400">
                                         Khuyến nghị: 1920x1080px<br />
                                         Định dạng: JPG, PNG, WebP
                                     </p>
+                                    <MediaPickerModal
+                                        isOpen={showMediaPicker}
+                                        onClose={() => setShowMediaPicker(false)}
+                                        onSelect={(urls) => {
+                                            if (urls.length > 0) {
+                                                handleChange('heroBackgroundImage', urls[0])
+                                            }
+                                        }}
+                                        selectedUrls={settings.heroBackgroundImage ? [settings.heroBackgroundImage] : []}
+                                    />
                                 </div>
                             </div>
                         </div>

@@ -4,7 +4,7 @@ import BookingFormV2 from '@/components/booking/BookingFormV2'
 import LocationSelector from '@/components/booking/LocationSelector'
 import RoomSelector from '@/components/booking/RoomSelector'
 import ServiceSelector from '@/components/booking/ServiceSelector'
-import { CheckIcon } from '@heroicons/react/24/outline'
+import { CheckIcon, MapPinIcon, SparklesIcon, HomeModernIcon, CalendarDaysIcon } from '@heroicons/react/24/outline'
 import { RoomType, ServiceType } from '@prisma/client'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
@@ -50,10 +50,10 @@ interface BookingWizardV2Props {
 }
 
 const steps = [
-    { id: 1, name: 'Cơ sở' },
-    { id: 2, name: 'Dịch vụ' },
-    { id: 3, name: 'Phòng' },
-    { id: 4, name: 'Đặt lịch' },
+    { id: 1, name: 'Cơ sở', icon: MapPinIcon },
+    { id: 2, name: 'Dịch vụ', icon: SparklesIcon },
+    { id: 3, name: 'Phòng', icon: HomeModernIcon },
+    { id: 4, name: 'Đặt lịch', icon: CalendarDaysIcon },
 ]
 
 export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
@@ -196,31 +196,53 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
     return (
         <div>
             {/* Modern Steps Indicator */}
-            <div className="mx-auto mb-12 max-w-4xl">
+            <div className="mx-auto mb-8 max-w-4xl px-4 sm:mb-12 sm:px-0">
                 <div className="relative">
                     {/* Background Card */}
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary-100/50 via-secondary-100/30 to-primary-100/50 dark:from-primary-900/20 dark:via-secondary-900/10 dark:to-primary-900/20 blur-xl" />
 
-                    <div className="relative rounded-2xl border border-primary-200/50 bg-white/80 px-12 py-6 backdrop-blur-sm dark:border-primary-800/30 dark:bg-neutral-900/80">
-                        {/* Progress Line Background - starts from center of first circle to center of last circle */}
+                    <div className="relative rounded-2xl border border-primary-200/50 bg-white/80 px-4 py-4 backdrop-blur-sm sm:px-12 sm:py-6 dark:border-primary-800/30 dark:bg-neutral-900/80">
+                        {/* Progress Line Background */}
                         <div
-                            className="absolute h-1 rounded-full bg-neutral-200 dark:bg-neutral-700"
+                            className="absolute hidden h-1 rounded-full bg-neutral-200 sm:block dark:bg-neutral-700"
                             style={{
-                                left: 'calc(48px + 24px)', // px-12 (48px) + half circle (24px)
-                                right: 'calc(48px + 24px)', // same for right
-                                top: '46px' // py-6(24px) + half circle(24px) - half line height(2px)
+                                left: 'calc(48px + 24px)',
+                                right: 'calc(48px + 24px)',
+                                top: '46px'
+                            }}
+                        />
+                        {/* Mobile Progress Line */}
+                        <div
+                            className="absolute h-1 rounded-full bg-neutral-200 sm:hidden dark:bg-neutral-700"
+                            style={{
+                                left: 'calc(16px + 20px)',
+                                right: 'calc(16px + 20px)',
+                                top: '36px'
                             }}
                         />
 
-                        {/* Progress Line Fill */}
+                        {/* Progress Line Fill - with spring animation */}
                         <div
-                            className="absolute h-1 rounded-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-500 ease-out"
+                            className="absolute hidden h-1 rounded-full bg-gradient-to-r from-primary-400 to-primary-600 sm:block"
                             style={{
                                 left: 'calc(48px + 24px)',
                                 top: '46px',
                                 width: currentStep === 1
                                     ? '0%'
-                                    : `calc((100% - 48px - 48px - 48px) * ${(currentStep - 1) / (steps.length - 1)})`
+                                    : `calc((100% - 48px - 48px - 48px) * ${(currentStep - 1) / (steps.length - 1)})`,
+                                transition: 'width 600ms cubic-bezier(0.34, 1.56, 0.64, 1)' // Spring effect
+                            }}
+                        />
+                        {/* Mobile Progress Line Fill */}
+                        <div
+                            className="absolute h-1 rounded-full bg-gradient-to-r from-primary-400 to-primary-600 sm:hidden"
+                            style={{
+                                left: 'calc(16px + 20px)',
+                                top: '36px',
+                                width: currentStep === 1
+                                    ? '0%'
+                                    : `calc((100% - 32px - 40px) * ${(currentStep - 1) / (steps.length - 1)})`,
+                                transition: 'width 600ms cubic-bezier(0.34, 1.56, 0.64, 1)'
                             }}
                         />
 
@@ -228,6 +250,7 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
                             {steps.map((step) => {
                                 const isCompleted = currentStep > step.id
                                 const isCurrent = currentStep === step.id
+                                const StepIcon = step.icon
 
                                 return (
                                     <div key={step.id} className="flex flex-col items-center">
@@ -235,7 +258,7 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
                                         <div className="relative">
                                             {/* Glow Effect for Current */}
                                             {isCurrent && (
-                                                <div className="absolute -inset-2 animate-pulse rounded-full bg-primary-400/30 blur-md dark:bg-primary-500/20" />
+                                                <div className="absolute -inset-1.5 animate-pulse rounded-full bg-primary-400/30 blur-md sm:-inset-2 dark:bg-primary-500/20" />
                                             )}
 
                                             <button
@@ -243,29 +266,31 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
                                                     if (isCompleted) setCurrentStep(step.id)
                                                 }}
                                                 disabled={!isCompleted && !isCurrent}
-                                                className={`relative z-10 flex size-12 items-center justify-center rounded-full border-2 font-semibold transition-all duration-300 ${isCompleted
+                                                className={`relative z-10 flex size-10 items-center justify-center rounded-full border-2 font-semibold sm:size-12 ${isCompleted
                                                     ? 'cursor-pointer border-primary-500 bg-gradient-to-br from-primary-400 to-primary-600 text-white shadow-lg shadow-primary-500/30 hover:scale-110'
                                                     : isCurrent
                                                         ? 'border-primary-500 bg-white text-primary-600 shadow-lg shadow-primary-500/20 dark:bg-neutral-800 dark:text-primary-400'
                                                         : 'cursor-not-allowed border-neutral-300 bg-neutral-100 text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-500'
                                                     }`}
+                                                style={{ transition: 'all 300ms cubic-bezier(0.34, 1.56, 0.64, 1)' }}
                                             >
                                                 {isCompleted ? (
-                                                    <CheckIcon className="size-6" />
+                                                    <CheckIcon className="size-5 sm:size-6" />
                                                 ) : (
-                                                    <span className="text-lg">{step.id}</span>
+                                                    <StepIcon className="size-5 sm:size-6" />
                                                 )}
                                             </button>
                                         </div>
 
-                                        {/* Step Name */}
+                                        {/* Step Name - Hidden on mobile */}
                                         <span
-                                            className={`mt-3 text-sm font-medium transition-colors ${isCompleted
+                                            className={`mt-2 hidden text-sm font-medium sm:mt-3 sm:block ${isCompleted
                                                 ? 'text-primary-600 dark:text-primary-400'
                                                 : isCurrent
                                                     ? 'text-primary-700 dark:text-primary-300'
                                                     : 'text-neutral-400 dark:text-neutral-500'
                                                 }`}
+                                            style={{ transition: 'color 300ms ease-out' }}
                                         >
                                             {step.name}
                                         </span>
@@ -302,7 +327,7 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
                             </h2>
                             <button
                                 onClick={goBack}
-                                className="text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+                                className="cursor-pointer text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
                             >
                                 ← Quay lại
                             </button>
@@ -332,7 +357,7 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
                             </h2>
                             <button
                                 onClick={goBack}
-                                className="text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+                                className="cursor-pointer text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
                             >
                                 ← Quay lại
                             </button>
@@ -360,7 +385,7 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
                             </div>
                             <button
                                 onClick={goBack}
-                                className="text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+                                className="cursor-pointer text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
                             >
                                 ← Quay lại
                             </button>

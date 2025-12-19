@@ -82,7 +82,7 @@ export default function RescheduleBookingButton({
         <>
             <button
                 onClick={() => setIsOpen(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-medium text-primary-600 transition-colors hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/40"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-medium text-primary-600 transition-colors hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/40"
             >
                 <CalendarDaysIcon className="size-4" />
                 Đổi lịch
@@ -150,14 +150,14 @@ export default function RescheduleBookingButton({
                         <div className="mt-6 flex gap-3">
                             <button
                                 onClick={() => setIsOpen(false)}
-                                className="flex-1 rounded-lg border border-neutral-300 px-4 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                className="flex-1 cursor-pointer rounded-lg border border-neutral-300 px-4 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                             >
                                 Hủy
                             </button>
                             <button
                                 onClick={handleReschedule}
                                 disabled={loading || !newDate || !newStartTime || !newEndTime}
-                                className="flex-1 rounded-lg bg-primary-600 px-4 py-2 font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
+                                className="flex-1 cursor-pointer rounded-lg bg-primary-600 px-4 py-2 font-medium text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {loading ? 'Đang xử lý...' : 'Xác nhận đổi lịch'}
                             </button>

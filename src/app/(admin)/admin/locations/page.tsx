@@ -11,10 +11,12 @@ import {
     XCircleIcon,
     PhotoIcon,
     CloudArrowUpIcon,
+    FolderOpenIcon,
 } from '@heroicons/react/24/outline'
 import { Button } from '@/shared/Button'
 import NcModal from '@/shared/NcModal'
 import { toast } from 'react-hot-toast'
+import MediaPickerModal from '@/components/admin/MediaPickerModal'
 
 interface Location {
     id: string
@@ -33,6 +35,7 @@ export default function LocationsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingLocation, setEditingLocation] = useState<Location | null>(null)
     const [uploadingImage, setUploadingImage] = useState(false)
+    const [showMediaPicker, setShowMediaPicker] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Form state
@@ -440,6 +443,38 @@ export default function LocationsPage() {
                                 accept="image/*"
                                 onChange={handleImageUpload}
                                 className="hidden"
+                            />
+
+                            {/* Buttons for upload and library */}
+                            <div className="flex gap-2 mt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMediaPicker(true)}
+                                    className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-neutral-300 dark:border-neutral-600 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+                                >
+                                    <FolderOpenIcon className="size-4" />
+                                    Chọn từ thư viện
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploadingImage}
+                                    className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-neutral-300 dark:border-neutral-600 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
+                                >
+                                    <CloudArrowUpIcon className="size-4" />
+                                    {uploadingImage ? 'Đang upload...' : 'Tải lên mới'}
+                                </button>
+                            </div>
+
+                            <MediaPickerModal
+                                isOpen={showMediaPicker}
+                                onClose={() => setShowMediaPicker(false)}
+                                onSelect={(urls) => {
+                                    if (urls.length > 0) {
+                                        setFormData(prev => ({ ...prev, image: urls[0] }))
+                                    }
+                                }}
+                                selectedUrls={formData.image ? [formData.image] : []}
                             />
                         </div>
 

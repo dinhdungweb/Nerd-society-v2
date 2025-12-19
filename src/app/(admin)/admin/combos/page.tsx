@@ -100,7 +100,7 @@ export default async function CombosPage() {
                         </div>
 
                         {/* Edit button */}
-                        <button className="absolute right-4 bottom-4 flex size-8 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-neutral-800 dark:text-neutral-300">
+                        <button className="cursor-pointer absolute right-4 bottom-4 flex size-8 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-neutral-800 dark:text-neutral-300">
                             <PencilIcon className="size-4" />
                         </button>
                     </div>

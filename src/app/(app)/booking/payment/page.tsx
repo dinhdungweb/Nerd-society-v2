@@ -310,7 +310,7 @@ const CheckoutContent = () => {
                         <div className="mb-6">
                             <button
                                 onClick={handleBack}
-                                className="mb-4 text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
+                                className="mb-4 cursor-pointer text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
                             >
                                 ← Quay lại chọn phương thức
                             </button>
@@ -603,7 +603,7 @@ function PaymentDetailRow({
             </div>
             <button
                 onClick={onCopy}
-                className="rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-200 hover:text-neutral-700 dark:hover:bg-neutral-700 dark:hover:text-neutral-300"
+                className="cursor-pointer rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-200 hover:text-neutral-700 dark:hover:bg-neutral-700 dark:hover:text-neutral-300"
             >
                 {copied ? (
                     <CheckCircleIcon className="size-5 text-green-500" />
