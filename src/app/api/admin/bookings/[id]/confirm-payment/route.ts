@@ -1,6 +1,9 @@
 import { sendBookingEmail } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 
 /**
  * POST /api/admin/bookings/[id]/confirm-payment
@@ -69,6 +72,17 @@ export async function POST(
                 console.error('Error sending confirmation email:', emailError)
                 // Don't fail the request if email fails
             }
+        }
+
+        // Audit logging
+        const session = await getServerSession(authOptions)
+        if (session?.user) {
+            await audit.confirmPayment(
+                session.user.id || 'unknown',
+                session.user.name || session.user.email || 'Admin',
+                booking.id,
+                { bookingCode: booking.bookingCode, customerName: booking.customerName }
+            )
         }
 
         return NextResponse.json({

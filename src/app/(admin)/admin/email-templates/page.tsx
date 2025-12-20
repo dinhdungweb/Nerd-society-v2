@@ -22,22 +22,160 @@ interface EmailTemplate {
 }
 
 const defaultTemplates = [
-    { name: 'booking_confirmation', label: 'Xác nhận đặt lịch' },
-    { name: 'payment_reminder', label: 'Nhắc thanh toán' },
+    { name: 'booking_confirmation', label: 'Xác nhận đặt lịch (đã cọc)' },
+    { name: 'booking_pending', label: 'Tiếp nhận đặt lịch (chờ cọc)' },
+    { name: 'password_reset', label: 'Đặt lại mật khẩu' },
     { name: 'booking_cancelled', label: 'Hủy đặt lịch' },
     { name: 'checkin_reminder', label: 'Nhắc check-in' },
 ]
 
+// Pre-built templates for each email type
+const prebuiltTemplates: Record<string, { subject: string; content: string }> = {
+    booking_confirmation: {
+        subject: '[Nerd Society] Xác nhận đặt lịch #{{bookingCode}}',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background: #4f46e5; color: white; padding: 32px; text-align: center;">
+    <h1 style="margin: 0; font-size: 24px;">Đặt lịch thành công! ✅</h1>
+  </div>
+  <div style="padding: 32px; background: #f9fafb;">
+    <p style="font-size: 16px;">Xin chào <strong>{{customerName}}</strong>,</p>
+    <p>Đặt lịch của bạn đã được xác nhận thành công!</p>
+    
+    <div style="background: white; border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #4f46e5;">
+      <h3 style="margin-top: 0; color: #4f46e5;">📝 Thông tin đặt lịch</h3>
+      <p><strong>Mã đặt lịch:</strong> {{bookingCode}}</p>
+      <p><strong>Cơ sở:</strong> {{locationName}}</p>
+      <p><strong>Dịch vụ:</strong> {{serviceName}}</p>
+      <p><strong>Thời gian:</strong> {{date}} | {{startTime}} - {{endTime}}</p>
+      <p><strong>Tổng tiền:</strong> {{amount}}</p>
+    </div>
+    
+    <p style="text-align: center;">
+      <a href="{{bookingUrl}}" style="display: inline-block; background: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">Xem chi tiết đặt lịch</a>
+    </p>
+  </div>
+  <div style="text-align: center; padding: 24px; color: #6b7280; font-size: 12px;">
+    <p>Nerd Society - Study & Work Space</p>
+    <p>Hotline: 036 848 3689</p>
+  </div>
+</div>`
+    },
+    booking_pending: {
+        subject: '[Nerd Society] Tiếp nhận đặt lịch #{{bookingCode}}',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background: #f59e0b; color: white; padding: 32px; text-align: center;">
+    <h1 style="margin: 0; font-size: 24px;">Đã nhận yêu cầu đặt lịch! 📩</h1>
+  </div>
+  <div style="padding: 32px; background: #f9fafb;">
+    <p style="font-size: 16px;">Xin chào <strong>{{customerName}}</strong>,</p>
+    <p>Chúng tôi đã nhận được yêu cầu đặt lịch của bạn. Vui lòng thanh toán cọc để hoàn tất.</p>
+    
+    <div style="background: #fef3c7; border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+      <h3 style="margin-top: 0; color: #d97706;">📝 Thông tin đặt lịch</h3>
+      <p><strong>Mã đặt lịch:</strong> {{bookingCode}}</p>
+      <p><strong>Cơ sở:</strong> {{locationName}}</p>
+      <p><strong>Dịch vụ:</strong> {{serviceName}}</p>
+      <p><strong>Thời gian:</strong> {{date}} | {{startTime}} - {{endTime}}</p>
+      <p><strong>Tổng tiền:</strong> {{amount}}</p>
+    </div>
+    
+    <p style="text-align: center;">
+      <a href="{{bookingUrl}}" style="display: inline-block; background: #f59e0b; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">Thanh toán ngay</a>
+    </p>
+  </div>
+  <div style="text-align: center; padding: 24px; color: #6b7280; font-size: 12px;">
+    <p>Nerd Society - Study & Work Space</p>
+  </div>
+</div>`
+    },
+    password_reset: {
+        subject: '[Nerd Society] Yêu cầu đặt lại mật khẩu',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background: #4f46e5; color: white; padding: 32px; text-align: center;">
+    <h1 style="margin: 0; font-size: 24px;">Đặt lại mật khẩu 🔐</h1>
+  </div>
+  <div style="padding: 32px; background: #f9fafb;">
+    <p>Xin chào,</p>
+    <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>
+    <p>Đường dẫn có hiệu lực trong <strong>1 giờ</strong>.</p>
+    
+    <p style="text-align: center; margin: 32px 0;">
+      <a href="{{resetUrl}}" style="display: inline-block; background: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">Đặt lại mật khẩu</a>
+    </p>
+    
+    <p style="color: #6b7280; font-size: 14px;">Nếu bạn không yêu cầu thay đổi này, vui lòng bỏ qua email này.</p>
+  </div>
+  <div style="text-align: center; padding: 24px; color: #6b7280; font-size: 12px;">
+    <p>Nerd Society - Study & Work Space</p>
+  </div>
+</div>`
+    },
+    booking_cancelled: {
+        subject: '[Nerd Society] Đặt lịch #{{bookingCode}} đã bị hủy',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background: #ef4444; color: white; padding: 32px; text-align: center;">
+    <h1 style="margin: 0; font-size: 24px;">Đặt lịch đã bị hủy ❌</h1>
+  </div>
+  <div style="padding: 32px; background: #f9fafb;">
+    <p style="font-size: 16px;">Xin chào <strong>{{customerName}}</strong>,</p>
+    <p>Đặt lịch của bạn đã bị hủy.</p>
+    
+    <div style="background: #fef2f2; border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #ef4444;">
+      <h3 style="margin-top: 0; color: #dc2626;">📝 Thông tin đặt lịch đã hủy</h3>
+      <p><strong>Mã đặt lịch:</strong> {{bookingCode}}</p>
+      <p><strong>Cơ sở:</strong> {{locationName}}</p>
+      <p><strong>Dịch vụ:</strong> {{serviceName}}</p>
+      <p><strong>Thời gian:</strong> {{date}} | {{startTime}} - {{endTime}}</p>
+    </div>
+    
+    <p>Nếu bạn đã thanh toán cọc, vui lòng liên hệ để được hoàn tiền.</p>
+    <p><strong>Hotline:</strong> 036 848 3689</p>
+  </div>
+  <div style="text-align: center; padding: 24px; color: #6b7280; font-size: 12px;">
+    <p>Nerd Society - Study & Work Space</p>
+  </div>
+</div>`
+    },
+    checkin_reminder: {
+        subject: '[Nerd Society] Nhắc nhở check-in #{{bookingCode}}',
+        content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background: #10b981; color: white; padding: 32px; text-align: center;">
+    <h1 style="margin: 0; font-size: 24px;">Sắp đến giờ check-in! ⏰</h1>
+  </div>
+  <div style="padding: 32px; background: #f9fafb;">
+    <p style="font-size: 16px;">Xin chào <strong>{{customerName}}</strong>,</p>
+    <p>Đây là lời nhắc cho đặt lịch sắp tới của bạn. Đừng quên đến đúng giờ nhé! 😊</p>
+    
+    <div style="background: #d1fae5; border-radius: 12px; padding: 24px; margin: 24px 0; border-left: 4px solid #10b981;">
+      <h3 style="margin-top: 0; color: #059669;">📅 Thông tin đặt lịch</h3>
+      <p><strong>Mã đặt lịch:</strong> {{bookingCode}}</p>
+      <p><strong>Cơ sở:</strong> {{locationName}}</p>
+      <p><strong>Dịch vụ:</strong> {{serviceName}}</p>
+      <p><strong>Thời gian:</strong> {{date}} | {{startTime}} - {{endTime}}</p>
+    </div>
+    
+    <p style="text-align: center;">
+      <a href="{{bookingUrl}}" style="display: inline-block; background: #10b981; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">Xem chi tiết</a>
+    </p>
+  </div>
+  <div style="text-align: center; padding: 24px; color: #6b7280; font-size: 12px;">
+    <p>Nerd Society - Study & Work Space</p>
+  </div>
+</div>`
+    },
+}
+
 const availableVariables = [
     { name: 'customerName', description: 'Tên khách hàng' },
     { name: 'bookingCode', description: 'Mã booking' },
-    { name: 'roomName', description: 'Tên phòng' },
+    { name: 'serviceName', description: 'Tên dịch vụ/phòng' },
     { name: 'locationName', description: 'Tên cơ sở' },
     { name: 'date', description: 'Ngày đặt' },
     { name: 'startTime', description: 'Giờ bắt đầu' },
     { name: 'endTime', description: 'Giờ kết thúc' },
-    { name: 'depositAmount', description: 'Số tiền cọc' },
-    { name: 'totalAmount', description: 'Tổng tiền' },
+    { name: 'amount', description: 'Tổng tiền' },
+    { name: 'bookingUrl', description: 'Link xem chi tiết' },
+    { name: 'resetUrl', description: 'Link đặt lại mật khẩu' },
 ]
 
 export default function EmailTemplatesPage() {
@@ -46,6 +184,7 @@ export default function EmailTemplatesPage() {
     const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null)
     const [isEditing, setIsEditing] = useState(false)
     const [saving, setSaving] = useState(false)
+    const [previewMode, setPreviewMode] = useState(false) // Toggle between code and preview
 
     // Form state
     const [formData, setFormData] = useState({
@@ -89,36 +228,27 @@ export default function EmailTemplatesPage() {
         setFormData({
             name: '',
             subject: '',
-            content: `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #000; color: #fff; padding: 20px; text-align: center; }
-        .content { padding: 20px; background: #f9f9f9; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Nerd Society</h1>
-        </div>
-        <div class="content">
-            <p>Xin chào {{customerName}},</p>
-            <p>Nội dung email...</p>
-        </div>
-        <div class="footer">
-            <p>© 2024 Nerd Society. All rights reserved.</p>
-        </div>
-    </div>
-</body>
-</html>`,
+            content: '',
             isActive: true,
         })
+        setPreviewMode(false)
         setIsEditing(true)
+    }
+
+    // Handle template type selection - auto-fill with prebuilt template
+    const handleTemplateTypeChange = (templateName: string) => {
+        setFormData(prev => ({ ...prev, name: templateName }))
+
+        // Auto-fill subject and content if a prebuilt template exists
+        if (templateName && prebuiltTemplates[templateName]) {
+            const prebuilt = prebuiltTemplates[templateName]
+            setFormData(prev => ({
+                ...prev,
+                name: templateName,
+                subject: prebuilt.subject,
+                content: prebuilt.content,
+            }))
+        }
     }
 
     const handleSave = async () => {
@@ -196,15 +326,24 @@ export default function EmailTemplatesPage() {
                             <div className="space-y-4">
                                 <div>
                                     <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                                        Tên template (slug)
+                                        Loại template
                                     </label>
-                                    <input
-                                        type="text"
+                                    <select
                                         value={formData.name}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                        placeholder="booking_confirmation"
+                                        onChange={(e) => handleTemplateTypeChange(e.target.value)}
                                         className="w-full rounded-lg border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                    />
+                                        disabled={!!selectedTemplate}
+                                    >
+                                        <option value="">-- Chọn loại template --</option>
+                                        {defaultTemplates.map((t) => (
+                                            <option key={t.name} value={t.name}>
+                                                {t.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <p className="mt-1 text-xs text-neutral-500">
+                                        Chọn loại sẽ tự động điền sẵn nội dung mẫu đẹp
+                                    </p>
                                 </div>
                                 <div>
                                     <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
@@ -219,15 +358,44 @@ export default function EmailTemplatesPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                                        Nội dung email (HTML)
-                                    </label>
-                                    <textarea
-                                        value={formData.content}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                                        rows={20}
-                                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                    />
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                            Nội dung email
+                                        </label>
+                                        <div className="flex rounded-lg border border-neutral-300 dark:border-neutral-700">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPreviewMode(false)}
+                                                className={`px-3 py-1 text-sm ${!previewMode ? 'bg-primary-600 text-white' : 'text-neutral-600 dark:text-neutral-400'} rounded-l-lg`}
+                                            >
+                                                Code
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setPreviewMode(true)}
+                                                className={`px-3 py-1 text-sm ${previewMode ? 'bg-primary-600 text-white' : 'text-neutral-600 dark:text-neutral-400'} rounded-r-lg`}
+                                            >
+                                                Xem trước
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {previewMode ? (
+                                        <div className="rounded-lg border border-neutral-300 bg-white p-4 dark:border-neutral-700 dark:bg-white" style={{ minHeight: '480px' }}>
+                                            <iframe
+                                                srcDoc={formData.content}
+                                                className="h-[450px] w-full border-0"
+                                                title="Email Preview"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <textarea
+                                            value={formData.content}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                                            rows={20}
+                                            placeholder="Chọn loại template ở trên để tự động điền nội dung mẫu..."
+                                            className="w-full rounded-lg border border-neutral-300 px-3 py-2 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                        />
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <input

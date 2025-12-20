@@ -10,6 +10,7 @@ import {
     PhotoIcon,
     TrashIcon,
     FolderOpenIcon,
+    EnvelopeIcon,
 } from '@heroicons/react/24/outline'
 import MediaPickerModal from '@/components/admin/MediaPickerModal'
 import Image from 'next/image'
@@ -20,6 +21,18 @@ interface GeneralSettings {
     siteLogo: string
     siteLogoLight: string
     siteFavicon: string
+    // Email toggle settings
+    emailBookingConfirmation: boolean
+    emailBookingPending: boolean
+    emailPasswordReset: boolean
+    emailBookingCancelled: boolean
+    emailCheckinReminder: boolean
+    // SMTP configuration
+    smtpHost: string
+    smtpPort: string
+    smtpUser: string
+    smtpPass: string
+    smtpFrom: string
 }
 
 export default function AdminSettingsPage() {
@@ -44,6 +57,18 @@ export default function AdminSettingsPage() {
         siteLogo: '',
         siteLogoLight: '',
         siteFavicon: '',
+        // Email defaults - all enabled
+        emailBookingConfirmation: true,
+        emailBookingPending: true,
+        emailPasswordReset: true,
+        emailBookingCancelled: true,
+        emailCheckinReminder: true,
+        // SMTP defaults
+        smtpHost: '',
+        smtpPort: '587',
+        smtpUser: '',
+        smtpPass: '',
+        smtpFrom: '',
     })
 
     useEffect(() => {
@@ -66,7 +91,7 @@ export default function AdminSettingsPage() {
         }
     }
 
-    const handleChange = (key: keyof GeneralSettings, value: string) => {
+    const handleChange = (key: keyof GeneralSettings, value: string | boolean) => {
         setSettings(prev => ({ ...prev, [key]: value }))
     }
 
@@ -383,6 +408,188 @@ export default function AdminSettingsPage() {
                                     Khuyên dùng: PNG/ICO vuông, 32x32 hoặc 64x64
                                 </p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* SMTP CONFIGURATION CARD */}
+                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-6 flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-green-600 text-white">
+                            <Cog6ToothIcon className="size-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Cấu hình SMTP</h2>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">Thông tin máy chủ gửi email</p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-5 md:grid-cols-2">
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                SMTP Host
+                            </label>
+                            <input
+                                type="text"
+                                value={settings.smtpHost}
+                                onChange={e => handleChange('smtpHost', e.target.value)}
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="smtp.gmail.com"
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Port
+                            </label>
+                            <input
+                                type="text"
+                                value={settings.smtpPort}
+                                onChange={e => handleChange('smtpPort', e.target.value)}
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="587"
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Email đăng nhập
+                            </label>
+                            <input
+                                type="email"
+                                value={settings.smtpUser}
+                                onChange={e => handleChange('smtpUser', e.target.value)}
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="your-email@gmail.com"
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Mật khẩu ứng dụng
+                            </label>
+                            <input
+                                type="password"
+                                value={settings.smtpPass}
+                                onChange={e => handleChange('smtpPass', e.target.value)}
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="••••••••••••"
+                            />
+                            <p className="mt-1 text-xs text-neutral-500">
+                                Gmail: Dùng App Password, không phải mật khẩu tài khoản
+                            </p>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Email người gửi (From)
+                            </label>
+                            <input
+                                type="text"
+                                value={settings.smtpFrom}
+                                onChange={e => handleChange('smtpFrom', e.target.value)}
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder='"Nerd Society" <no-reply@nerdsociety.com.vn>'
+                            />
+                            <p className="mt-1 text-xs text-neutral-500">
+                                Định dạng: "Tên hiển thị" &lt;email@domain.com&gt;
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* EMAIL SETTINGS CARD */}
+                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-6 flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                            <EnvelopeIcon className="size-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Cài đặt Email</h2>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">Bật/tắt từng loại email gửi đi</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        {/* Booking Confirmation */}
+                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                            <div>
+                                <p className="font-medium text-neutral-900 dark:text-white">Xác nhận đặt lịch (đã cọc)</p>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi booking được xác nhận</p>
+                            </div>
+                            <label className="relative inline-flex cursor-pointer items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.emailBookingConfirmation}
+                                    onChange={(e) => handleChange('emailBookingConfirmation', e.target.checked)}
+                                    className="peer sr-only"
+                                />
+                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                            </label>
+                        </div>
+
+                        {/* Booking Pending */}
+                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                            <div>
+                                <p className="font-medium text-neutral-900 dark:text-white">Tiếp nhận đặt lịch (chờ cọc)</p>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi tạo booking mới</p>
+                            </div>
+                            <label className="relative inline-flex cursor-pointer items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.emailBookingPending}
+                                    onChange={(e) => handleChange('emailBookingPending', e.target.checked)}
+                                    className="peer sr-only"
+                                />
+                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                            </label>
+                        </div>
+
+                        {/* Password Reset */}
+                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                            <div>
+                                <p className="font-medium text-neutral-900 dark:text-white">Đặt lại mật khẩu</p>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi user yêu cầu reset password</p>
+                            </div>
+                            <label className="relative inline-flex cursor-pointer items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.emailPasswordReset}
+                                    onChange={(e) => handleChange('emailPasswordReset', e.target.checked)}
+                                    className="peer sr-only"
+                                />
+                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                            </label>
+                        </div>
+
+                        {/* Booking Cancelled */}
+                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                            <div>
+                                <p className="font-medium text-neutral-900 dark:text-white">Hủy đặt lịch</p>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi booking bị hủy</p>
+                            </div>
+                            <label className="relative inline-flex cursor-pointer items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.emailBookingCancelled}
+                                    onChange={(e) => handleChange('emailBookingCancelled', e.target.checked)}
+                                    className="peer sr-only"
+                                />
+                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                            </label>
+                        </div>
+
+                        {/* Check-in Reminder */}
+                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                            <div>
+                                <p className="font-medium text-neutral-900 dark:text-white">Nhắc check-in</p>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi 1 giờ trước giờ check-in</p>
+                            </div>
+                            <label className="relative inline-flex cursor-pointer items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.emailCheckinReminder}
+                                    onChange={(e) => handleChange('emailCheckinReminder', e.target.checked)}
+                                    className="peer sr-only"
+                                />
+                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                            </label>
                         </div>
                     </div>
                 </div>

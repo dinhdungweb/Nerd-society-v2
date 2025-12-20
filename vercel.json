@@ -4,6 +4,10 @@
         {
             "path": "/api/cron/cancel-pending-bookings",
             "schedule": "*/5 * * * *"
+        },
+        {
+            "path": "/api/cron/checkin-reminders",
+            "schedule": "*/15 * * * *"
         }
     ]
 }

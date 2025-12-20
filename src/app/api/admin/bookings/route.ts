@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { calculateBookingPriceFromDB, calculateDeposit, SYSTEM_CONFIG } from '@/lib/pricing-db'
 import { isSlotAvailable, generateBookingCode, getBookingDateTime, parseTimeToMinutes, OPERATING_HOURS } from '@/lib/booking-utils'
 import { parseISO, addMinutes, format } from 'date-fns'
+import { audit } from '@/lib/audit'
 
 // GET /api/admin/bookings - Get all bookings
 export async function GET() {
@@ -194,6 +195,15 @@ export async function POST(req: Request) {
         import('@/lib/notifications').then(({ notifyNewBooking }) => {
             notifyNewBooking(booking.bookingCode, customerName, booking.id).catch(console.error)
         })
+
+        // Audit logging
+        await audit.create(
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
+            'booking',
+            booking.id,
+            { bookingCode: booking.bookingCode, customerName, source: 'ONSITE' }
+        )
 
         return NextResponse.json(booking)
 

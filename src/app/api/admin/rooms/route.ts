@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 
 // GET - Lấy danh sách phòng
 export async function GET() {
@@ -69,6 +70,15 @@ export async function POST(request: Request) {
                 },
             },
         })
+
+        // Audit logging
+        await audit.create(
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
+            'room',
+            room.id,
+            { name: room.name, type: room.type, location: room.location?.name }
+        )
 
         return NextResponse.json(room, { status: 201 })
     } catch (error) {

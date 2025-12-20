@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 
 // GET - Lấy chi tiết phòng
 export async function GET(
@@ -69,6 +70,15 @@ export async function PUT(
             },
         })
 
+        // Audit logging
+        await audit.update(
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
+            'room',
+            room.id,
+            { name: room.name, type: room.type, location: room.location?.name }
+        )
+
         return NextResponse.json(room)
     } catch (error) {
         console.error('Error updating room:', error)
@@ -101,9 +111,24 @@ export async function DELETE(
             )
         }
 
+        // Get room info before deletion
+        const roomToDelete = await prisma.room.findUnique({
+            where: { id },
+            select: { name: true, type: true }
+        })
+
         await prisma.room.delete({
             where: { id },
         })
+
+        // Audit logging
+        await audit.delete(
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
+            'room',
+            id,
+            { name: roomToDelete?.name, type: roomToDelete?.type }
+        )
 
         return NextResponse.json({ success: true })
     } catch (error) {

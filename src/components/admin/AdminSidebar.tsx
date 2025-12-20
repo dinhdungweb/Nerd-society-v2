@@ -16,6 +16,8 @@ import {
     BuildingStorefrontIcon,
     SparklesIcon,
     ShieldCheckIcon,
+    EnvelopeIcon,
+    ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -67,6 +69,8 @@ const navigationGroups: NavGroup[] = [
         items: [
             { name: 'Khách hàng', href: '/admin/customers', icon: UsersIcon, permissionKey: 'canViewCustomers' },
             { name: 'Nerd Coin', href: '/admin/nerdcoin', icon: SparklesIcon, permissionKey: 'canViewNerdCoin' },
+            { name: 'Email Templates', href: '/admin/email-templates', icon: EnvelopeIcon, adminOnly: true },
+            { name: 'Lịch sử', href: '/admin/audit-log', icon: ClipboardDocumentListIcon, adminOnly: true },
             { name: 'Nhân viên', href: '/admin/staff', icon: UserGroupIcon, adminOnly: true },
             { name: 'Phân quyền', href: '/admin/permissions', icon: ShieldCheckIcon, adminOnly: true },
             { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon, permissionKey: 'canViewSettings' },

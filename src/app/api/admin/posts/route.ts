@@ -2,6 +2,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { audit } from '@/lib/audit'
 
 // GET /api/admin/posts - Get all posts with filters
 export async function GET(request: NextRequest) {
@@ -127,6 +128,15 @@ export async function POST(request: NextRequest) {
                 },
             },
         })
+
+        // Audit logging
+        await audit.create(
+            user.id,
+            user.name || user.email || 'Admin',
+            'post',
+            post.id,
+            { title: post.title, type: post.type, status: post.status }
+        )
 
         return NextResponse.json(post, { status: 201 })
     } catch (error) {

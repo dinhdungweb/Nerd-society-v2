@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { notifyOvertime, notifyEndingSoon } from '@/lib/notifications'
+import { sendCheckinReminderEmail } from '@/lib/email'
 import cron from 'node-cron'
-import { differenceInMinutes, parse, format } from 'date-fns'
+import { differenceInMinutes, startOfDay } from 'date-fns'
 
 const PENDING_TIMEOUT_MINUTES = 5
 const ENDING_SOON_MINUTES = 15 // Cảnh báo 15 phút trước khi hết giờ
@@ -139,16 +140,77 @@ export function initCronJobs() {
         return
     }
 
-    // Run every minute
+    // Run every minute - for pending bookings and overtime check
     cron.schedule('* * * * *', () => {
         cancelPendingBookings()
         checkOvertimeBookings()
     })
 
+    // Run every 15 minutes - for check-in reminders
+    cron.schedule('*/15 * * * *', () => {
+        checkCheckinReminders()
+    })
+
     isScheduled = true
-    console.log('[Cron] Booking cleanup and overtime check jobs scheduled - runs every minute')
+    console.log('[Cron] All cron jobs scheduled:')
+    console.log('  - Pending booking cleanup: every minute')
+    console.log('  - Overtime check: every minute')
+    console.log('  - Check-in reminders: every 15 minutes')
 
     // Run once immediately on startup
     cancelPendingBookings()
     checkOvertimeBookings()
+}
+
+/**
+ * Send check-in reminder emails 1 hour before booking time
+ */
+async function checkCheckinReminders() {
+    try {
+        const now = new Date()
+        const today = startOfDay(now)
+
+        // Find confirmed bookings for today
+        const bookings = await prisma.booking.findMany({
+            where: {
+                date: today,
+                status: 'CONFIRMED',
+            },
+            include: {
+                user: { select: { email: true, name: true } },
+                room: { select: { name: true } },
+                location: { select: { name: true, address: true } },
+            },
+        })
+
+        let emailsSent = 0
+
+        for (const booking of bookings) {
+            // Parse booking start time
+            const [hours, minutes] = booking.startTime.split(':').map(Number)
+            const bookingStartTime = new Date(today)
+            bookingStartTime.setHours(hours, minutes, 0, 0)
+
+            // Calculate time until booking
+            const minutesUntilBooking = (bookingStartTime.getTime() - now.getTime()) / (1000 * 60)
+
+            // Send reminder if booking is 45-75 minutes away (1 hour window)
+            // This ensures we don't spam if job runs multiple times within 15 min
+            if (minutesUntilBooking >= 45 && minutesUntilBooking <= 75) {
+                try {
+                    await sendCheckinReminderEmail(booking)
+                    emailsSent++
+                    console.log(`[Cron] ✅ Sent check-in reminder for ${booking.bookingCode}`)
+                } catch (error) {
+                    console.error(`[Cron] ❌ Failed to send reminder for ${booking.bookingCode}:`, error)
+                }
+            }
+        }
+
+        if (emailsSent > 0) {
+            console.log(`[Cron] Check-in reminder job completed. Sent ${emailsSent} emails.`)
+        }
+    } catch (error) {
+        console.error('[Cron] Error checking check-in reminders:', error)
+    }
 }

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { audit } from '@/lib/audit'
 
 // GET - List all staff
 export async function GET() {
@@ -92,6 +93,15 @@ export async function POST(req: Request) {
             },
         })
 
+        // Audit logging
+        await audit.create(
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
+            'user',
+            user.id,
+            { name: user.name, email: user.email, role: user.role }
+        )
+
         return NextResponse.json(user)
     } catch (error) {
         console.error('Error creating staff:', error)
@@ -139,6 +149,15 @@ export async function PATCH(req: Request) {
             },
         })
 
+        // Audit logging
+        await audit.update(
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
+            'user',
+            user.id,
+            { name: user.name, email: user.email, role: user.role }
+        )
+
         return NextResponse.json(user)
     } catch (error) {
         console.error('Error updating staff:', error)
@@ -171,9 +190,24 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 })
         }
 
+        // Get user info before deletion for audit
+        const userToDelete = await prisma.user.findUnique({
+            where: { id },
+            select: { name: true, email: true }
+        })
+
         await prisma.user.delete({
             where: { id },
         })
+
+        // Audit logging
+        await audit.delete(
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
+            'user',
+            id,
+            { name: userToDelete?.name, email: userToDelete?.email }
+        )
 
         return NextResponse.json({ success: true })
     } catch (error) {

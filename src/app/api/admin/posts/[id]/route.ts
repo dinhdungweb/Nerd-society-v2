@@ -2,6 +2,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { audit } from '@/lib/audit'
 
 // GET /api/admin/posts/[id] - Get a single post
 export async function GET(
@@ -126,6 +127,15 @@ export async function PUT(
             },
         })
 
+        // Audit logging
+        await audit.update(
+            user.id,
+            user.name || user.email || 'Admin',
+            'post',
+            post.id,
+            { title: post.title, type: post.type, status: post.status }
+        )
+
         return NextResponse.json(post)
     } catch (error) {
         console.error('Error updating post:', error)
@@ -165,6 +175,15 @@ export async function DELETE(
         await prisma.post.delete({
             where: { id },
         })
+
+        // Audit logging
+        await audit.delete(
+            user.id,
+            user.name || user.email || 'Admin',
+            'post',
+            id,
+            { title: existingPost.title, type: existingPost.type }
+        )
 
         return NextResponse.json({ success: true })
     } catch (error) {

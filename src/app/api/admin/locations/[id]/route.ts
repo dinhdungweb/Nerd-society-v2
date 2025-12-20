@@ -2,6 +2,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
+import { audit } from '@/lib/audit'
 
 // GET - Lấy thông tin 1 location
 export async function GET(
@@ -52,6 +53,15 @@ export async function PUT(
             },
         })
 
+        // Audit logging
+        await audit.update(
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
+            'location',
+            location.id,
+            { name: location.name, address: location.address }
+        )
+
         return NextResponse.json(location)
     } catch (error) {
         console.error('Update location error:', error)
@@ -83,9 +93,24 @@ export async function DELETE(
             )
         }
 
+        // Get location info before deletion
+        const locationToDelete = await prisma.location.findUnique({
+            where: { id: params.id },
+            select: { name: true, address: true }
+        })
+
         await prisma.location.delete({
             where: { id: params.id },
         })
+
+        // Audit logging
+        await audit.delete(
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
+            'location',
+            params.id,
+            { name: locationToDelete?.name, address: locationToDelete?.address }
+        )
 
         return NextResponse.json({ success: true })
     } catch (error) {

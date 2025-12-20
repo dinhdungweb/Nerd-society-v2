@@ -2,6 +2,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
+import { audit } from '@/lib/audit'
 
 // GET - Lấy danh sách locations
 export async function GET() {
@@ -40,6 +41,15 @@ export async function POST(req: Request) {
                 isActive: isActive !== undefined ? isActive : true,
             },
         })
+
+        // Audit logging
+        await audit.create(
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
+            'location',
+            location.id,
+            { name: location.name, address: location.address }
+        )
 
         return NextResponse.json(location)
     } catch (error) {

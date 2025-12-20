@@ -5,6 +5,8 @@ import { authOptions } from '@/lib/auth'
 import { calculateSurchargeFromDB, getNerdCoinRewardFromDB } from '@/lib/pricing-db'
 import { differenceInMinutes, parseISO } from 'date-fns'
 import { getBookingDateTime } from '@/lib/booking-utils'
+import { sendBookingCancelledEmail } from '@/lib/email'
+import { audit } from '@/lib/audit'
 
 // POST /api/admin/bookings/[id]/status
 export async function POST(
@@ -110,6 +112,14 @@ export async function POST(
                 notifyCheckIn(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
             })
 
+            // Audit logging
+            await audit.checkIn(
+                session.user.id || 'unknown',
+                session.user.name || session.user.email || 'Admin',
+                booking.id,
+                { bookingCode: booking.bookingCode, customerName: booking.customerName }
+            )
+
             return NextResponse.json({
                 ...updatedBooking,
                 nerdCoinIssued: nerdCoins,
@@ -168,6 +178,14 @@ export async function POST(
                 notifyCheckOut(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
             })
 
+            // Audit logging
+            await audit.checkOut(
+                session.user.id || 'unknown',
+                session.user.name || session.user.email || 'Admin',
+                booking.id,
+                { bookingCode: booking.bookingCode, customerName: booking.customerName, surcharge }
+            )
+
             return NextResponse.json({ ...updatedBooking, surcharge })
         }
 
@@ -183,6 +201,21 @@ export async function POST(
             import('@/lib/notifications').then(({ notifyBookingCancelled }) => {
                 notifyBookingCancelled(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
             })
+
+            // Send cancellation email to customer
+            sendBookingCancelledEmail({
+                ...booking,
+                status: 'CANCELLED'
+            }).catch(console.error)
+
+            // Audit logging
+            await audit.cancel(
+                session.user.id || 'unknown',
+                session.user.name || session.user.email || 'Admin',
+                'booking',
+                booking.id,
+                { bookingCode: booking.bookingCode, customerName: booking.customerName }
+            )
 
             return NextResponse.json(updatedBooking)
         }
