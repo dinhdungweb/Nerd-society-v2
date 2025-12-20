@@ -35,7 +35,7 @@ const CoffeeIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 )
 
-export default function HeaderNerd() {
+export default function HeaderNerd({ logoUrl, logoLightUrl }: { logoUrl?: string, logoLightUrl?: string }) {
     const [isScrolled, setIsScrolled] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
@@ -68,17 +68,29 @@ export default function HeaderNerd() {
                 <div className="flex h-20 items-center justify-between">
                     {/* Logo */}
                     <Link href="/" className="group flex items-center gap-2.5">
-                        <div className="flex size-10 items-center justify-center rounded-xl bg-primary-500 text-white shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-105">
-                            <CoffeeIcon className="size-5" />
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-lg font-bold leading-tight text-neutral-900 dark:text-white">
-                                Nerd Society
-                            </span>
-                            <span className="text-[10px] font-medium uppercase tracking-wider text-primary-600 dark:text-primary-400">
-                                Study & Work Space
-                            </span>
-                        </div>
+                        {(logoUrl || logoLightUrl) ? (
+                            <div className="relative h-10 w-auto overflow-hidden transition-transform group-hover:scale-105">
+                                <img
+                                    src={isDarkMode && logoLightUrl ? logoLightUrl : (logoUrl || logoLightUrl)}
+                                    alt="Nerd Society"
+                                    className="h-full w-auto object-contain"
+                                />
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex size-10 items-center justify-center rounded-xl bg-primary-500 text-white shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-105">
+                                    <CoffeeIcon className="size-5" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-lg font-bold leading-tight text-neutral-900 dark:text-white">
+                                        Nerd Society
+                                    </span>
+                                    <span className="text-[10px] font-medium uppercase tracking-wider text-primary-600 dark:text-primary-400">
+                                        Study & Work Space
+                                    </span>
+                                </div>
+                            </>
+                        )}
                     </Link>
 
                     {/* Desktop Navigation */}
@@ -302,13 +314,31 @@ export default function HeaderNerd() {
                         <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full max-w-sm overflow-y-auto bg-white px-6 py-6 dark:bg-neutral-900">
                             {/* Mobile header */}
                             <div className="flex items-center justify-between">
-                                <Link href="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
-                                    <div className="flex size-10 items-center justify-center rounded-xl bg-primary-500 text-white">
-                                        <CoffeeIcon className="size-5" />
-                                    </div>
-                                    <span className="text-lg font-bold text-neutral-900 dark:text-white">
-                                        Nerd Society
-                                    </span>
+                                {/* Logo */}
+                                <Link href="/" className="group flex items-center gap-2.5" onClick={() => setMobileMenuOpen(false)}>
+                                    {(logoUrl || logoLightUrl) ? (
+                                        <div className="relative h-10 w-auto overflow-hidden transition-transform group-hover:scale-105">
+                                            <img
+                                                src={isDarkMode && logoLightUrl ? logoLightUrl : (logoUrl || logoLightUrl)}
+                                                alt="Nerd Society"
+                                                className="h-full w-auto object-contain"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex size-10 items-center justify-center rounded-xl bg-primary-500 text-white shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-105">
+                                                <CoffeeIcon className="size-5" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-lg font-bold leading-tight text-neutral-900 dark:text-white">
+                                                    Nerd Society
+                                                </span>
+                                                <span className="text-[10px] font-medium uppercase tracking-wider text-primary-600 dark:text-primary-400">
+                                                    Study & Work Space
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
                                 </Link>
                                 <button
                                     type="button"

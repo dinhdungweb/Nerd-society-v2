@@ -5,13 +5,22 @@ import LogoSvgLight from './LogoSvgLight'
 
 interface LogoProps {
   className?: string
+  logoUrl?: string
 }
 
-const Logo: React.FC<LogoProps> = ({ className = 'w-22 sm:w-24' }) => {
+const Logo: React.FC<LogoProps> = ({ className = 'w-22 sm:w-24', logoUrl }) => {
   return (
     <Link href="/" className={`inline-block text-primary-600 focus:ring-0 focus:outline-hidden ${className}`}>
-      <LogoSvgLight />
-      <LogoSvg />
+      {logoUrl ? (
+        <div className="relative h-10 w-auto">
+          <img src={logoUrl} alt="Logo" className="h-full w-auto object-contain" />
+        </div>
+      ) : (
+        <>
+          <LogoSvgLight />
+          <LogoSvg />
+        </>
+      )}
     </Link>
   )
 }

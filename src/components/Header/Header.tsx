@@ -10,6 +10,7 @@ import CurrLangDropdown from './CurrLangDropdown'
 import HamburgerBtnMenu from './HamburgerBtnMenu'
 import MegaMenuPopover from './MegaMenuPopover'
 import NotifyDropdown from './NotifyDropdown'
+import { prisma } from '@/lib/prisma'
 interface HeaderProps {
   hasBorderBottom?: boolean
   className?: string
@@ -19,7 +20,14 @@ const Header: FC<HeaderProps> = async ({ hasBorderBottom = true, className }) =>
   const megamenu = await getNavMegaMenu()
   const currencies = await getCurrencies()
   const languages = await getLanguages()
+  // const languages = await getLanguages() // Removed duplicate
   const featuredCategory = (await getStayCategories())[7]
+
+  // Fetch settings for logo
+  const settingsData = await prisma.setting.findUnique({
+    where: { key: 'siteLogo' }
+  })
+  const siteLogo = settingsData?.value
 
   return (
     <div className={clsx('relative', className)}>
@@ -32,7 +40,7 @@ const Header: FC<HeaderProps> = async ({ hasBorderBottom = true, className }) =>
           )}
         >
           <div className="flex items-center justify-center gap-x-3 sm:gap-x-8">
-            <Logo />
+            <Logo logoUrl={siteLogo} />
             <div className="hidden h-7 border-l border-neutral-200 md:block dark:border-neutral-700"></div>
             <div className="hidden md:block">
               <CategoriesDropdown />

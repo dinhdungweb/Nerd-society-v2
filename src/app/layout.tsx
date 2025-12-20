@@ -12,13 +12,24 @@ const beVietnamPro = Be_Vietnam_Pro({
   weight: ['300', '400', '500', '600', '700'],
 })
 
-export const metadata: Metadata = {
-  title: {
-    template: '%s - Nerd Society',
-    default: 'Nerd Society | Không gian học tập dành cho Gen Z',
-  },
-  description: 'Nerd Society: Cộng đồng học tập Gen Z năng động tại Hà Nội. Không gian làm việc chung, học nhóm lý tưởng.',
-  keywords: ['Nerd Society', 'cafe học tập', 'co-working space', 'Hà Nội', 'Gen Z'],
+import { prisma } from '@/lib/prisma'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await prisma.setting.findMany()
+  const config = settings.reduce((acc, curr) => {
+    acc[curr.key] = curr.value
+    return acc
+  }, {} as Record<string, string>)
+
+  return {
+    title: {
+      template: '%s - Nerd Society',
+      default: config.siteName || 'Nerd Society | Không gian học tập dành cho Gen Z',
+    },
+    description: config.siteDescription || 'Nerd Society: Cộng đồng học tập Gen Z năng động tại Hà Nội.',
+    keywords: ['Nerd Society', 'cafe học tập', 'co-working space', 'Hà Nội', 'Gen Z'],
+    icons: config.siteFavicon ? { icon: config.siteFavicon } : undefined,
+  }
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

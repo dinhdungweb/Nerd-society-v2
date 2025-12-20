@@ -68,7 +68,7 @@ const navigation = {
     ],
 }
 
-export default function FooterNerd() {
+export default function FooterNerd({ logoUrl }: { logoUrl?: string }) {
     return (
         <footer className="relative overflow-hidden bg-neutral-900">
             {/* Background decoration */}
@@ -83,17 +83,25 @@ export default function FooterNerd() {
                     {/* Brand */}
                     <div className="lg:col-span-4">
                         <Link href="/" className="group inline-flex items-center gap-2.5">
-                            <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-105">
-                                <CoffeeIcon className="size-6" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xl font-bold leading-tight text-white">
-                                    Nerd Society
-                                </span>
-                                <span className="text-xs font-medium uppercase tracking-wider text-primary-400">
-                                    Study & Work Space
-                                </span>
-                            </div>
+                            {logoUrl ? (
+                                <div className="relative h-12 w-auto overflow-hidden transition-transform group-hover:scale-105">
+                                    <img src={logoUrl} alt="Nerd Society" className="h-full w-auto object-contain" />
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-105">
+                                        <CoffeeIcon className="size-6" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-xl font-bold leading-tight text-white">
+                                            Nerd Society
+                                        </span>
+                                        <span className="text-xs font-medium uppercase tracking-wider text-primary-400">
+                                            Study & Work Space
+                                        </span>
+                                    </div>
+                                </>
+                            )}
                         </Link>
                         <p className="mt-6 max-w-sm text-neutral-400">
                             Cộng đồng học tập Gen Z năng động tại Hà Nội. Không gian làm việc chung, học nhóm lý tưởng với đầy đủ tiện nghi.

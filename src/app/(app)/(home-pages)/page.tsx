@@ -39,7 +39,7 @@ export default async function Page() {
 
   return (
     <>
-      <HeaderNerd />
+      <HeaderNerd logoUrl={settings.siteLogo} logoLightUrl={settings.siteLogoLight} />
       <main className="pt-20">
         <HeroNerd
           heroTitle={settings.heroTitle}
@@ -57,7 +57,7 @@ export default async function Page() {
         <NewsSection />
         <ContactNerd />
       </main>
-      <FooterNerd />
+      <FooterNerd logoUrl={settings.siteLogoLight || settings.siteLogo} />
     </>
   )
 }
