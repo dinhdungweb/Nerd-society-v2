@@ -265,7 +265,7 @@ export default function StaffPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Quản lý nhân viên</h1>
                     <p className="mt-1 text-neutral-500 dark:text-neutral-400">
@@ -274,17 +274,17 @@ export default function StaffPage() {
                 </div>
                 <button
                     onClick={openCreateModal}
-                    className="flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
                 >
                     <PlusIcon className="size-5" />
                     Thêm nhân viên
                 </button>
             </div>
 
-            {/* Staff List */}
-            <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+            {/* Staff List - Desktop */}
+            <div className="hidden overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 md:block">
                 {/* Table Header */}
-                <div className="hidden border-b border-neutral-100 bg-neutral-50/50 px-6 py-3 text-xs font-medium uppercase tracking-wider text-neutral-500 dark:border-neutral-800 dark:bg-neutral-800/50 dark:text-neutral-400 md:grid md:grid-cols-12">
+                <div className="border-b border-neutral-100 bg-neutral-50/50 px-6 py-3 text-xs font-medium uppercase tracking-wider text-neutral-500 dark:border-neutral-800 dark:bg-neutral-800/50 dark:text-neutral-400 md:grid md:grid-cols-12">
                     <div className="col-span-3">Nhân viên</div>
                     <div className="col-span-3">Email</div>
                     <div className="col-span-2">Vai trò</div>
@@ -313,9 +313,9 @@ export default function StaffPage() {
                             </div>
                             <div className="col-span-2">
                                 <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${staff.role === 'ADMIN' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
-                                        staff.role === 'MANAGER' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                                            staff.role === 'CONTENT_EDITOR' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                                'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                    staff.role === 'MANAGER' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                        staff.role === 'CONTENT_EDITOR' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                            'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                                     }`}>
                                     {staff.role === 'ADMIN' ? '👑 Admin' :
                                         staff.role === 'MANAGER' ? '🏢 Manager' :
@@ -350,6 +350,73 @@ export default function StaffPage() {
                     ))
                 ) : (
                     <div className="px-6 py-12 text-center">
+                        <UserCircleIcon className="mx-auto size-12 text-neutral-300" />
+                        <p className="mt-2 text-neutral-500">Chưa có nhân viên nào</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Staff List - Mobile Cards */}
+            <div className="space-y-3 md:hidden">
+                {staffList.length > 0 ? (
+                    staffList.map(staff => (
+                        <div
+                            key={staff.id}
+                            className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-sm font-bold text-white">
+                                        {staff.name[0]?.toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-neutral-900 dark:text-white">{staff.name}</p>
+                                        <p className="text-xs text-neutral-500">{staff.email}</p>
+                                    </div>
+                                </div>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${staff.role === 'ADMIN' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                                    staff.role === 'MANAGER' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                        staff.role === 'CONTENT_EDITOR' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                            'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                    }`}>
+                                    {staff.role === 'ADMIN' ? '👑 Admin' :
+                                        staff.role === 'MANAGER' ? '🏢 Manager' :
+                                            staff.role === 'CONTENT_EDITOR' ? '✍️ Editor' : '👤 Staff'}
+                                </span>
+                            </div>
+                            <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3 dark:border-neutral-800">
+                                <div className="flex items-center gap-4 text-sm">
+                                    {staff.assignedLocation ? (
+                                        <span className="flex items-center gap-1 text-neutral-600 dark:text-neutral-400">
+                                            <MapPinIcon className="size-4" />
+                                            {staff.assignedLocation.name}
+                                        </span>
+                                    ) : (
+                                        <span className="text-neutral-400">Tất cả cơ sở</span>
+                                    )}
+                                    {staff.phone && (
+                                        <span className="text-neutral-500">{staff.phone}</span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => openEditModal(staff)}
+                                        className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    >
+                                        <PencilIcon className="size-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(staff)}
+                                        className="rounded-lg p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    >
+                                        <TrashIcon className="size-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="rounded-xl border border-neutral-200 bg-white px-6 py-12 text-center dark:border-neutral-800 dark:bg-neutral-900">
                         <UserCircleIcon className="mx-auto size-12 text-neutral-300" />
                         <p className="mt-2 text-neutral-500">Chưa có nhân viên nào</p>
                     </div>

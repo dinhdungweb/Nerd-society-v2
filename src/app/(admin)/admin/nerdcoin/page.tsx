@@ -233,8 +233,8 @@ export default function NerdCoinPage() {
                 </div>
             </div>
 
-            {/* Customers Table */}
-            <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+            {/* Customers Table - Desktop */}
+            <div className="hidden overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 md:block">
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:border-neutral-800 dark:bg-neutral-800/50 dark:text-neutral-400">
@@ -302,6 +302,61 @@ export default function NerdCoinPage() {
                         })}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Customers Cards - Mobile */}
+            <div className="space-y-3 md:hidden">
+                {filteredCustomers.map(customer => {
+                    const tier = tierColors[customer.nerdCoinTier] || tierColors.BRONZE
+                    return (
+                        <div key={customer.id} className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-sm font-bold text-white">
+                                        {customer.avatar ? (
+                                            <img src={customer.avatar} alt="" className="size-10 rounded-full object-cover" />
+                                        ) : (
+                                            customer.name[0]?.toUpperCase()
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-neutral-900 dark:text-white">{customer.name}</p>
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">{customer.email}</p>
+                                    </div>
+                                </div>
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${tier.bg} ${tier.text}`}>
+                                    {tier.icon} {customer.nerdCoinTier}
+                                </span>
+                            </div>
+                            <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3 dark:border-neutral-800">
+                                <div className="flex items-center gap-4">
+                                    <div>
+                                        <p className="text-xs text-neutral-500">Nerd Coin</p>
+                                        <p className="font-bold text-primary-600 dark:text-primary-400">{customer.nerdCoinBalance}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-neutral-500">Bookings</p>
+                                        <p className="font-medium text-neutral-700 dark:text-neutral-300">{customer._count.bookings}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => openAdjustModal(customer)}
+                                        className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800"
+                                    >
+                                        <PlusIcon className="size-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => openHistoryModal(customer)}
+                                        className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800"
+                                    >
+                                        <ChevronRightIcon className="size-5" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                })}
             </div>
 
             {/* Transaction History Modal */}

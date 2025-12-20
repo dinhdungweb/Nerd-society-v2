@@ -184,8 +184,8 @@ export default function CustomersPage() {
                     </p>
                 </div>
 
-                {/* Search and Actions */}
-                <div className="flex items-center gap-3">
+                {/* Desktop: Search and Actions */}
+                <div className="hidden sm:flex items-center gap-3">
                     <div className="relative">
                         <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400" />
                         <input
@@ -231,14 +231,61 @@ export default function CustomersPage() {
                         Export
                     </a>
                 </div>
+
+                {/* Mobile: Actions row */}
+                <div className="flex sm:hidden items-center gap-2">
+                    <div className="relative flex-1">
+                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400" />
+                        <input
+                            type="text"
+                            placeholder="Tìm kiếm..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="w-full rounded-xl border border-neutral-200 bg-white py-2.5 pl-10 pr-4 text-sm transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                            >
+                                <XMarkIcon className="size-4" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Sort Dropdown */}
+                    <select
+                        value={`${sortBy}-${sortOrder}`}
+                        onChange={e => {
+                            const [field, order] = e.target.value.split('-')
+                            setSortBy(field as any)
+                            setSortOrder(order as any)
+                        }}
+                        className="rounded-xl border border-neutral-200 bg-white py-2.5 pl-3 pr-8 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                    >
+                        <option value="createdAt-desc">Mới nhất</option>
+                        <option value="createdAt-asc">Cũ nhất</option>
+                        <option value="name-asc">A-Z</option>
+                        <option value="name-desc">Z-A</option>
+                        <option value="bookings-desc">Nhiều booking</option>
+                    </select>
+
+                    {/* Export Button */}
+                    <a
+                        href="/api/admin/export?type=customers"
+                        className="flex items-center justify-center rounded-xl border border-neutral-200 bg-white p-2.5 text-neutral-700 transition-all hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                    >
+                        <ArrowDownTrayIcon className="size-5" />
+                    </a>
+                </div>
             </div>
 
-            {/* Customers List */}
-            <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+            {/* Customers List - Desktop */}
+            <div className="hidden md:block overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
                 {paginatedCustomers.length > 0 ? (
                     <>
                         {/* Table Header */}
-                        <div className="hidden border-b border-neutral-100 bg-neutral-50/50 px-6 py-3 text-xs font-medium uppercase tracking-wider text-neutral-500 dark:border-neutral-800 dark:bg-neutral-800/50 dark:text-neutral-400 md:grid md:grid-cols-12">
+                        <div className="border-b border-neutral-100 bg-neutral-50/50 px-6 py-3 text-xs font-medium uppercase tracking-wider text-neutral-500 dark:border-neutral-800 dark:bg-neutral-800/50 dark:text-neutral-400 grid grid-cols-12">
                             <div className="col-span-4">Khách hàng</div>
                             <div className="col-span-3">Email</div>
                             <div className="col-span-2">Số điện thoại</div>
@@ -252,7 +299,7 @@ export default function CustomersPage() {
                                 <div
                                     key={customer.id}
                                     onClick={() => openCustomerModal(customer)}
-                                    className="grid cursor-pointer grid-cols-1 gap-2 px-6 py-4 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/50 md:grid-cols-12 md:items-center md:gap-4"
+                                    className="grid cursor-pointer grid-cols-12 items-center gap-4 px-6 py-4 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
                                 >
                                     {/* Customer Info */}
                                     <div className="col-span-4 flex items-center gap-3">
@@ -269,14 +316,12 @@ export default function CustomersPage() {
                                     </div>
 
                                     {/* Email */}
-                                    <div className="col-span-3 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400 md:gap-0">
-                                        <EnvelopeIcon className="size-4 text-neutral-400 md:hidden" />
+                                    <div className="col-span-3 text-sm text-neutral-600 dark:text-neutral-400">
                                         {customer.email}
                                     </div>
 
                                     {/* Phone */}
-                                    <div className="col-span-2 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400 md:gap-0">
-                                        <PhoneIcon className="size-4 text-neutral-400 md:hidden" />
+                                    <div className="col-span-2 text-sm text-neutral-600 dark:text-neutral-400">
                                         {customer.phone || '-'}
                                     </div>
 
@@ -297,6 +342,61 @@ export default function CustomersPage() {
                     </>
                 ) : (
                     <div className="px-6 py-16 text-center">
+                        <UserIcon className="mx-auto size-12 text-neutral-300 dark:text-neutral-600" />
+                        <p className="mt-4 text-lg font-medium text-neutral-900 dark:text-white">
+                            {searchQuery ? 'Không tìm thấy khách hàng' : 'Chưa có khách hàng'}
+                        </p>
+                        <p className="mt-1 text-neutral-500 dark:text-neutral-400">
+                            {searchQuery ? 'Thử tìm với từ khóa khác' : 'Khách hàng sẽ xuất hiện ở đây sau khi đăng ký'}
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Customers List - Mobile Cards */}
+            <div className="md:hidden space-y-3">
+                {paginatedCustomers.length > 0 ? (
+                    paginatedCustomers.map(customer => (
+                        <div
+                            key={customer.id}
+                            onClick={() => openCustomerModal(customer)}
+                            className="cursor-pointer rounded-xl border border-neutral-200 bg-white p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800/50"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-sm font-bold text-white">
+                                        {customer.avatar ? (
+                                            <img src={customer.avatar} alt="" className="size-10 rounded-full object-cover" />
+                                        ) : (
+                                            customer.name[0]?.toUpperCase() || 'U'
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-neutral-900 dark:text-white">{customer.name}</p>
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">{customer.email}</p>
+                                    </div>
+                                </div>
+                                <span className="inline-flex rounded-full bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+                                    {customer._count.bookings} booking
+                                </span>
+                            </div>
+                            <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3 dark:border-neutral-800">
+                                <div className="flex items-center gap-4 text-sm">
+                                    {customer.phone && (
+                                        <span className="flex items-center gap-1 text-neutral-600 dark:text-neutral-400">
+                                            <PhoneIcon className="size-4" />
+                                            {customer.phone}
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                    {new Date(customer.createdAt).toLocaleDateString('vi-VN')}
+                                </span>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="rounded-xl border border-neutral-200 bg-white px-6 py-16 text-center dark:border-neutral-800 dark:bg-neutral-900">
                         <UserIcon className="mx-auto size-12 text-neutral-300 dark:text-neutral-600" />
                         <p className="mt-4 text-lg font-medium text-neutral-900 dark:text-white">
                             {searchQuery ? 'Không tìm thấy khách hàng' : 'Chưa có khách hàng'}
