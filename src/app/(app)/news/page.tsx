@@ -1,16 +1,11 @@
 import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
 import Link from 'next/link'
-import Image from 'next/image'
-import { format } from 'date-fns'
-import { vi } from 'date-fns/locale'
 import {
     CalendarDaysIcon,
-    MapPinIcon,
-    ClockIcon,
 } from '@heroicons/react/24/outline'
-import { Badge } from '@/shared/Badge'
 import { HeaderNerd, FooterNerd } from '@/components/landing'
+import PostCard from '@/components/PostCard'
 import NewsTabs from './NewsTabs'
 
 export const metadata: Metadata = {
@@ -88,74 +83,7 @@ export default async function NewsListPage({ searchParams }: PageProps) {
                         {posts.length > 0 ? (
                             <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                                 {posts.map((post) => (
-                                    <Link
-                                        key={post.id}
-                                        href={`/news/${post.slug}`}
-                                        className="group block bg-white dark:bg-neutral-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
-                                    >
-                                        {/* Thumbnail */}
-                                        <div className="relative aspect-[16/10] overflow-hidden">
-                                            {post.thumbnail ? (
-                                                <Image
-                                                    src={post.thumbnail}
-                                                    alt={post.title}
-                                                    fill
-                                                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 flex items-center justify-center">
-                                                    <CalendarDaysIcon className="size-12 text-primary-400" />
-                                                </div>
-                                            )}
-                                            <div className="absolute top-3 left-3">
-                                                <Badge color="primary">
-                                                    {post.type === 'EVENT' ? 'Sự kiện' : 'Tin tức'}
-                                                </Badge>
-                                            </div>
-                                            {post.featured && (
-                                                <div className="absolute top-3 right-3">
-                                                    <Badge color="featured">Nổi bật</Badge>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Content */}
-                                        <div className="p-5">
-                                            {post.type === 'EVENT' && post.eventDate && (
-                                                <div className="flex flex-wrap gap-3 mb-3 text-sm text-neutral-500 dark:text-neutral-400">
-                                                    <div className="flex items-center gap-1">
-                                                        <CalendarDaysIcon className="size-4" />
-                                                        {format(new Date(post.eventDate), 'dd/MM/yyyy', { locale: vi })}
-                                                    </div>
-                                                    {post.eventTime && (
-                                                        <div className="flex items-center gap-1">
-                                                            <ClockIcon className="size-4" />
-                                                            {post.eventTime}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-2">
-                                                {post.title}
-                                            </h2>
-
-                                            {post.excerpt && (
-                                                <p className="mt-2 text-neutral-600 dark:text-neutral-400 text-sm line-clamp-2">
-                                                    {post.excerpt}
-                                                </p>
-                                            )}
-
-                                            <div className="mt-4 pt-4 border-t border-neutral-100 dark:border-neutral-700 flex items-center justify-between text-sm">
-                                                <span className="text-neutral-500 dark:text-neutral-400">
-                                                    {post.publishedAt && format(new Date(post.publishedAt), 'dd MMM yyyy', { locale: vi })}
-                                                </span>
-                                                <span className="text-primary-600 dark:text-primary-400 font-medium">
-                                                    Đọc thêm →
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </Link>
+                                    <PostCard key={post.id} post={post as any} />
                                 ))}
                             </div>
                         ) : (
