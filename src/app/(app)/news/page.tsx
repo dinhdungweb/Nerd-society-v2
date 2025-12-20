@@ -55,14 +55,27 @@ async function getPosts(type?: string, page = 1, limit = 9) {
     return { posts, total, totalPages: Math.ceil(total / limit) }
 }
 
+async function getSettings() {
+    try {
+        const settings = await prisma.setting.findMany()
+        return settings.reduce((acc, curr) => {
+            acc[curr.key] = curr.value
+            return acc
+        }, {} as Record<string, string>)
+    } catch {
+        return {}
+    }
+}
+
 export default async function NewsListPage({ searchParams }: PageProps) {
     const { type, page } = await searchParams
     const currentPage = parseInt(page || '1')
     const { posts, total, totalPages } = await getPosts(type, currentPage)
+    const settings = await getSettings()
 
     return (
         <>
-            <HeaderNerd />
+            <HeaderNerd logoUrl={settings.siteLogo} logoLightUrl={settings.siteLogoLight} />
             <main className="pt-20">
                 <div className="py-12 lg:py-16 bg-neutral-50 dark:bg-neutral-900/50">
                     <div className="container">
@@ -115,7 +128,7 @@ export default async function NewsListPage({ searchParams }: PageProps) {
                     </div>
                 </div>
             </main>
-            <FooterNerd />
+            <FooterNerd logoUrl={settings.siteLogoLight || settings.siteLogo} />
         </>
     )
 }

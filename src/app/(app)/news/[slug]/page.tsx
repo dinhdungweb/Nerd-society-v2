@@ -61,6 +61,18 @@ async function getRelatedPosts(postId: string, type: string) {
     })
 }
 
+async function getSettings() {
+    try {
+        const settings = await prisma.setting.findMany()
+        return settings.reduce((acc, curr) => {
+            acc[curr.key] = curr.value
+            return acc
+        }, {} as Record<string, string>)
+    } catch {
+        return {}
+    }
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const { slug } = await params
     const post = await prisma.post.findUnique({
@@ -92,6 +104,7 @@ export default async function PostDetailPage({ params }: PageProps) {
     }
 
     const relatedPosts = await getRelatedPosts(post.id, post.type)
+    const settings = await getSettings()
 
     // Breadcrumb structured data for SEO
     const breadcrumbJsonLd = {
@@ -131,7 +144,7 @@ export default async function PostDetailPage({ params }: PageProps) {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
             />
-            <HeaderNerd />
+            <HeaderNerd logoUrl={settings.siteLogo} logoLightUrl={settings.siteLogoLight} />
             <main className="pt-20">
                 <article className="pb-16 lg:pb-24">
                     {/* Hero / Thumbnail */}
@@ -316,7 +329,7 @@ export default async function PostDetailPage({ params }: PageProps) {
                     </div>
                 </article>
             </main>
-            <FooterNerd />
+            <FooterNerd logoUrl={settings.siteLogoLight || settings.siteLogo} />
         </>
     )
 }
