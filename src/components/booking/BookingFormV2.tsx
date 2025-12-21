@@ -53,16 +53,15 @@ interface BookingFormV2Props {
     loading?: boolean
 }
 
-// Generate time slots from 08:00 to 22:00
+// Generate time slots from 00:00 to 23:45 (24/7)
 function generateTimeSlots(step: number = 30): string[] {
     const slots: string[] = []
-    for (let hour = 8; hour <= 21; hour++) {
+    for (let hour = 0; hour < 24; hour++) {
         for (let minute = 0; minute < 60; minute += step) {
-            if (hour === 21 && minute > 0) break
             slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`)
         }
     }
-    slots.push('22:00')
+    slots.push('24:00')
     return slots
 }
 
@@ -147,12 +146,12 @@ export default function BookingFormV2({
 
     const now = new Date()
     now.setMinutes(now.getMinutes() + 15)
-    const currentHour = now.getHours()
+    // const currentHour = now.getHours()
     const currentTimeWithBuffer = format(now, 'HH:mm')
-    const isPastClosingTime = currentHour >= 22 || currentHour < 8
+    // const isPastClosingTime = currentHour >= 22 || currentHour < 8 // Removed for 24/7
 
     const timeSlots = isToday
-        ? (isPastClosingTime ? [] : allTimeSlots.filter(t => t >= currentTimeWithBuffer))
+        ? allTimeSlots.filter(t => t >= currentTimeWithBuffer)
         : allTimeSlots
 
     // 1. Fetch booked slots
@@ -303,7 +302,7 @@ export default function BookingFormV2({
                                 setStartTime(value)
                                 setEndTime('')
                             }}
-                            options={timeSlots.map(time => ({
+                            options={timeSlots.filter(t => t !== '24:00').map(time => ({
                                 value: time,
                                 label: time,
                                 disabled: isTimeSlotBooked(time, bookedSlots)

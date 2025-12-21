@@ -142,11 +142,7 @@ export default function NotificationBell() {
                 onClick={() => setIsOpen(!isOpen)}
                 className="relative flex size-10 items-center justify-center rounded-xl text-neutral-500 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
             >
-                {unreadCount > 0 ? (
-                    <BellAlertIcon className="size-5 text-primary-600" />
-                ) : (
-                    <BellIcon className="size-5" />
-                )}
+                <BellIcon className="size-5" />
                 {unreadCount > 0 && (
                     <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
                         {unreadCount > 9 ? '9+' : unreadCount}

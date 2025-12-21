@@ -32,7 +32,7 @@ export function FloatingContact() {
                 scale: isVisible ? 1 : 0,
                 opacity: isVisible ? 1 : 0
             }}
-            className="fixed bottom-6 right-6 z-40"
+            className="fixed bottom-24 right-6 z-40"
         >
             <a
                 href="tel:0368483689"

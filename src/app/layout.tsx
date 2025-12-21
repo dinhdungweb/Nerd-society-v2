@@ -4,7 +4,7 @@ import { Be_Vietnam_Pro } from 'next/font/google'
 import 'rc-slider/assets/index.css'
 import ThemeProvider from './theme-provider'
 import { Providers } from './providers'
-import { FloatingContact } from '@/components/ui/FloatingContact'
+import { ChatWidget } from '@/components/chat/ChatWidget'
 
 const beVietnamPro = Be_Vietnam_Pro({
   subsets: ['latin', 'vietnamese'],
@@ -32,13 +32,19 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const settings = await prisma.setting.findMany()
+  const config = settings.reduce((acc, curr) => {
+    acc[curr.key] = curr.value
+    return acc
+  }, {} as Record<string, string>)
+
   return (
     <html lang="vi" className={beVietnamPro.className}>
       <body className="bg-white text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
         <Providers>
           {children}
-          <FloatingContact />
+          <ChatWidget logoUrl={config.siteFavicon} />
         </Providers>
       </body>
     </html>

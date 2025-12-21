@@ -184,6 +184,20 @@ function BookingsContent() {
         applyFilters()
     }, [applyFilters])
 
+    // Auto-open modal from URL query param (e.g., from notification click)
+    useEffect(() => {
+        const bookingId = searchParams.get('id')
+        if (bookingId && bookings.length > 0) {
+            const booking = bookings.find(b => b.id === bookingId)
+            if (booking) {
+                setSelectedBooking(booking)
+                setDetailModalOpen(true)
+                // Clear the query param after opening
+                router.replace('/admin/bookings', { scroll: false })
+            }
+        }
+    }, [searchParams, bookings, router])
+
     // Pagination
     const totalPages = Math.ceil(filteredBookings.length / ITEMS_PER_PAGE)
     const paginatedBookings = filteredBookings.slice(

@@ -451,3 +451,75 @@ model EmailTemplate {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// =====================================================
+// LIVE CHAT SYSTEM
+// =====================================================
+
+enum ChatStatus {
+  OPEN        // Đang mở, chờ nhân viên
+  ASSIGNED    // Đã có nhân viên phụ trách
+  RESOLVED    // Đã giải quyết
+  CLOSED      // Đã đóng
+}
+
+enum SenderType {
+  GUEST       // Khách truy cập (có thể không đăng nhập)
+  STAFF       // Nhân viên
+  SYSTEM      // Tin nhắn hệ thống (auto reply, etc.)
+}
+
+// Chat Conversation - Cuộc trò chuyện
+model ChatConversation {
+  id            String        @id @default(cuid())
+  
+  // Khách hàng (có thể không cần đăng nhập)
+  guestName     String?       // Tên khách nhập khi bắt đầu chat
+  guestEmail    String?
+  guestPhone    String?
+  guestSessionId String?      // Session ID để track khách chưa đăng nhập
+  userId        String?       // Nếu khách đã đăng nhập
+  
+  // Nhân viên phụ trách
+  assignedToId  String?
+  
+  status        ChatStatus    @default(OPEN)
+  source        String?       // "homepage", "booking_page", "contact"
+  subject       String?       // Chủ đề cuộc trò chuyện
+  
+  lastMessageAt DateTime?     // Thời điểm tin nhắn cuối
+  unreadCount   Int           @default(0) // Số tin chưa đọc (cho staff)
+  
+  messages      ChatMessage[]
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  closedAt      DateTime?
+  
+  @@index([status])
+  @@index([assignedToId])
+  @@index([userId])
+  @@index([guestSessionId])
+  @@index([lastMessageAt])
+}
+
+// Chat Message - Tin nhắn
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  
+  content        String           @db.Text
+  attachments    String[]         // URLs của ảnh/file đính kèm
+  senderType     SenderType       // GUEST | STAFF | SYSTEM
+  senderId       String?          // staffId nếu là STAFF
+  senderName     String?          // Tên người gửi (hiển thị)
+  
+  isRead         Boolean          @default(false)
+  
+  createdAt      DateTime         @default(now())
+  
+  @@index([conversationId])
+  @@index([createdAt])
+  @@index([senderType])
+}

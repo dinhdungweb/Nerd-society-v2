@@ -80,8 +80,16 @@ export default function AdminSettingsPage() {
             const res = await fetch('/api/admin/settings')
             const data = await res.json()
             if (res.ok && Object.keys(data).length > 0) {
+                // Convert string booleans to actual booleans
+                const booleanKeys = ['emailBookingConfirmation', 'emailBookingPending', 'emailPasswordReset', 'emailBookingCancelled', 'emailCheckinReminder']
+                const processedData = { ...data }
+                booleanKeys.forEach(key => {
+                    if (key in processedData) {
+                        processedData[key] = processedData[key] === true || processedData[key] === 'true'
+                    }
+                })
                 // Merge with defaults to ensure all keys exist
-                setSettings(prev => ({ ...prev, ...data }))
+                setSettings(prev => ({ ...prev, ...processedData }))
             }
         } catch (error) {
             console.error('Failed to load settings', error)

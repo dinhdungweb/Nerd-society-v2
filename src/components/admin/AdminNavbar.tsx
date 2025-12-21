@@ -13,6 +13,7 @@ import { signOut, useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useContext, useState, useRef, useEffect } from 'react'
 import NotificationBell from './NotificationBell'
+import QuickChatPanel from './QuickChatPanel'
 
 interface AdminNavbarProps {
     onMenuClick: () => void
@@ -87,6 +88,9 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                 >
                     {isDarkMode ? <SunIcon className="size-5" /> : <MoonIcon className="size-5" />}
                 </button>
+
+                {/* Quick Chat Panel */}
+                <QuickChatPanel />
 
                 {/* Notifications */}
                 <NotificationBell />

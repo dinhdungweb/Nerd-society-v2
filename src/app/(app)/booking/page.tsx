@@ -27,7 +27,7 @@ export default async function BookingPage() {
     const locations = await getLocations()
 
     return (
-        <div className="bg-neutral-50 min-h-screen py-16 dark:bg-neutral-950">
+        <div className="bg-neutral-50 pt-24 pb-16 dark:bg-neutral-950">
             <div className="container">
                 <div className="mx-auto max-w-2xl text-center mb-12">
                     <h1 className="text-3xl font-bold text-neutral-900 dark:text-white sm:text-4xl">

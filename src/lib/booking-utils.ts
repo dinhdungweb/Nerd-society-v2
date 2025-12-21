@@ -155,11 +155,11 @@ export async function getBookedSlots(roomId: string, dateStr: string) {
 }
 
 /**
- * Operating hours mặc định
+ * Operating hours mặc định (24/7)
  */
 export const OPERATING_HOURS = {
-    open: '08:00',
-    close: '22:00',
+    open: '00:00',
+    close: '24:00',
 } as const
 
 /**

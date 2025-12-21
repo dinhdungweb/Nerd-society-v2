@@ -18,6 +18,7 @@ import {
     ShieldCheckIcon,
     EnvelopeIcon,
     ClipboardDocumentListIcon,
+    ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -50,6 +51,7 @@ const navigationGroups: NavGroup[] = [
         name: 'Quản lý đặt lịch',
         items: [
             { name: 'Bookings', href: '/admin/bookings', icon: CalendarDaysIcon, permissionKey: 'canViewBookings' },
+            { name: 'Chat hỗ trợ', href: '/admin/chat', icon: ChatBubbleLeftRightIcon, permissionKey: 'canViewBookings' },
             { name: 'Phòng', href: '/admin/rooms', icon: CubeIcon, permissionKey: 'canViewRooms' },
             { name: 'Dịch vụ', href: '/admin/services', icon: Squares2X2Icon, permissionKey: 'canViewServices' },
             { name: 'Cơ sở', href: '/admin/locations', icon: BuildingStorefrontIcon, permissionKey: 'canViewLocations' },
