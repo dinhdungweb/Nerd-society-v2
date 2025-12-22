@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions)
 
-        // Chỉ Staff/Admin mới xem được danh sách
+        // Chỉ Staff/Admin mới xem được danh sách chat
         if (!session?.user || !['ADMIN', 'MANAGER', 'STAFF'].includes((session.user as any).role)) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }

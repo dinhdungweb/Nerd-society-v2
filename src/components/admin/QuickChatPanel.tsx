@@ -32,8 +32,12 @@ export default function QuickChatPanel() {
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [])
 
-    const unreadTotal = conversations?.reduce((sum, c) => sum + c.unreadCount, 0) || 0
-    const recentConversations = conversations?.slice(0, 10) || []
+    const unreadTotal = Array.isArray(conversations)
+        ? conversations.reduce((sum, c) => sum + c.unreadCount, 0)
+        : 0
+    const recentConversations = Array.isArray(conversations)
+        ? conversations.slice(0, 10)
+        : []
 
     const formatTime = (dateStr: string) => {
         const date = new Date(dateStr)

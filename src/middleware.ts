@@ -12,7 +12,6 @@ const ADMIN_ONLY_ROUTES = [
 
 // Routes for CONTENT_EDITOR - they can only access content-related pages
 const CONTENT_EDITOR_ROUTES = [
-    '/admin',
     '/admin/posts',
     '/admin/gallery',
     '/admin/media',
@@ -48,11 +47,16 @@ export default withAuth(
 
             // Content Editor can only access content-related routes
             if (role === 'CONTENT_EDITOR') {
+                // Exact match for /admin (dashboard) - redirect to posts
+                if (pathname === '/admin') {
+                    return NextResponse.redirect(new URL('/admin/posts', req.url))
+                }
+
                 const isAllowedRoute = CONTENT_EDITOR_ROUTES.some(route =>
                     pathname === route || pathname.startsWith(route + '/')
                 )
                 if (!isAllowedRoute) {
-                    return NextResponse.redirect(new URL('/admin?error=access_denied', req.url))
+                    return NextResponse.redirect(new URL('/admin/posts?error=access_denied', req.url))
                 }
                 return
             }

@@ -90,7 +90,7 @@ export default function AboutNerd({
                         initial={{ opacity: 0, y: 10 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="inline-block rounded-full bg-secondary-100 px-4 py-2 text-sm font-medium text-secondary-700 dark:bg-secondary-900/50 dark:text-secondary-300"
+                        className="inline-block rounded-full bg-primary-100 px-4 py-2 text-sm font-medium text-primary-700 dark:bg-primary-900/50 dark:text-primary-300"
                     >
                         Về chúng tôi
                     </motion.span>

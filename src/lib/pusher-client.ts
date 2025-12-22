@@ -34,3 +34,14 @@ export const CHAT_EVENTS = {
     CONVERSATION_UPDATED: 'conversation-updated',
     TYPING: 'typing',
 }
+
+// Notification channels
+export const NOTIFICATION_CHANNELS = {
+    admin: 'admin-notifications',
+}
+
+// Notification events
+export const NOTIFICATION_EVENTS = {
+    NEW_NOTIFICATION: 'new-notification',
+    NOTIFICATION_READ: 'notification-read',
+}

@@ -58,6 +58,25 @@ const ADMIN_PERMISSIONS: StaffPermissions = {
     canViewSettings: true,
 }
 
+// Limited permissions for CONTENT_EDITOR - only content management
+const CONTENT_EDITOR_PERMISSIONS: StaffPermissions = {
+    canViewDashboard: false,
+    canViewBookings: false,
+    canCreateBookings: false,
+    canEditBookings: false,
+    canDeleteBookings: false,
+    canCheckIn: false,
+    canCheckOut: false,
+    canViewCustomers: false,
+    canViewRooms: false,
+    canViewServices: false,
+    canViewLocations: false,
+    canViewPosts: true,  // Only content access
+    canViewNerdCoin: false,
+    canViewReports: false,
+    canViewSettings: false,
+}
+
 interface PermissionsContextType {
     permissions: StaffPermissions
     loading: boolean
@@ -92,17 +111,26 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
             return
         }
 
-        // For all other roles (MANAGER, STAFF, CONTENT_EDITOR) - fetch from API
+        // For MANAGER, STAFF, and CONTENT_EDITOR - fetch from API (database permissions)
         if (role && ['MANAGER', 'STAFF', 'CONTENT_EDITOR'].includes(role)) {
             const fetchPermissions = async () => {
                 try {
                     const res = await fetch('/api/staff/permissions')
                     if (res.ok) {
                         const data = await res.json()
-                        setPermissions({ ...DEFAULT_PERMISSIONS, ...data.permissions })
+                        // Merge with defaults, falling back to CONTENT_EDITOR defaults if API fails
+                        const basePermissions = role === 'CONTENT_EDITOR'
+                            ? CONTENT_EDITOR_PERMISSIONS
+                            : DEFAULT_PERMISSIONS
+                        setPermissions({ ...basePermissions, ...data.permissions })
+                    } else {
+                        // If API fails, use role-specific defaults
+                        setPermissions(role === 'CONTENT_EDITOR' ? CONTENT_EDITOR_PERMISSIONS : DEFAULT_PERMISSIONS)
                     }
                 } catch (error) {
                     console.error('Error fetching permissions:', error)
+                    // Fallback to role-specific defaults
+                    setPermissions(role === 'CONTENT_EDITOR' ? CONTENT_EDITOR_PERMISSIONS : DEFAULT_PERMISSIONS)
                 }
                 setLoading(false)
             }

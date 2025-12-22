@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server'
 export async function GET(req: Request) {
     try {
         const session = await getServerSession(authOptions)
-        if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'STAFF')) {
+        if (!session || !['ADMIN', 'STAFF'].includes(session.user.role)) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
         }
 
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
     try {
         const session = await getServerSession(authOptions)
-        if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'STAFF')) {
+        if (!session || !['ADMIN', 'STAFF'].includes(session.user.role)) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
         }
 

@@ -22,6 +22,7 @@ import CreateBookingModal from '@/components/admin/bookings/CreateBookingModal'
 import BookingCalendarView from '@/components/admin/bookings/BookingCalendarView'
 import { TableCellsIcon, CalendarIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import useSWR from 'swr'
+import PageGuard from '@/components/admin/PageGuard'
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
 
@@ -619,7 +620,9 @@ function BookingsContent() {
 export default function BookingsPage() {
     return (
         <Suspense fallback={<div>Loading...</div>}>
-            <BookingsContent />
+            <PageGuard requiredPermission="canViewBookings">
+                <BookingsContent />
+            </PageGuard>
         </Suspense>
     )
 }

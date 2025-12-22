@@ -39,3 +39,34 @@ export const CHAT_EVENTS = {
     CONVERSATION_UPDATED: 'conversation-updated',
     TYPING: 'typing',
 }
+
+// Notification channels (public - no auth required)
+export const NOTIFICATION_CHANNELS = {
+    admin: 'admin-notifications',
+}
+
+// Notification events
+export const NOTIFICATION_EVENTS = {
+    NEW_NOTIFICATION: 'new-notification',
+    NOTIFICATION_READ: 'notification-read',
+}
+
+// Helper để trigger notification events
+export const triggerNotification = async (notification: {
+    id: string
+    type: string
+    title: string
+    message: string
+    link?: string | null
+    createdAt: Date | string
+}) => {
+    try {
+        await pusherServer.trigger(NOTIFICATION_CHANNELS.admin, NOTIFICATION_EVENTS.NEW_NOTIFICATION, {
+            ...notification,
+            createdAt: notification.createdAt instanceof Date ? notification.createdAt.toISOString() : notification.createdAt,
+            isRead: false,
+        })
+    } catch (error) {
+        console.error('Failed to trigger notification:', error)
+    }
+}

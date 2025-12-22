@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, ReactNode } from 'react'
+import { useState, useEffect, useRef, ReactNode, useCallback } from 'react'
 import {
     BellIcon,
     CheckIcon,
@@ -18,6 +18,8 @@ import { BellAlertIcon } from '@heroicons/react/24/solid'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import Link from 'next/link'
+import { getPusherClient, NOTIFICATION_CHANNELS, NOTIFICATION_EVENTS } from '@/lib/pusher-client'
+import toast from 'react-hot-toast'
 
 interface Notification {
     id: string
@@ -72,24 +74,7 @@ export default function NotificationBell() {
         return true
     })
 
-    useEffect(() => {
-        fetchNotifications()
-        // Poll for new notifications every 30 seconds
-        const interval = setInterval(fetchNotifications, 30000)
-        return () => clearInterval(interval)
-    }, [])
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false)
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
-
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async () => {
         try {
             const res = await fetch('/api/admin/notifications?limit=10')
             if (res.ok) {
@@ -100,7 +85,48 @@ export default function NotificationBell() {
         } catch (error) {
             console.error('Error fetching notifications:', error)
         }
-    }
+    }, [])
+
+    useEffect(() => {
+        fetchNotifications()
+        // Poll for new notifications every 60 seconds as backup
+        const interval = setInterval(fetchNotifications, 60000)
+        return () => clearInterval(interval)
+    }, [fetchNotifications])
+
+    // Real-time notifications via Pusher
+    useEffect(() => {
+        const pusher = getPusherClient()
+        const channel = pusher.subscribe(NOTIFICATION_CHANNELS.admin)
+
+        channel.bind(NOTIFICATION_EVENTS.NEW_NOTIFICATION, (newNotification: Notification) => {
+            // Add new notification to the top of the list
+            setNotifications(prev => [newNotification, ...prev.slice(0, 9)])
+            setUnreadCount(prev => prev + 1)
+
+            // Show toast notification
+            toast(newNotification.title, {
+                icon: '🔔',
+                duration: 4000,
+            })
+        })
+
+        return () => {
+            channel.unbind_all()
+            pusher.unsubscribe(NOTIFICATION_CHANNELS.admin)
+        }
+    }, [])
+
+    // Click outside to close dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
 
     const markAllAsRead = async () => {
         if (unreadCount === 0) return

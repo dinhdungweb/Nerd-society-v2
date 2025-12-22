@@ -2,6 +2,7 @@
 
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import AdminNavbar from '@/components/admin/AdminNavbar'
+import AdminRouteGuard from '@/components/admin/AdminRouteGuard'
 import { PermissionsProvider } from '@/contexts/PermissionsContext'
 import { AdminChatProvider } from '@/contexts/AdminChatContext'
 import AdminChatWindow from '@/components/admin/AdminChatWindow'
@@ -31,7 +32,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             onCollapse={setSidebarCollapsed}
                         />
                         <div className="p-4 lg:p-8">
-                            {children}
+                            <AdminRouteGuard>
+                                {children}
+                            </AdminRouteGuard>
                         </div>
                     </main>
 
@@ -42,3 +45,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </PermissionsProvider>
     )
 }
+

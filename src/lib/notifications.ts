@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { triggerNotification } from '@/lib/pusher-server'
 
 type NotificationType =
     | 'BOOKING_NEW'
@@ -28,6 +29,17 @@ export async function createNotification(params: CreateNotificationParams) {
                 bookingId: params.bookingId,
             },
         })
+
+        // Trigger real-time notification via Pusher
+        await triggerNotification({
+            id: notification.id,
+            type: notification.type,
+            title: notification.title,
+            message: notification.message,
+            link: notification.link,
+            createdAt: notification.createdAt,
+        })
+
         return notification
     } catch (error) {
         console.error('Error creating notification:', error)

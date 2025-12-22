@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
             where: { email: session.user.email },
         })
 
-        if (!user || (user.role !== 'ADMIN' && user.role !== 'STAFF')) {
+        if (!user || !['ADMIN', 'STAFF', 'CONTENT_EDITOR'].includes(user.role)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
