@@ -6,30 +6,30 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Soft Light Brown - Primary */
-  --color-primary-50: rgb(250, 248, 245);
-  --color-primary-100: rgb(245, 240, 232);
-  --color-primary-200: rgb(235, 225, 210);
-  --color-primary-300: rgb(215, 195, 170);
-  --color-primary-400: rgb(195, 165, 130);
-  --color-primary-500: rgb(175, 140, 100);
-  --color-primary-600: rgb(155, 120, 80);
-  --color-primary-700: rgb(135, 100, 65);
-  --color-primary-800: rgb(110, 80, 50);
-  --color-primary-900: rgb(85, 60, 35);
+  /* Cream/Beige - Primary (Brand Be #f2ede3) */
+  --color-primary-50: rgb(252, 251, 249);
+  --color-primary-100: rgb(249, 247, 243);
+  --color-primary-200: rgb(242, 237, 227);
+  /* #F2EDE3 - Main brand color */
+  --color-primary-300: rgb(235, 227, 211);
+  --color-primary-400: rgb(220, 207, 182);
+  --color-primary-500: rgb(195, 177, 145);
+  --color-primary-600: rgb(165, 145, 110);
+  --color-primary-700: rgb(130, 110, 80);
+  --color-primary-800: rgb(95, 80, 55);
+  --color-primary-900: rgb(65, 55, 35);
 
-  /* Warm Cream - Secondary */
-  --color-secondary-50: rgb(255, 253, 250);
-  --color-secondary-100: rgb(250, 245, 235);
-  --color-secondary-200: rgb(240, 235, 224);
-  /* #F0EBE0 */
-  --color-secondary-300: rgb(230, 220, 200);
-  --color-secondary-400: rgb(210, 190, 160);
-  --color-secondary-500: rgb(180, 155, 115);
-  --color-secondary-600: rgb(150, 125, 85);
-  --color-secondary-700: rgb(120, 95, 60);
-  --color-secondary-800: rgb(90, 70, 45);
-  --color-secondary-900: rgb(65, 50, 30);
+  /* Black - Secondary (Brand Black #000000) */
+  --color-secondary-50: rgb(245, 245, 245);
+  --color-secondary-100: rgb(229, 229, 229);
+  --color-secondary-200: rgb(212, 212, 212);
+  --color-secondary-300: rgb(163, 163, 163);
+  --color-secondary-400: rgb(115, 115, 115);
+  --color-secondary-500: rgb(64, 64, 64);
+  --color-secondary-600: rgb(38, 38, 38);
+  --color-secondary-700: rgb(23, 23, 23);
+  --color-secondary-800: rgb(10, 10, 10);
+  --color-secondary-900: rgb(0, 0, 0);
 
   /* Warm Neutral */
   --color-neutral-50: rgb(252, 250, 247);

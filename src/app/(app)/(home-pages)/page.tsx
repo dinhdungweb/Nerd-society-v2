@@ -9,6 +9,7 @@ import {
   LocationsNerd,
   NewsSection,
 } from '@/components/landing'
+import { AboutFeature } from '@/components/landing/AboutNerd'
 import { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -25,7 +26,7 @@ import { prisma } from '@/lib/prisma'
 async function getSettings() {
   try {
     const settings = await prisma.setting.findMany()
-    return settings.reduce((acc, curr) => {
+    return settings.reduce((acc: Record<string, string>, curr: { key: string; value: string }) => {
       acc[curr.key] = curr.value
       return acc
     }, {} as Record<string, string>)
@@ -34,8 +35,56 @@ async function getSettings() {
   }
 }
 
+async function getCombos() {
+  try {
+    return await prisma.combo.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    })
+  } catch (error) {
+    return []
+  }
+}
+
+function getAboutFeatures(settings: Record<string, string>): AboutFeature[] | undefined {
+  try {
+    if (settings.aboutFeatures) {
+      return JSON.parse(settings.aboutFeatures)
+    }
+  } catch (error) {
+    console.error('Error parsing aboutFeatures:', error)
+  }
+  return undefined
+}
+
+function getHeroFeatures(settings: Record<string, string>) {
+  try {
+    if (settings.heroFeatures) {
+      return JSON.parse(settings.heroFeatures)
+    }
+  } catch (error) {
+    console.error('Error parsing heroFeatures:', error)
+  }
+  return undefined
+}
+
+function getHeroStats(settings: Record<string, string>) {
+  try {
+    if (settings.heroStats) {
+      return JSON.parse(settings.heroStats)
+    }
+  } catch (error) {
+    console.error('Error parsing heroStats:', error)
+  }
+  return undefined
+}
+
 export default async function Page() {
   const settings = await getSettings()
+  const combos = await getCombos()
+  const aboutFeatures = getAboutFeatures(settings)
+  const heroFeatures = getHeroFeatures(settings)
+  const heroStats = getHeroStats(settings)
 
   return (
     <>
@@ -45,19 +94,35 @@ export default async function Page() {
           heroTitle={settings.heroTitle}
           heroSubtitle={settings.heroSubtitle}
           heroCta={settings.heroCta}
+          heroCtaSecondary={settings.heroCtaSecondary}
+          heroBadge={settings.heroBadge}
           heroBackgroundImage={settings.heroBackgroundImage}
+          heroFeatures={heroFeatures}
+          heroStats={heroStats}
         />
         <AboutNerd
           aboutTitle={settings.aboutTitle}
           aboutContent={settings.aboutContent}
+          aboutFeatures={aboutFeatures}
         />
         <GallerySection />
-        <ComboSection />
+        <ComboSection combos={combos} />
         <LocationsNerd />
         <NewsSection />
-        <ContactNerd />
+        <ContactNerd
+          contactTitle={settings.contactTitle}
+          contactSubtitle={settings.contactSubtitle}
+          contactEmail={settings.contactEmail}
+          contactPhone={settings.contactPhone}
+          contactWebsite={settings.contactWebsite}
+          contactCtaTitle={settings.contactCtaTitle}
+          contactCtaSubtitle={settings.contactCtaSubtitle}
+          contactCtaButton={settings.contactCtaButton}
+          contactCtaLink={settings.contactCtaLink}
+        />
       </main>
       <FooterNerd logoUrl={settings.siteLogoLight || settings.siteLogo} />
     </>
   )
 }
+

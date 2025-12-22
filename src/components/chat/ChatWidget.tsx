@@ -245,9 +245,10 @@ export function ChatWidget({ logoUrl }: ChatWidgetProps) {
         for (const file of selectedImages) {
             const formData = new FormData()
             formData.append('file', file)
+            formData.append('guestSessionId', sessionId)
 
             try {
-                const res = await fetch('/api/upload', {
+                const res = await fetch('/api/chat/upload', {
                     method: 'POST',
                     body: formData,
                 })

@@ -178,7 +178,7 @@ export default function HeaderNerd({ logoUrl, logoLightUrl }: { logoUrl?: string
                                             <MenuItem>
                                                 {({ active }) => (
                                                     <Link
-                                                        href="/profile/bookings"
+                                                        href="/profile"
                                                         className={`${active ? 'bg-neutral-100 dark:bg-neutral-700' : ''
                                                             } flex items-center px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300`}
                                                     >
@@ -396,7 +396,7 @@ export default function HeaderNerd({ logoUrl, logoLightUrl }: { logoUrl?: string
                                             Tài khoản của tôi
                                         </Link>
                                         <Link
-                                            href="/profile/bookings"
+                                            href="/profile"
                                             className="block rounded-xl px-4 py-3 text-base font-medium text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-white dark:hover:bg-neutral-800"
                                         >
                                             Lịch sử đặt chỗ

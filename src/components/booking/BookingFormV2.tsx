@@ -497,7 +497,7 @@ export default function BookingFormV2({
                                         <div className="absolute bottom-6 right-0 z-50 w-64 rounded-lg border border-neutral-200 bg-white p-3 text-xs shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
                                             <p className="font-medium text-neutral-900 dark:text-white">Nerd Coin là gì?</p>
                                             <p className="mt-1 text-neutral-600 dark:text-neutral-400">
-                                                Nerd Coin là điểm thưởng tích lũy khi sử dụng dịch vụ tại Nerd Society. Bạn có thể dùng Nerd Coin để đổi quà, giảm giá hoặc nâng cấp dịch vụ.
+                                                Nerd Coin là credit dịch vụ của Nerd Society. Bạn có thể dùng coin để đổi nước pha hoặc tích lại để đổi merch.
                                             </p>
                                             <button
                                                 type="button"

@@ -18,17 +18,58 @@ const CoffeeIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 )
 
-const features = [
-  { icon: WifiIcon, text: 'Wifi siêu tốc' },
-  { icon: CoffeeIcon, text: 'Cafe miễn phí' },
-  { icon: ClockIcon, text: '24/7' },
+// Icon mapping for dynamic features
+const iconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+  WifiIcon,
+  CoffeeIcon,
+  ClockIcon,
+  BoltIcon: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+    </svg>
+  ),
+  SparklesIcon: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+    </svg>
+  ),
+}
+
+// Default features pills
+const defaultFeatures = [
+  { icon: 'WifiIcon', text: 'Wifi siêu tốc' },
+  { icon: 'CoffeeIcon', text: 'Cafe miễn phí' },
+  { icon: 'ClockIcon', text: '24/7' },
 ]
+
+// Default stats
+const defaultStats = [
+  { value: '2', label: 'Cơ sở' },
+  { value: '24/7', label: 'Hoạt động' },
+  { value: '∞', label: 'Cafe miễn phí' },
+]
+
+// Feature pill interface
+export interface HeroFeaturePill {
+  icon: string
+  text: string
+}
+
+// Stat interface
+export interface HeroStat {
+  value: string
+  label: string
+}
 
 interface HeroNerdProps {
   heroTitle?: string
   heroSubtitle?: string
   heroCta?: string
+  heroCtaSecondary?: string
+  heroBadge?: string
   heroBackgroundImage?: string
+  heroFeatures?: HeroFeaturePill[]
+  heroStats?: HeroStat[]
 }
 
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?q=80&w=2070'
@@ -37,9 +78,15 @@ export default function HeroNerd({
   heroTitle = 'Nerd Society',
   heroSubtitle = 'Cộng đồng học tập năng động tại Hà Nội. Không gian làm việc chung, học nhóm lý tưởng với đầy đủ tiện nghi và đồ uống miễn phí!',
   heroCta = 'Đặt lịch ngay',
+  heroCtaSecondary = 'Xem các combo',
+  heroBadge = 'Không gian học tập dành cho Gen Z',
   heroBackgroundImage,
+  heroFeatures,
+  heroStats,
 }: HeroNerdProps) {
   const backgroundSrc = heroBackgroundImage || DEFAULT_HERO_IMAGE
+  const features = heroFeatures && heroFeatures.length > 0 ? heroFeatures : defaultFeatures
+  const stats = heroStats && heroStats.length > 0 ? heroStats : defaultStats
 
   return (
     <section className="relative min-h-screen overflow-hidden">
@@ -73,7 +120,7 @@ export default function HeroNerd({
               className="inline-flex w-fit items-center gap-2 rounded-full bg-primary-500/20 px-4 py-2 text-sm font-medium text-primary-300 backdrop-blur-sm"
             >
               <AcademicCapIcon className="size-4" />
-              Không gian học tập dành cho Gen Z
+              {heroBadge}
             </motion.span>
 
             <motion.h1
@@ -101,15 +148,18 @@ export default function HeroNerd({
               transition={{ duration: 0.6, delay: 0.5 }}
               className="mt-8 flex flex-wrap gap-4"
             >
-              {features.map((feature, i) => (
-                <div
-                  key={feature.text}
-                  className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-white backdrop-blur-sm"
-                >
-                  <feature.icon className="size-4 text-primary-400" />
-                  {feature.text}
-                </div>
-              ))}
+              {features.map((feature, i) => {
+                const IconComponent = iconMap[feature.icon] || WifiIcon
+                return (
+                  <div
+                    key={feature.text + i}
+                    className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-white backdrop-blur-sm"
+                  >
+                    <IconComponent className="size-4 text-primary-400" />
+                    {feature.text}
+                  </div>
+                )
+              })}
             </motion.div>
 
             {/* CTA Buttons */}
@@ -132,7 +182,7 @@ export default function HeroNerd({
                 href="#combos"
                 className="border-white/30 px-8 py-3.5 text-base text-white hover:bg-white/10"
               >
-                Xem các combo
+                {heroCtaSecondary}
               </Button>
             </motion.div>
 
@@ -144,18 +194,12 @@ export default function HeroNerd({
               transition={{ duration: 0.6, delay: 0.7 }}
               className="mt-12 flex gap-8 border-t border-white/10 pt-8"
             >
-              <div>
-                <div className="text-3xl font-bold text-white">2</div>
-                <div className="text-sm text-neutral-400">Cơ sở</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-white">24/7</div>
-                <div className="text-sm text-neutral-400">Hoạt động</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-white">∞</div>
-                <div className="text-sm text-neutral-400">Cafe miễn phí</div>
-              </div>
+              {stats.map((stat, i) => (
+                <div key={stat.label + i}>
+                  <div className="text-3xl font-bold text-white">{stat.value}</div>
+                  <div className="text-sm text-neutral-400">{stat.label}</div>
+                </div>
+              ))}
             </motion.div>
           </motion.div>
 

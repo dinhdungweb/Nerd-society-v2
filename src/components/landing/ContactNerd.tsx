@@ -9,7 +9,29 @@ import {
 } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
 
-export default function ContactNerd() {
+interface ContactNerdProps {
+    contactTitle?: string
+    contactSubtitle?: string
+    contactEmail?: string
+    contactPhone?: string
+    contactWebsite?: string
+    contactCtaTitle?: string
+    contactCtaSubtitle?: string
+    contactCtaButton?: string
+    contactCtaLink?: string
+}
+
+export default function ContactNerd({
+    contactTitle = 'Sẵn sàng trải nghiệm?',
+    contactSubtitle = 'Nerd xin chúc bạn có 1 ngày học tập, làm việc vui vẻ và hiệu quả! Đặt lịch ngay để có chỗ ngồi ưng ý nhất.',
+    contactEmail = 'nerd.society98@gmail.com',
+    contactPhone = '036 848 3689',
+    contactWebsite = 'nerdsociety.com.vn',
+    contactCtaTitle = 'Đặt lịch ngay hôm nay!',
+    contactCtaSubtitle = 'Chỉ mất 30 giây để đặt chỗ',
+    contactCtaButton = 'Đặt lịch ngay',
+    contactCtaLink = '/booking',
+}: ContactNerdProps) {
     return (
         <section id="contact" className="bg-neutral-50 py-20 lg:py-28 dark:bg-neutral-800/50">
             <div className="container">
@@ -23,11 +45,10 @@ export default function ContactNerd() {
                                 viewport={{ once: true }}
                             >
                                 <h2 className="text-3xl font-bold sm:text-4xl">
-                                    Sẵn sàng trải nghiệm?
+                                    {contactTitle}
                                 </h2>
                                 <p className="mt-4 text-primary-100">
-                                    Nerd xin chúc bạn có 1 ngày học tập, làm việc vui vẻ và hiệu quả!
-                                    Đặt lịch ngay để có chỗ ngồi ưng ý nhất.
+                                    {contactSubtitle}
                                 </p>
 
                                 <div className="mt-8 space-y-4">
@@ -35,8 +56,8 @@ export default function ContactNerd() {
                                         <EnvelopeIcon className="size-6" />
                                         <div>
                                             <div className="text-sm text-primary-200">Email</div>
-                                            <a href="mailto:nerd.society98@gmail.com" className="font-medium hover:underline">
-                                                nerd.society98@gmail.com
+                                            <a href={`mailto:${contactEmail}`} className="font-medium hover:underline">
+                                                {contactEmail}
                                             </a>
                                         </div>
                                     </div>
@@ -44,8 +65,8 @@ export default function ContactNerd() {
                                         <PhoneIcon className="size-6" />
                                         <div>
                                             <div className="text-sm text-primary-200">Hotline</div>
-                                            <a href="tel:0368483689" className="font-medium hover:underline">
-                                                036 848 3689
+                                            <a href={`tel:${contactPhone.replace(/\s/g, '')}`} className="font-medium hover:underline">
+                                                {contactPhone}
                                             </a>
                                         </div>
                                     </div>
@@ -53,8 +74,8 @@ export default function ContactNerd() {
                                         <GlobeAltIcon className="size-6" />
                                         <div>
                                             <div className="text-sm text-primary-200">Website</div>
-                                            <a href="https://nerdsociety.com.vn" className="font-medium hover:underline">
-                                                nerdsociety.com.vn
+                                            <a href={`https://${contactWebsite}`} className="font-medium hover:underline">
+                                                {contactWebsite}
                                             </a>
                                         </div>
                                     </div>
@@ -70,17 +91,17 @@ export default function ContactNerd() {
                             >
                                 <RocketLaunchIcon className="size-16" />
                                 <h3 className="mt-4 text-center text-xl font-semibold">
-                                    Đặt lịch ngay hôm nay!
+                                    {contactCtaTitle}
                                 </h3>
                                 <p className="mt-2 text-center text-sm text-primary-100">
-                                    Chỉ mất 30 giây để đặt chỗ
+                                    {contactCtaSubtitle}
                                 </p>
                                 <Button
-                                    href="/booking"
+                                    href={contactCtaLink}
                                     color="white"
                                     className="mt-6 !text-primary-600 hover:!bg-primary-50"
                                 >
-                                    Đặt lịch ngay
+                                    {contactCtaButton}
                                 </Button>
                             </motion.div>
                         </div>
@@ -90,3 +111,4 @@ export default function ContactNerd() {
         </section>
     )
 }
+
