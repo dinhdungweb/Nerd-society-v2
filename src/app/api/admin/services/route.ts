@@ -32,6 +32,7 @@ export async function POST(request: Request) {
             timeStep,
             features,
             icon,
+            image,
         } = body
 
         if (!name || !slug || !type) {
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
                 timeStep: parseInt(timeStep) || 30,
                 features: features || [],
                 icon,
+                image,
             },
         })
 

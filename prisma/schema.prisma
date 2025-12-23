@@ -168,6 +168,7 @@ model Service {
   
   features        String[]
   icon            String?
+  image           String?   // Ảnh dịch vụ, fallback về icon nếu không có
   isActive        Boolean     @default(true)
   sortOrder       Int         @default(0)
   

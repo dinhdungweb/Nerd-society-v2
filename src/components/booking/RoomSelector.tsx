@@ -40,7 +40,7 @@ export default function RoomSelector({
                 {[1, 2].map((i) => (
                     <div key={i} className="overflow-hidden rounded-xl border-2 border-transparent bg-white shadow-sm dark:bg-neutral-900">
                         {/* Image skeleton with shimmer */}
-                        <div className="relative h-32 overflow-hidden bg-neutral-200 dark:bg-neutral-800">
+                        <div className="relative h-48 overflow-hidden bg-neutral-200 dark:bg-neutral-800">
                             <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                         </div>
                         {/* Content skeleton */}
@@ -92,7 +92,7 @@ export default function RoomSelector({
                         )}
                     >
                         {/* Image */}
-                        <div className="relative h-32 bg-neutral-200 dark:bg-neutral-800">
+                        <div className="relative h-48 bg-neutral-200 dark:bg-neutral-800">
                             {room.image ? (
                                 <Image
                                     src={room.image}

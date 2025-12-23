@@ -44,6 +44,7 @@ export async function PUT(
             timeStep,
             features,
             icon,
+            image,
             isActive,
         } = body
 
@@ -61,6 +62,7 @@ export async function PUT(
                 timeStep: timeStep !== undefined ? parseInt(timeStep) : undefined,
                 features,
                 icon,
+                image,
                 isActive,
             },
         })

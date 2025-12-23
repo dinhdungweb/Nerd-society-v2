@@ -4,6 +4,7 @@ import { CurrencyDollarIcon } from '@heroicons/react/24/outline'
 import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import { ServiceType } from '@prisma/client'
 import clsx from 'clsx'
+import Image from 'next/image'
 
 interface Service {
     id: string
@@ -20,6 +21,7 @@ interface Service {
     timeStep: number
     features: string[]
     icon?: string | null
+    image?: string | null
 }
 
 interface ServiceSelectorProps {
@@ -120,15 +122,26 @@ export default function ServiceSelector({
                                 : 'border-transparent bg-white shadow-sm hover:border-primary-200 hover:shadow-md dark:bg-neutral-900 dark:hover:border-primary-800'
                         )}
                     >
-                        {/* Icon */}
-                        <div className={clsx(
-                            'mb-4 inline-flex rounded-xl p-3 transition-colors',
-                            isSelected
-                                ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400'
-                                : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
-                        )}>
-                            {serviceIcons[service.type]}
-                        </div>
+                        {/* Image or Icon */}
+                        {service.image ? (
+                            <div className="relative mb-4 size-16 overflow-hidden rounded-xl">
+                                <Image
+                                    src={service.image}
+                                    alt={service.name}
+                                    fill
+                                    className="object-cover"
+                                />
+                            </div>
+                        ) : (
+                            <div className={clsx(
+                                'mb-4 inline-flex rounded-xl p-3 transition-colors',
+                                isSelected
+                                    ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400'
+                                    : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
+                            )}>
+                                {serviceIcons[service.type]}
+                            </div>
+                        )}
 
                         {/* Selected indicator */}
                         {isSelected && (

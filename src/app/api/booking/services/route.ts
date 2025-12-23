@@ -24,6 +24,7 @@ export async function GET() {
                 timeStep: true,
                 features: true,
                 icon: true,
+                image: true,
             },
             orderBy: { sortOrder: 'asc' },
         })
