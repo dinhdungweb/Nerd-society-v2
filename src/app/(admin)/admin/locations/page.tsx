@@ -17,6 +17,7 @@ import { Button } from '@/shared/Button'
 import NcModal from '@/shared/NcModal'
 import { toast } from 'react-hot-toast'
 import MediaPickerModal from '@/components/admin/MediaPickerModal'
+import { usePermissions } from '@/contexts/PermissionsContext'
 
 interface Location {
     id: string
@@ -37,6 +38,10 @@ export default function LocationsPage() {
     const [uploadingImage, setUploadingImage] = useState(false)
     const [showMediaPicker, setShowMediaPicker] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Permission check
+    const { hasPermission } = usePermissions()
+    const canManageLocations = hasPermission('canManageLocations')
 
     // Form state
     const [formData, setFormData] = useState({
@@ -217,10 +222,12 @@ export default function LocationsPage() {
                         Quản lý các chi nhánh Nerd Society
                     </p>
                 </div>
-                <Button onClick={openCreateModal}>
-                    <PlusIcon className="w-5 h-5 mr-2" />
-                    Thêm cơ sở
-                </Button>
+                {canManageLocations && (
+                    <Button onClick={openCreateModal}>
+                        <PlusIcon className="w-5 h-5 mr-2" />
+                        Thêm cơ sở
+                    </Button>
+                )}
             </div>
 
             {/* Locations Grid */}
@@ -265,20 +272,22 @@ export default function LocationsPage() {
                                         {location.isActive ? 'Đang hoạt động' : 'Tạm đóng'}
                                     </span>
                                 </div>
-                                <button
-                                    onClick={() => toggleStatus(location)}
-                                    className={`p-1.5 rounded-full transition-colors ${location.isActive
-                                        ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                                        : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
-                                        }`}
-                                    title={location.isActive ? 'Đang hoạt động' : 'Đã tắt'}
-                                >
-                                    {location.isActive ? (
-                                        <CheckCircleIcon className="w-5 h-5" />
-                                    ) : (
-                                        <XCircleIcon className="w-5 h-5" />
-                                    )}
-                                </button>
+                                {canManageLocations && (
+                                    <button
+                                        onClick={() => toggleStatus(location)}
+                                        className={`p-1.5 rounded-full transition-colors ${location.isActive
+                                            ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                                            : 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                                            }`}
+                                        title={location.isActive ? 'Đang hoạt động' : 'Đã tắt'}
+                                    >
+                                        {location.isActive ? (
+                                            <CheckCircleIcon className="w-5 h-5" />
+                                        ) : (
+                                            <XCircleIcon className="w-5 h-5" />
+                                        )}
+                                    </button>
+                                )}
                             </div>
 
                             {/* Info */}
@@ -308,22 +317,24 @@ export default function LocationsPage() {
                                 <span className="text-xs text-neutral-500">
                                     {location._count?.bookings || 0} lượt đặt
                                 </span>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => openEditModal(location)}
-                                        className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
-                                    >
-                                        <PencilSquareIcon className="w-4 h-4" />
-                                        Sửa
-                                    </button>
-                                    <button
-                                        onClick={() => deleteLocation(location)}
-                                        className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700"
-                                    >
-                                        <TrashIcon className="w-4 h-4" />
-                                        Xóa
-                                    </button>
-                                </div>
+                                {canManageLocations && (
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => openEditModal(location)}
+                                            className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
+                                        >
+                                            <PencilSquareIcon className="w-4 h-4" />
+                                            Sửa
+                                        </button>
+                                        <button
+                                            onClick={() => deleteLocation(location)}
+                                            className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700"
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                            Xóa
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

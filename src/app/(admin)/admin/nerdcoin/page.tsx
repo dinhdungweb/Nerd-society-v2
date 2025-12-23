@@ -14,6 +14,7 @@ import {
 import NcModal from '@/shared/NcModal'
 import { Button } from '@/shared/Button'
 import toast from 'react-hot-toast'
+import { usePermissions } from '@/contexts/PermissionsContext'
 
 interface Customer {
     id: string
@@ -70,6 +71,10 @@ export default function NerdCoinPage() {
     const [adjustType, setAdjustType] = useState<'BONUS' | 'ADJUSTMENT'>('BONUS')
     const [adjustDescription, setAdjustDescription] = useState('')
     const [saving, setSaving] = useState(false)
+
+    // Permission check
+    const { hasPermission } = usePermissions()
+    const canManageNerdCoin = hasPermission('canManageNerdCoin')
 
     useEffect(() => {
         fetchData()
@@ -281,13 +286,15 @@ export default function NerdCoinPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => openAdjustModal(customer)}
-                                                className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800"
-                                                title="Điều chỉnh coin"
-                                            >
-                                                <PlusIcon className="size-5" />
-                                            </button>
+                                            {canManageNerdCoin && (
+                                                <button
+                                                    onClick={() => openAdjustModal(customer)}
+                                                    className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800"
+                                                    title="Điều chỉnh coin"
+                                                >
+                                                    <PlusIcon className="size-5" />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => openHistoryModal(customer)}
                                                 className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800"
@@ -340,12 +347,14 @@ export default function NerdCoinPage() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={() => openAdjustModal(customer)}
-                                        className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800"
-                                    >
-                                        <PlusIcon className="size-5" />
-                                    </button>
+                                    {canManageNerdCoin && (
+                                        <button
+                                            onClick={() => openAdjustModal(customer)}
+                                            className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800"
+                                        >
+                                            <PlusIcon className="size-5" />
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => openHistoryModal(customer)}
                                         className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800"

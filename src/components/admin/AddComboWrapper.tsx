@@ -4,9 +4,19 @@ import { PlusIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 import NcModal from '@/shared/NcModal'
 import ComboForm from './forms/ComboForm'
+import { usePermissions } from '@/contexts/PermissionsContext'
 
 export default function AddComboWrapper() {
     const [isOpen, setIsOpen] = useState(false)
+
+    // Permission check
+    const { hasPermission } = usePermissions()
+    const canManageServices = hasPermission('canManageServices')
+
+    // Hide button if no permission
+    if (!canManageServices) {
+        return null
+    }
 
     return (
         <NcModal

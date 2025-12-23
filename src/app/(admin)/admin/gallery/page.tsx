@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import MediaPickerModal from '@/components/admin/MediaPickerModal'
+import { usePermissions } from '@/contexts/PermissionsContext'
 
 interface GalleryImage {
     id: string
@@ -39,6 +40,10 @@ export default function AdminGalleryPage() {
     const [uploading, setUploading] = useState(false)
     const [showPreview, setShowPreview] = useState(false)
     const [showMediaPicker, setShowMediaPicker] = useState(false)
+
+    // Permission check
+    const { hasPermission } = usePermissions()
+    const canManageGallery = hasPermission('canManageGallery')
 
     useEffect(() => {
         fetchGallery()
@@ -176,34 +181,40 @@ export default function AdminGalleryPage() {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                    <label className="cursor-pointer">
-                        <input
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            onChange={handleUpload}
-                            className="hidden"
-                        />
-                        <Button as="span" color="white" disabled={uploading}>
-                            <CloudArrowUpIcon className="size-4 mr-2" />
-                            {uploading ? 'Đang tải...' : 'Tải ảnh lên'}
-                        </Button>
-                    </label>
-                    <Button color="white" onClick={handleAddFromUrl}>
-                        <LinkIcon className="size-4 mr-2" />
-                        Thêm từ URL
-                    </Button>
-                    <Button color="white" onClick={() => setShowMediaPicker(true)}>
-                        <FolderOpenIcon className="size-4 mr-2" />
-                        Chọn từ thư viện
-                    </Button>
+                    {canManageGallery && (
+                        <>
+                            <label className="cursor-pointer">
+                                <input
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    onChange={handleUpload}
+                                    className="hidden"
+                                />
+                                <Button as="span" color="white" disabled={uploading}>
+                                    <CloudArrowUpIcon className="size-4 mr-2" />
+                                    {uploading ? 'Đang tải...' : 'Tải ảnh lên'}
+                                </Button>
+                            </label>
+                            <Button color="white" onClick={handleAddFromUrl}>
+                                <LinkIcon className="size-4 mr-2" />
+                                Thêm từ URL
+                            </Button>
+                            <Button color="white" onClick={() => setShowMediaPicker(true)}>
+                                <FolderOpenIcon className="size-4 mr-2" />
+                                Chọn từ thư viện
+                            </Button>
+                        </>
+                    )}
                     <Button color="white" onClick={() => setShowPreview(!showPreview)}>
                         <EyeIcon className="size-4 mr-2" />
                         {showPreview ? 'Ẩn preview' : 'Xem preview'}
                     </Button>
-                    <Button color="primary" onClick={handleSave} loading={saving}>
-                        Lưu thay đổi
-                    </Button>
+                    {canManageGallery && (
+                        <Button color="primary" onClick={handleSave} loading={saving}>
+                            Lưu thay đổi
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -320,12 +331,14 @@ export default function AdminGalleryPage() {
                             </div>
 
                             {/* Delete button */}
-                            <button
-                                onClick={() => handleRemove(image.id)}
-                                className="p-2.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors dark:hover:bg-red-900/20"
-                            >
-                                <TrashIcon className="size-5" />
-                            </button>
+                            {canManageGallery && (
+                                <button
+                                    onClick={() => handleRemove(image.id)}
+                                    className="p-2.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors dark:hover:bg-red-900/20"
+                                >
+                                    <TrashIcon className="size-5" />
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>

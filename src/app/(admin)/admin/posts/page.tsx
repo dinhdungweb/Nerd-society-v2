@@ -18,6 +18,7 @@ import {
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import DeletePostButton from './DeletePostButton'
+import { usePermissions } from '@/contexts/PermissionsContext'
 
 interface Post {
     id: string
@@ -54,6 +55,10 @@ export default function PostsPage() {
     const [typeFilter, setTypeFilter] = useState('ALL')
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [currentPage, setCurrentPage] = useState(1)
+
+    // Permission check
+    const { hasPermission } = usePermissions()
+    const canManagePosts = hasPermission('canManagePosts')
 
     useEffect(() => {
         fetchPosts()
@@ -139,13 +144,15 @@ export default function PostsPage() {
                         Tạo và quản lý các bài viết, sự kiện • {posts.length} bài viết
                     </p>
                 </div>
-                <Link
-                    href="/admin/posts/new"
-                    className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-primary-600/25 transition-all hover:bg-primary-700 hover:shadow-xl"
-                >
-                    <PlusIcon className="size-5" />
-                    Thêm bài viết
-                </Link>
+                {canManagePosts && (
+                    <Link
+                        href="/admin/posts/new"
+                        className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-primary-600/25 transition-all hover:bg-primary-700 hover:shadow-xl"
+                    >
+                        <PlusIcon className="size-5" />
+                        Thêm bài viết
+                    </Link>
+                )}
             </div>
 
             {/* Stats */}
@@ -324,14 +331,18 @@ export default function PostsPage() {
                                                     >
                                                         <EyeIcon className="size-4" />
                                                     </Link>
-                                                    <Link
-                                                        href={`/admin/posts/${post.id}/edit`}
-                                                        className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
-                                                        title="Chỉnh sửa"
-                                                    >
-                                                        <PencilIcon className="size-4" />
-                                                    </Link>
-                                                    <DeletePostButton postId={post.id} postTitle={post.title} />
+                                                    {canManagePosts && (
+                                                        <>
+                                                            <Link
+                                                                href={`/admin/posts/${post.id}/edit`}
+                                                                className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
+                                                                title="Chỉnh sửa"
+                                                            >
+                                                                <PencilIcon className="size-4" />
+                                                            </Link>
+                                                            <DeletePostButton postId={post.id} postTitle={post.title} />
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

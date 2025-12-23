@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline'
 import NcModal from '@/shared/NcModal'
 import ComboForm from './forms/ComboForm'
+import { usePermissions } from '@/contexts/PermissionsContext'
 
 // Define interfaces locally or import
 interface Combo {
@@ -48,6 +49,10 @@ export default function ComboCard({ combo }: ComboCardProps) {
     const router = useRouter()
     const [isEditOpen, setIsEditOpen] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
+
+    // Permission check
+    const { hasPermission } = usePermissions()
+    const canManageServices = hasPermission('canManageServices')
 
     const handleDelete = async () => {
         if (!confirm(`Bạn có chắc chắn muốn xóa combo "${combo.name}"?`)) return
@@ -153,23 +158,25 @@ export default function ComboCard({ combo }: ComboCardProps) {
             </div>
 
             {/* Footer Actions */}
-            <div className="mt-5 flex items-center justify-end gap-3 border-t border-neutral-100 pt-4 dark:border-neutral-800">
-                <button
-                    onClick={() => setIsEditOpen(true)}
-                    className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-primary-600 dark:text-neutral-400 dark:hover:text-primary-500 transition-colors"
-                >
-                    <PencilSquareIcon className="size-4" />
-                    <span>Chỉnh sửa</span>
-                </button>
-                <button
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                    className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-500 transition-colors disabled:opacity-50"
-                >
-                    <TrashIcon className="size-4" />
-                    <span>{isDeleting ? 'Đang xóa...' : 'Xóa'}</span>
-                </button>
-            </div>
+            {canManageServices && (
+                <div className="mt-5 flex items-center justify-end gap-3 border-t border-neutral-100 pt-4 dark:border-neutral-800">
+                    <button
+                        onClick={() => setIsEditOpen(true)}
+                        className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-primary-600 dark:text-neutral-400 dark:hover:text-primary-500 transition-colors"
+                    >
+                        <PencilSquareIcon className="size-4" />
+                        <span>Chỉnh sửa</span>
+                    </button>
+                    <button
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-500 transition-colors disabled:opacity-50"
+                    >
+                        <TrashIcon className="size-4" />
+                        <span>{isDeleting ? 'Đang xóa...' : 'Xóa'}</span>
+                    </button>
+                </div>
+            )}
 
             {/* Edit Modal */}
             <NcModal
