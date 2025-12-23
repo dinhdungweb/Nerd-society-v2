@@ -1,9 +1,16 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import { canView, canManage } from '@/lib/apiPermissions'
 
+// GET - Lấy settings (requires canViewContent permission)
 export async function GET(req: Request) {
     try {
+        const { session, hasAccess } = await canView('Content')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem nội dung' }, { status: 403 })
+        }
+
         const settings = await prisma.setting.findMany()
         const settingsMap = settings.reduce((acc, curr) => {
             acc[curr.key] = curr.value
@@ -20,8 +27,14 @@ export async function GET(req: Request) {
     }
 }
 
+// POST - Cập nhật settings (requires canManageContent permission)
 export async function POST(req: Request) {
     try {
+        const { session, hasAccess } = await canManage('Content')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền chỉnh sửa nội dung' }, { status: 403 })
+        }
+
         const body = await req.json()
         const updates = Object.entries(body).map(([key, value]) => {
             return prisma.setting.upsert({

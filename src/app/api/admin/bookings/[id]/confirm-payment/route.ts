@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { audit } from '@/lib/audit'
+import { canBooking } from '@/lib/apiPermissions'
 
 /**
  * POST /api/admin/bookings/[id]/confirm-payment
@@ -15,6 +16,12 @@ export async function POST(
 ) {
     try {
         const { id } = await params
+
+        // Permission check
+        const { session, hasAccess } = await canBooking('Edit')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Unauthorized to confirm payments' }, { status: 403 })
+        }
 
         // Get booking
         const booking = await prisma.booking.findUnique({
@@ -75,7 +82,6 @@ export async function POST(
         }
 
         // Audit logging
-        const session = await getServerSession(authOptions)
         if (session?.user) {
             await audit.confirmPayment(
                 session.user.id || 'unknown',

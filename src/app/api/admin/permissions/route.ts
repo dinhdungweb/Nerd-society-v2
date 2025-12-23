@@ -27,9 +27,15 @@ const DEFAULT_ROLE_PERMISSIONS = {
         // Locations
         canViewLocations: true,
         canManageLocations: true,
-        // Content
+        // Posts (Tin tức)
         canViewPosts: true,
         canManagePosts: true,
+        // Gallery/Media
+        canViewGallery: true,
+        canManageGallery: true,
+        // Content Settings
+        canViewContent: true,
+        canManageContent: true,
         // Customers
         canViewCustomers: true,
         canManageCustomers: true,
@@ -66,9 +72,15 @@ const DEFAULT_ROLE_PERMISSIONS = {
         // Locations
         canViewLocations: false,
         canManageLocations: false,
-        // Content
+        // Posts (Tin tức)
         canViewPosts: false,
         canManagePosts: false,
+        // Gallery/Media
+        canViewGallery: false,
+        canManageGallery: false,
+        // Content Settings
+        canViewContent: false,
+        canManageContent: false,
         // Customers
         canViewCustomers: true,
         canManageCustomers: false,
@@ -105,9 +117,15 @@ const DEFAULT_ROLE_PERMISSIONS = {
         // Locations
         canViewLocations: false,
         canManageLocations: false,
-        // Content
+        // Posts (Tin tức)
         canViewPosts: true,
         canManagePosts: true,
+        // Gallery/Media
+        canViewGallery: true,
+        canManageGallery: true,
+        // Content Settings
+        canViewContent: true,
+        canManageContent: true,
         // Customers
         canViewCustomers: false,
         canManageCustomers: false,

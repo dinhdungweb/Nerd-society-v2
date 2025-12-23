@@ -1,18 +1,17 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { canView } from '@/lib/apiPermissions'
 
 // GET: Lấy danh sách cuộc trò chuyện (Admin/Staff)
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
+        const { session, hasAccess } = await canView('Chat')
 
-        // Chỉ Staff/Admin mới xem được danh sách chat
-        if (!session?.user || !['ADMIN', 'MANAGER', 'STAFF'].includes((session.user as any).role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        // Chỉ Staff/Admin có quyền mới xem được danh sách chat
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem chat' }, { status: 401 })
         }
 
         const { searchParams } = new URL(request.url)

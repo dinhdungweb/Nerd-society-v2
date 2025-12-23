@@ -1,14 +1,14 @@
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { kebabCase } from 'lodash'
-import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
+import { canManage } from '@/lib/apiPermissions'
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canManage('Services')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền tạo combo' }, { status: 403 })
         }
 
         const body = await req.json()

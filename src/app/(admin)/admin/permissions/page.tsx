@@ -32,9 +32,17 @@ interface Permissions {
     canViewLocations: boolean
     canManageLocations: boolean
 
-    // Content
+    // Posts (Tin tức)
     canViewPosts: boolean
     canManagePosts: boolean
+
+    // Gallery/Media
+    canViewGallery: boolean
+    canManageGallery: boolean
+
+    // Content Settings (Nội dung trang chủ)
+    canViewContent: boolean
+    canManageContent: boolean
 
     // Customers
     canViewCustomers: boolean
@@ -104,9 +112,17 @@ const permissionLabels: Record<keyof Permissions, { label: string; description: 
     canViewLocations: { label: 'Xem Cơ sở', description: 'Xem danh sách cơ sở', group: 'Phòng & Dịch vụ' },
     canManageLocations: { label: 'Quản lý Cơ sở', description: 'Thêm, sửa, xóa cơ sở', group: 'Phòng & Dịch vụ' },
 
-    // Content
-    canViewPosts: { label: 'Xem Nội dung', description: 'Xem tin tức, gallery, media', group: 'Nội dung' },
-    canManagePosts: { label: 'Quản lý Nội dung', description: 'Thêm, sửa, xóa tin tức/media', group: 'Nội dung' },
+    // Posts (Tin tức)
+    canViewPosts: { label: 'Xem Tin tức', description: 'Xem danh sách bài viết', group: 'Tin tức' },
+    canManagePosts: { label: 'Quản lý Tin tức', description: 'Thêm, sửa, xóa bài viết', group: 'Tin tức' },
+
+    // Gallery/Media
+    canViewGallery: { label: 'Xem Gallery/Media', description: 'Xem thư viện ảnh và media', group: 'Gallery & Media' },
+    canManageGallery: { label: 'Quản lý Gallery/Media', description: 'Upload, xóa ảnh/media', group: 'Gallery & Media' },
+
+    // Content Settings
+    canViewContent: { label: 'Xem Nội dung trang chủ', description: 'Xem cài đặt nội dung', group: 'Nội dung Website' },
+    canManageContent: { label: 'Quản lý Nội dung', description: 'Sửa hero banner, giới thiệu, combos...', group: 'Nội dung Website' },
 
     // Customers
     canViewCustomers: { label: 'Xem Khách hàng', description: 'Xem danh sách khách hàng', group: 'Khách hàng' },

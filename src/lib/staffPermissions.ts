@@ -29,9 +29,17 @@ export const DEFAULT_STAFF_PERMISSIONS = {
     canViewLocations: false,
     canManageLocations: false,
 
-    // Content (Posts, Gallery, Media)
+    // Posts (Tin tức)
     canViewPosts: false,
     canManagePosts: false,
+
+    // Gallery/Media
+    canViewGallery: false,
+    canManageGallery: false,
+
+    // Content Settings (Nội dung website)
+    canViewContent: false,
+    canManageContent: false,
 
     // Customers
     canViewCustomers: true,
@@ -82,9 +90,9 @@ export const PERMISSION_ROUTE_MAP: Record<string, keyof StaffPermissions> = {
     '/admin/combos': 'canViewServices',
     '/admin/locations': 'canViewLocations',
     '/admin/posts': 'canViewPosts',
-    '/admin/gallery': 'canViewPosts',
-    '/admin/media': 'canViewPosts',
-    '/admin/content': 'canViewPosts',
+    '/admin/gallery': 'canViewGallery',
+    '/admin/media': 'canViewGallery',
+    '/admin/content': 'canViewContent',
     '/admin/nerdcoin': 'canViewNerdCoin',
     '/admin/reports': 'canViewReports',
     '/admin/settings': 'canViewSettings',

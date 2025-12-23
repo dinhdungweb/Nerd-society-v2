@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { audit } from '@/lib/audit'
+import { canManage } from '@/lib/apiPermissions'
 
 // GET /api/admin/posts - Get all posts with filters
 export async function GET(request: NextRequest) {
@@ -55,9 +56,10 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/posts - Create a new post
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canManage('Posts')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền tạo bài viết' }, { status: 403 })
         }
 
         // Get the user from database
@@ -65,8 +67,8 @@ export async function POST(request: NextRequest) {
             where: { email: session.user.email },
         })
 
-        if (!user || !['ADMIN', 'STAFF', 'CONTENT_EDITOR'].includes(user.role)) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        if (!user) {
+            return NextResponse.json({ error: 'User not found' }, { status: 403 })
         }
 
         const body = await request.json()

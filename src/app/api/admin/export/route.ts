@@ -1,23 +1,20 @@
-import { authOptions } from '@/lib/auth'
+import { canView } from '@/lib/apiPermissions'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { format } from 'date-fns'
 
 // GET - Export bookings to CSV
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-        }
-
         const { searchParams } = new URL(req.url)
         const type = searchParams.get('type') || 'bookings'
         const startDate = searchParams.get('startDate')
         const endDate = searchParams.get('endDate')
 
         if (type === 'bookings') {
+            const { hasAccess } = await canView('Bookings')
+            if (!hasAccess) return NextResponse.json({ error: 'Không có quyền xuất dữ liệu Booking' }, { status: 403 })
+
             // Export bookings
             const whereClause: any = {}
             if (startDate && endDate) {
@@ -88,6 +85,9 @@ export async function GET(req: Request) {
         }
 
         if (type === 'customers') {
+            const { hasAccess } = await canView('Customers')
+            if (!hasAccess) return NextResponse.json({ error: 'Không có quyền xuất dữ liệu Khách hàng' }, { status: 403 })
+
             // Export customers
             const customers = await prisma.user.findMany({
                 where: { role: 'CUSTOMER' },
@@ -132,6 +132,9 @@ export async function GET(req: Request) {
         }
 
         if (type === 'revenue') {
+            const { hasAccess } = await canView('Reports')
+            if (!hasAccess) return NextResponse.json({ error: 'Không có quyền xuất báo cáo Doanh thu' }, { status: 403 })
+
             // Export revenue report
             const payments = await prisma.payment.findMany({
                 where: {

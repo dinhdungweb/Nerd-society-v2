@@ -1,42 +1,12 @@
-import { authOptions } from '@/lib/auth'
+import { canView, canManage } from '@/lib/apiPermissions'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
-
-// Check if user has permission based on saved role settings
-async function hasNerdCoinPermission(role: string): Promise<boolean> {
-    if (role === 'ADMIN') return true
-
-    try {
-        const setting = await prisma.setting.findUnique({
-            where: { key: `role_permissions_${role}` },
-        })
-
-        if (setting) {
-            const permissions = JSON.parse(setting.value)
-            return permissions.canViewNerdCoin === true
-        }
-
-        // Default permissions
-        if (role === 'MANAGER') return true
-        return false
-    } catch {
-        return false
-    }
-}
 
 // GET - Fetch all customers with Nerd Coin info
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-        }
-
-        const role = session.user.role as string
-        const hasAccess = await hasNerdCoinPermission(role)
-
-        if (!hasAccess) {
+        const { session, hasAccess } = await canView('NerdCoin')
+        if (!session || !hasAccess) {
             return NextResponse.json({ error: 'Không có quyền xem Nerd Coin' }, { status: 403 })
         }
 
@@ -89,15 +59,8 @@ export async function GET() {
 // POST - Add/adjust Nerd Coin for a customer
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-        }
-
-        const role = session.user.role as string
-        const hasAccess = await hasNerdCoinPermission(role)
-
-        if (!hasAccess) {
+        const { session, hasAccess } = await canManage('NerdCoin')
+        if (!session || !hasAccess) {
             return NextResponse.json({ error: 'Không có quyền điều chỉnh Nerd Coin' }, { status: 403 })
         }
 

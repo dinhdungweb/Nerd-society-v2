@@ -1,17 +1,11 @@
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { audit } from '@/lib/audit'
+import { canView, canManage } from '@/lib/apiPermissions'
 
 // Roles that can be managed by MANAGER (not ADMIN or MANAGER itself)
 const MANAGER_ALLOWED_ROLES = ['STAFF', 'CONTENT_EDITOR']
-
-// Helper to check if user can manage staff
-function canManageStaff(userRole: string): boolean {
-    return userRole === 'ADMIN' || userRole === 'MANAGER'
-}
 
 // Helper to check if a role can be managed by the current user
 function canManageTargetRole(userRole: string, targetRole: string): boolean {
@@ -22,15 +16,15 @@ function canManageTargetRole(userRole: string, targetRole: string): boolean {
     return false
 }
 
-// GET - List all staff
+// GET - List all staff (requires canViewStaff permission)
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || !canManageStaff(session.user.role as string)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess, role } = await canView('Staff')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem nhân viên' }, { status: 403 })
         }
 
-        const userRole = session.user.role as string
+        const userRole = role as string
 
         // Determine which roles to show based on current user's role
         // Admin can see all, Manager and below cannot see Admin accounts
@@ -73,15 +67,15 @@ export async function GET() {
     }
 }
 
-// POST - Create new staff
+// POST - Create new staff (requires canManageStaff permission)
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || !canManageStaff(session.user.role as string)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess, role: currentRole } = await canManage('Staff')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền tạo nhân viên' }, { status: 403 })
         }
 
-        const userRole = session.user.role as string
+        const userRole = currentRole as string
         const { name, email, phone, password, role, assignedLocationId } = await req.json()
 
         if (!name || !email || !password) {
@@ -144,16 +138,16 @@ export async function POST(req: Request) {
     }
 }
 
-// PATCH - Update staff
+// PATCH - Update staff (requires canManageStaff permission)
 export async function PATCH(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || !canManageStaff(session.user.role as string)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess, role: currentRole } = await canManage('Staff')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền sửa nhân viên' }, { status: 403 })
         }
 
-        const userRole = session.user.role as string
-        const { id, name, phone, role, assignedLocationId, password } = await req.json()
+        const userRole = currentRole as string
+        const { id, name, phone, role: newRole, assignedLocationId, password } = await req.json()
 
         if (!id) {
             return NextResponse.json({ error: 'Staff ID is required' }, { status: 400 })
@@ -177,7 +171,7 @@ export async function PATCH(req: Request) {
         }
 
         // If trying to change role, validate the new role too
-        if (role && !canManageTargetRole(userRole, role)) {
+        if (newRole && !canManageTargetRole(userRole, newRole)) {
             return NextResponse.json({
                 error: 'Bạn không có quyền đổi role thành giá trị này. Manager chỉ có thể đặt role là Staff hoặc Content Editor.'
             }, { status: 403 })
@@ -186,7 +180,7 @@ export async function PATCH(req: Request) {
         const updateData: any = {}
         if (name) updateData.name = name
         if (phone !== undefined) updateData.phone = phone
-        if (role) updateData.role = role
+        if (newRole) updateData.role = newRole
         if (assignedLocationId !== undefined) updateData.assignedLocationId = assignedLocationId || null
         if (password) {
             updateData.password = await bcrypt.hash(password, 12)
@@ -225,15 +219,15 @@ export async function PATCH(req: Request) {
     }
 }
 
-// DELETE - Delete staff
+// DELETE - Delete staff (requires canManageStaff permission)
 export async function DELETE(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || !canManageStaff(session.user.role as string)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess, role } = await canManage('Staff')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xóa nhân viên' }, { status: 403 })
         }
 
-        const userRole = session.user.role as string
+        const userRole = role as string
         const { searchParams } = new URL(req.url)
         const id = searchParams.get('id')
 

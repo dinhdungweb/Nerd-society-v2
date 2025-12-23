@@ -1,7 +1,6 @@
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { canManage } from '@/lib/apiPermissions'
 
 // GET /api/admin/gallery - Get gallery images
 export async function GET() {
@@ -21,20 +20,13 @@ export async function GET() {
     }
 }
 
-// POST /api/admin/gallery - Save gallery images
+// POST /api/admin/gallery - Save gallery images (requires canManageGallery permission)
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+        const { session, hasAccess } = await canManage('Gallery')
 
-        const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-        })
-
-        if (!user || (user.role !== 'ADMIN' && user.role !== 'STAFF')) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền quản lý Gallery' }, { status: 403 })
         }
 
         const body = await request.json()

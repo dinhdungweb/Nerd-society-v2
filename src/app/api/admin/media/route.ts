@@ -1,8 +1,7 @@
-import { authOptions } from '@/lib/auth'
-import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import { canManage } from '@/lib/apiPermissions'
 
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
 
@@ -41,12 +40,12 @@ export async function GET() {
     }
 }
 
-// DELETE /api/admin/media - Delete a file
+// DELETE /api/admin/media - Delete a file (requires canManageGallery permission)
 export async function DELETE(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canManage('Gallery')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xóa media' }, { status: 401 })
         }
 
         const { searchParams } = new URL(request.url)

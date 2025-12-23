@@ -17,6 +17,7 @@ import {
     PhoneIcon,
 } from '@heroicons/react/24/outline'
 import MediaPickerModal from '@/components/admin/MediaPickerModal'
+import { usePermissions } from '@/contexts/PermissionsContext'
 
 // Feature interface
 interface AboutFeature {
@@ -145,6 +146,8 @@ const defaultFloatingCards: HeroFloatingCard[] = [
 ]
 
 export default function AdminContentPage() {
+    const { permissions } = usePermissions()
+    const canManage = permissions.canManageContent
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [uploadingImage, setUploadingImage] = useState(false)
@@ -1231,17 +1234,19 @@ export default function AdminContentPage() {
                     )}
                 </div>
 
-                {/* Save Button */}
-                <div className="flex justify-end">
-                    <Button
-                        type="submit"
-                        loading={saving}
-                        disabled={saving}
-                        className="px-6"
-                    >
-                        {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-                    </Button>
-                </div>
+                {/* Save Button - Only show if has canManageContent */}
+                {canManage && (
+                    <div className="flex justify-end">
+                        <Button
+                            type="submit"
+                            loading={saving}
+                            disabled={saving}
+                            className="px-6"
+                        >
+                            {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                        </Button>
+                    </div>
+                )}
             </form>
 
             {/* Media Picker Modal for Booking Banner */}

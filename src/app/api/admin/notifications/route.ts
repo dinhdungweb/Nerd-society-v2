@@ -1,14 +1,15 @@
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { NextResponse } from 'next/server'
+import { canView } from '@/lib/apiPermissions'
 
-// GET - Fetch notifications for admin/staff
+// GET - Fetch notifications for admin/staff (requires dashboard access)
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || !['ADMIN', 'MANAGER', 'STAFF'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canView('Dashboard')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem thông báo' }, { status: 403 })
         }
 
         const { searchParams } = new URL(req.url)
@@ -32,12 +33,12 @@ export async function GET(req: Request) {
     }
 }
 
-// POST - Create a notification (internal use)
+// POST - Create a notification (requires dashboard access)
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canView('Dashboard')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền tạo thông báo' }, { status: 403 })
         }
 
         const { type, title, message, link, bookingId } = await req.json()
@@ -59,12 +60,12 @@ export async function POST(req: Request) {
     }
 }
 
-// PATCH - Mark notifications as read
+// PATCH - Mark notifications as read (requires dashboard access)
 export async function PATCH(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || !['ADMIN', 'MANAGER', 'STAFF'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canView('Dashboard')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền cập nhật thông báo' }, { status: 403 })
         }
 
         const { ids, markAll } = await req.json()

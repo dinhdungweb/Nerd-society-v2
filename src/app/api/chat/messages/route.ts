@@ -1,10 +1,9 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { triggerChatEvent, CHAT_CHANNELS, CHAT_EVENTS } from '@/lib/pusher-server'
+import { canView } from '@/lib/apiPermissions'
 
 // POST: Gửi tin nhắn mới
 export async function POST(request: NextRequest) {
@@ -27,9 +26,9 @@ export async function POST(request: NextRequest) {
 
         // Xác thực quyền gửi tin
         if (senderType === 'STAFF') {
-            const session = await getServerSession(authOptions)
-            if (!session?.user || !['ADMIN', 'MANAGER', 'STAFF'].includes((session.user as any).role)) {
-                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            const { session, hasAccess } = await canView('Chat')
+            if (!session || !hasAccess) {
+                return NextResponse.json({ error: 'Không có quyền trả lời chat' }, { status: 401 })
             }
         } else if (senderType === 'GUEST') {
             // Kiểm tra guestSessionId khớp với conversation

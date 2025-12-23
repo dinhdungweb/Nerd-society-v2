@@ -31,9 +31,17 @@ export interface StaffPermissions {
     canViewLocations: boolean
     canManageLocations: boolean
 
-    // Content (Posts, Gallery, Media)
+    // Posts (Tin tức)
     canViewPosts: boolean
     canManagePosts: boolean
+
+    // Gallery/Media
+    canViewGallery: boolean
+    canManageGallery: boolean
+
+    // Content Settings
+    canViewContent: boolean
+    canManageContent: boolean
 
     // Customers
     canViewCustomers: boolean
@@ -80,9 +88,17 @@ const DEFAULT_PERMISSIONS: StaffPermissions = {
     canViewLocations: false,
     canManageLocations: false,
 
-    // Content (Posts, Gallery, Media)
+    // Posts (Tin tức)
     canViewPosts: false,
     canManagePosts: false,
+
+    // Gallery/Media
+    canViewGallery: false,
+    canManageGallery: false,
+
+    // Content Settings
+    canViewContent: false,
+    canManageContent: false,
 
     // Customers
     canViewCustomers: true,
@@ -120,6 +136,10 @@ const ADMIN_PERMISSIONS: StaffPermissions = {
     canManageLocations: true,
     canViewPosts: true,
     canManagePosts: true,
+    canViewGallery: true,
+    canManageGallery: true,
+    canViewContent: true,
+    canManageContent: true,
     canViewCustomers: true,
     canManageCustomers: true,
     canViewNerdCoin: true,
@@ -149,8 +169,12 @@ const CONTENT_EDITOR_PERMISSIONS: StaffPermissions = {
     canManageServices: false,
     canViewLocations: false,
     canManageLocations: false,
-    canViewPosts: true,  // Only content access
+    canViewPosts: true,  // Content access
     canManagePosts: true,
+    canViewGallery: true,  // Gallery access
+    canManageGallery: true,
+    canViewContent: true,  // Content settings access
+    canManageContent: true,
     canViewCustomers: false,
     canManageCustomers: false,
     canViewNerdCoin: false,
