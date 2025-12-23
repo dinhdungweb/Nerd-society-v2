@@ -13,6 +13,7 @@ interface Combo {
     description: string | null
     features: string[]
     icon: string | null
+    image: string | null
     isPopular: boolean
     isActive: boolean
     sortOrder: number

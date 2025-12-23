@@ -15,7 +15,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json()
-        const { name, duration, price, description, features, sortOrder, isActive, isPopular, icon } = body
+        const { name, duration, price, description, features, sortOrder, isActive, isPopular, icon, image } = body
 
         if (!name || !duration || !price || !description) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -30,6 +30,7 @@ export async function POST(req: Request) {
                 description,
                 features: Array.isArray(features) ? features : [features],
                 icon: icon || null,
+                image: image || null,
                 sortOrder: sortOrder ? parseInt(sortOrder) : 0,
                 isActive: isActive !== undefined ? isActive : true,
                 isPopular: isPopular || false,

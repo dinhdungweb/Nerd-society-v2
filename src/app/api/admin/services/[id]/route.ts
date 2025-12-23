@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { invalidateServicePricingCache } from '@/lib/pricing-db'
+import { canView, canManage } from '@/lib/apiPermissions'
 
 // GET - Lấy chi tiết Service
 export async function GET(
@@ -8,6 +9,12 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        // Check view permission
+        const { hasAccess } = await canView('Services')
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem dịch vụ' }, { status: 403 })
+        }
+
         const { id } = await params
         const service = await prisma.service.findUnique({
             where: { id },
@@ -30,6 +37,12 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        // Check manage permission for updating
+        const { hasAccess } = await canManage('Services')
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền chỉnh sửa dịch vụ' }, { status: 403 })
+        }
+
         const { id } = await params
         const body = await request.json()
         const {
@@ -83,6 +96,12 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        // Check manage permission for deleting
+        const { hasAccess } = await canManage('Services')
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xóa dịch vụ' }, { status: 403 })
+        }
+
         const { id } = await params
 
         await prisma.service.delete({

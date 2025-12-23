@@ -48,7 +48,7 @@ export async function PUT(
 
         const { id } = await params
         const body = await request.json()
-        const { name, duration, price, description, features, icon, sortOrder, isActive, isPopular } = body
+        const { name, duration, price, description, features, icon, image, sortOrder, isActive, isPopular } = body
 
         if (!name || !duration || !price) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -73,6 +73,7 @@ export async function PUT(
                 description: description || null,
                 features: Array.isArray(features) ? features : [features].filter(Boolean),
                 icon: icon || null,
+                image: image || null,
                 sortOrder: sortOrder ? parseInt(sortOrder) : 0,
                 isActive: isActive !== undefined ? isActive : true,
                 isPopular: isPopular || false,

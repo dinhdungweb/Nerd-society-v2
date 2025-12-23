@@ -19,6 +19,7 @@ import { Button } from '@/shared/Button'
 import NcModal from '@/shared/NcModal'
 import MediaPickerModal from '@/components/admin/MediaPickerModal'
 import { toast } from 'react-hot-toast'
+import { usePermissions } from '@/contexts/PermissionsContext'
 
 interface Service {
     id: string
@@ -78,6 +79,10 @@ export default function ServicesPage() {
     const [uploadingImage, setUploadingImage] = useState(false)
     const [showMediaPicker, setShowMediaPicker] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Permission check
+    const { hasPermission } = usePermissions()
+    const canManageServices = hasPermission('canManageServices')
 
     // Form state
     const [formData, setFormData] = useState({
@@ -273,10 +278,12 @@ export default function ServicesPage() {
                         Bảng giá và cấu hình dịch vụ
                     </p>
                 </div>
-                <Button onClick={openCreateModal}>
-                    <PlusIcon className="w-5 h-5 mr-2" />
-                    Thêm dịch vụ
-                </Button>
+                {canManageServices && (
+                    <Button onClick={openCreateModal}>
+                        <PlusIcon className="w-5 h-5 mr-2" />
+                        Thêm dịch vụ
+                    </Button>
+                )}
             </div>
 
             {/* Services List */}
@@ -357,22 +364,24 @@ export default function ServicesPage() {
                         </div>
 
                         {/* Footer Actions */}
-                        <div className="flex items-center justify-end gap-3 mt-5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
-                            <button
-                                onClick={() => openEditModal(service)}
-                                className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-primary-600 dark:text-neutral-400 dark:hover:text-primary-500 transition-colors"
-                            >
-                                <PencilSquareIcon className="w-4 h-4" />
-                                <span>Chỉnh sửa</span>
-                            </button>
-                            <button
-                                onClick={() => deleteService(service)}
-                                className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-500 transition-colors"
-                            >
-                                <TrashIcon className="w-4 h-4" />
-                                <span>Xóa</span>
-                            </button>
-                        </div>
+                        {canManageServices && (
+                            <div className="flex items-center justify-end gap-3 mt-5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                                <button
+                                    onClick={() => openEditModal(service)}
+                                    className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-primary-600 dark:text-neutral-400 dark:hover:text-primary-500 transition-colors"
+                                >
+                                    <PencilSquareIcon className="w-4 h-4" />
+                                    <span>Chỉnh sửa</span>
+                                </button>
+                                <button
+                                    onClick={() => deleteService(service)}
+                                    className="flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-500 transition-colors"
+                                >
+                                    <TrashIcon className="w-4 h-4" />
+                                    <span>Xóa</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>

@@ -1,9 +1,16 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { canView, canManage } from '@/lib/apiPermissions'
 
 // GET - Lấy danh sách Services
 export async function GET() {
     try {
+        // Check view permission
+        const { hasAccess } = await canView('Services')
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem dịch vụ' }, { status: 403 })
+        }
+
         const services = await prisma.service.findMany({
             orderBy: { sortOrder: 'asc' },
         })
@@ -17,6 +24,12 @@ export async function GET() {
 // POST - Tạo Service mới
 export async function POST(request: Request) {
     try {
+        // Check manage permission for creating
+        const { hasAccess } = await canManage('Services')
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền thêm dịch vụ' }, { status: 403 })
+        }
+
         const body = await request.json()
         const {
             name,

@@ -1,9 +1,15 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { canView } from '@/lib/apiPermissions'
 
-// GET - Lấy bookings theo date range cho Calendar view
+// GET - Lấy bookings theo date range cho Calendar view (requires canViewBookings)
 export async function GET(request: Request) {
     try {
+        const { hasAccess } = await canView('Bookings')
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem lịch' }, { status: 403 })
+        }
+
         const { searchParams } = new URL(request.url)
         const startDate = searchParams.get('startDate')
         const endDate = searchParams.get('endDate')

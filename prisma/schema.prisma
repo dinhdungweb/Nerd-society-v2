@@ -185,7 +185,8 @@ model Combo {
   price       Int       // in VND
   description String?
   features    String[]  // Array of features
-  icon        String?   // Icon name
+  icon        String?   // Icon name (fallback)
+  image       String?   // Custom image URL
   isPopular   Boolean   @default(false)
   isActive    Boolean   @default(true)
   sortOrder   Int       @default(0)

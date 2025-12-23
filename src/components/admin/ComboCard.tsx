@@ -6,7 +6,11 @@ import {
     ClockIcon,
     PencilSquareIcon,
     TrashIcon,
-    StarIcon,
+    FireIcon,
+    BookOpenIcon,
+    SunIcon,
+    MoonIcon,
+    PresentationChartBarIcon,
 } from '@heroicons/react/24/outline'
 import NcModal from '@/shared/NcModal'
 import ComboForm from './forms/ComboForm'
@@ -20,6 +24,7 @@ interface Combo {
     description: string | null
     features: string[]
     icon: string | null
+    image: string | null
     isPopular: boolean
     isActive: boolean
     sortOrder: number
@@ -27,6 +32,16 @@ interface Combo {
 
 interface ComboCardProps {
     combo: Combo
+}
+
+// Icon mapping for fallback
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+    ClockIcon,
+    FireIcon,
+    BookOpenIcon,
+    SunIcon,
+    MoonIcon,
+    PresentationChartBarIcon,
 }
 
 export default function ComboCard({ combo }: ComboCardProps) {
@@ -56,15 +71,25 @@ export default function ComboCard({ combo }: ComboCardProps) {
         }
     }
 
+    // Get icon component for fallback
+    const IconComponent = combo.icon ? iconMap[combo.icon] || ClockIcon : ClockIcon
+
     return (
         <div className="group flex flex-col rounded-2xl border border-neutral-200 bg-white p-5 transition-all hover:shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
             {/* Header */}
             <div className="mb-4 flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400">
-                        {/* Dynamic Icon Rendering could be improved here if needed */}
-                        {/* Current implementation defaults to ClockIcon if not specific */}
-                        <ClockIcon className="size-6" />
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 overflow-hidden">
+                        {combo.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={combo.image}
+                                alt={combo.name}
+                                className="size-full object-cover"
+                            />
+                        ) : (
+                            <IconComponent className="size-6" />
+                        )}
                     </div>
                     <div>
                         <h3 className="font-bold text-neutral-900 dark:text-white">
