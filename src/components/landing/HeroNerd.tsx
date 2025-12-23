@@ -95,8 +95,9 @@ export default function HeroNerd({
   heroFloatingCards,
 }: HeroNerdProps) {
   const backgroundSrc = heroBackgroundImage || DEFAULT_HERO_IMAGE
-  const features = heroFeatures && heroFeatures.length > 0 ? heroFeatures : defaultFeatures
-  const stats = heroStats && heroStats.length > 0 ? heroStats : defaultStats
+  // Only use defaults when props are undefined (not configured), not when empty array (deliberately cleared)
+  const features = heroFeatures !== undefined ? heroFeatures : defaultFeatures
+  const stats = heroStats !== undefined ? heroStats : defaultStats
 
   // Default floating cards
   const defaultFloatingCards: HeroFloatingCard[] = [
@@ -104,7 +105,7 @@ export default function HeroNerd({
     { icon: 'WifiIcon', title: 'Wifi siêu tốc', subtitle: '100Mbps+' },
     { icon: 'BookOpenIcon', title: 'Học tập hiệu quả', subtitle: 'Không gian yên tĩnh' },
   ]
-  const floatingCards = heroFloatingCards && heroFloatingCards.length > 0 ? heroFloatingCards : defaultFloatingCards
+  const floatingCards = heroFloatingCards !== undefined ? heroFloatingCards : defaultFloatingCards
 
   // Floating card positions and animations
   const cardPositions = [
@@ -130,7 +131,7 @@ export default function HeroNerd({
       </div>
 
       <div className="container relative z-10 flex min-h-screen items-center pb-24 pt-20 md:pb-20">
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-8">
+        <div className="grid gap-12 lg:grid-cols-2 lg:gap-8 w-full">
           {/* Content */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -166,26 +167,28 @@ export default function HeroNerd({
               {heroSubtitle}
             </motion.p>
 
-            {/* Features */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-              className="mt-8 flex flex-wrap gap-4"
-            >
-              {features.map((feature, i) => {
-                const IconComponent = iconMap[feature.icon] || WifiIcon
-                return (
-                  <div
-                    key={feature.text + i}
-                    className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-white backdrop-blur-sm"
-                  >
-                    <IconComponent className="size-4 text-primary-400" />
-                    {feature.text}
-                  </div>
-                )
-              })}
-            </motion.div>
+            {/* Features - only show if has items */}
+            {features.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                className="mt-8 flex flex-wrap gap-4"
+              >
+                {features.map((feature, i) => {
+                  const IconComponent = iconMap[feature.icon] || WifiIcon
+                  return (
+                    <div
+                      key={feature.text + i}
+                      className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-white backdrop-blur-sm"
+                    >
+                      <IconComponent className="size-4 text-primary-400" />
+                      {feature.text}
+                    </div>
+                  )
+                })}
+              </motion.div>
+            )}
 
             {/* CTA Buttons */}
             <motion.div
@@ -212,53 +215,57 @@ export default function HeroNerd({
             </motion.div>
 
 
-            {/* Stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.7 }}
-              className="mt-12 flex gap-8 border-t border-white/10 pt-8"
-            >
-              {stats.map((stat, i) => (
-                <div key={stat.label + i}>
-                  <div className="text-3xl font-bold text-white">{stat.value}</div>
-                  <div className="text-sm text-neutral-400">{stat.label}</div>
-                </div>
-              ))}
-            </motion.div>
+            {/* Stats - only show if has items */}
+            {stats.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.7 }}
+                className="mt-12 flex gap-8 border-t border-white/10 pt-8"
+              >
+                {stats.map((stat, i) => (
+                  <div key={stat.label + i}>
+                    <div className="text-3xl font-bold text-white">{stat.value}</div>
+                    <div className="text-sm text-neutral-400">{stat.label}</div>
+                  </div>
+                ))}
+              </motion.div>
+            )}
           </motion.div>
 
-          {/* Right side - floating cards */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="relative hidden lg:flex lg:items-center lg:justify-center"
-          >
-            {floatingCards.slice(0, 3).map((card, index) => {
-              const position = cardPositions[index] || cardPositions[0]
-              const IconComponent = iconMap[card.icon] || CoffeeIcon
-              return (
-                <motion.div
-                  key={card.title + index}
-                  initial={position.initial}
-                  animate={{ opacity: 1, x: 0, y: 0 }}
-                  transition={{ duration: 0.6, delay: position.delay }}
-                  className={`${position.className} rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white">
-                      <IconComponent className="size-6" />
+          {/* Right side - floating cards - only show if has items */}
+          {floatingCards.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="relative hidden lg:flex lg:items-center lg:justify-center"
+            >
+              {floatingCards.slice(0, 3).map((card, index) => {
+                const position = cardPositions[index] || cardPositions[0]
+                const IconComponent = iconMap[card.icon] || CoffeeIcon
+                return (
+                  <motion.div
+                    key={card.title + index}
+                    initial={position.initial}
+                    animate={{ opacity: 1, x: 0, y: 0 }}
+                    transition={{ duration: 0.6, delay: position.delay }}
+                    className={`${position.className} rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white">
+                        <IconComponent className="size-6" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white">{card.title}</p>
+                        <p className="text-sm text-neutral-300">{card.subtitle}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-white">{card.title}</p>
-                      <p className="text-sm text-neutral-300">{card.subtitle}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </motion.div>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+          )}
         </div>
       </div>
 
