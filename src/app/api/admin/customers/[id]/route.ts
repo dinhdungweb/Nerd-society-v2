@@ -1,46 +1,16 @@
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
+import { canView } from '@/lib/apiPermissions'
 
 interface RouteParams {
     params: Promise<{ id: string }>
 }
 
-// Check if user has permission based on saved role settings
-async function hasCustomerPermission(role: string): Promise<boolean> {
-    if (role === 'ADMIN') return true
-
-    try {
-        const setting = await prisma.setting.findUnique({
-            where: { key: `role_permissions_${role}` },
-        })
-
-        if (setting) {
-            const permissions = JSON.parse(setting.value)
-            return permissions.canViewCustomers === true
-        }
-
-        // Default permissions
-        if (role === 'MANAGER' || role === 'STAFF') return true
-        return false
-    } catch {
-        return false
-    }
-}
-
 // GET - Fetch single customer with booking history
 export async function GET(req: Request, { params }: RouteParams) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-        }
-
-        const role = session.user.role as string
-        const hasAccess = await hasCustomerPermission(role)
-
-        if (!hasAccess) {
+        const { session, hasAccess } = await canView('Customers')
+        if (!session || !hasAccess) {
             return NextResponse.json({ error: 'Không có quyền xem thông tin khách hàng' }, { status: 403 })
         }
 

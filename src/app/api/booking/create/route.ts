@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
                 estimatedAmount,
                 depositAmount,
                 nerdCoinIssued: 0, // Nerd Coin issued at Check-in, not at creation
-                source: 'WEBSITE', // TODO: Add WEBSITE_GUEST to BookingSource enum if needed
+                source: 'WEBSITE', // Booking từ website (có thể có hoặc không tài khoản)
                 status: 'PENDING',
                 depositStatus: 'PENDING',
                 note,

@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 import { canView } from '@/lib/apiPermissions'
+import { triggerChatEvent, CHAT_CHANNELS, CHAT_EVENTS } from '@/lib/pusher-server'
 
 // GET: Lấy danh sách cuộc trò chuyện (Admin/Staff)
 export async function GET(request: NextRequest) {
@@ -78,7 +79,15 @@ export async function POST(request: NextRequest) {
             },
         })
 
-        // TODO: Trigger Soketi event cho admin dashboard
+        // Trigger Pusher event để admin dashboard nhận realtime notification
+        triggerChatEvent(CHAT_CHANNELS.adminNotifications, CHAT_EVENTS.NEW_CONVERSATION, {
+            id: conversation.id,
+            guestName: conversation.guestName,
+            subject: conversation.subject,
+            source: conversation.source,
+            createdAt: conversation.createdAt,
+            lastMessage: initialMessage,
+        }).catch(console.error)
 
         return NextResponse.json(conversation, { status: 201 })
     } catch (error) {
@@ -86,3 +95,4 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
+

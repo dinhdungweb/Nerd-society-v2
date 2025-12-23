@@ -284,8 +284,7 @@ const ListingFilterTabs = ({
   const [showAllFilter, setShowAllFilter] = useState(false)
 
   const handleFormSubmit = async (formData: FormData) => {
-    const formDataObject = Object.fromEntries(formData.entries())
-    console.log('Form submitted with data:', formDataObject)
+    // Filter form data processing can be added here
   }
 
   const renderTabAllFilters = () => {
@@ -392,7 +391,7 @@ const ListingFilterTabs = ({
                 className={clsx(
                   'md:px-4',
                   checkedNumber &&
-                    'border-black! ring-1 ring-black ring-inset dark:border-neutral-200! dark:ring-neutral-200'
+                  'border-black! ring-1 ring-black ring-inset dark:border-neutral-200! dark:ring-neutral-200'
                 )}
               >
                 <span>{filterOption.label}</span>

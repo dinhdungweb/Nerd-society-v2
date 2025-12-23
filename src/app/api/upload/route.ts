@@ -3,11 +3,12 @@ import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
+import { authOptions } from '@/lib/auth'
 
 // POST /api/upload - Upload images
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession()
+        const session = await getServerSession(authOptions)
         if (!session?.user?.email) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }

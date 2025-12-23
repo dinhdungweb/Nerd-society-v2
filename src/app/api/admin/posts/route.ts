@@ -3,14 +3,14 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { audit } from '@/lib/audit'
-import { canManage } from '@/lib/apiPermissions'
+import { canManage, canView } from '@/lib/apiPermissions'
 
 // GET /api/admin/posts - Get all posts with filters
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canView('Posts')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem bài viết' }, { status: 403 })
         }
 
         const { searchParams } = new URL(request.url)

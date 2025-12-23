@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { canView } from '@/lib/apiPermissions'
 
 const FLOATING_BUTTONS_KEY = 'floating_buttons'
 
@@ -49,12 +48,12 @@ export async function GET() {
     }
 }
 
-// POST - Save floating buttons config (Admin only)
+// POST - Save floating buttons config (Settings permission required)
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canView('Settings')
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền thay đổi cài đặt' }, { status: 403 })
         }
 
         const { buttons } = await request.json()

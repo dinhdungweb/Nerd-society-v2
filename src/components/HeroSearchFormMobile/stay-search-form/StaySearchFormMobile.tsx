@@ -32,10 +32,8 @@ const StaySearchFormMobile = () => {
   }
   const handleFormSubmit = (formData: FormData) => {
     const formDataEntries = Object.fromEntries(formData.entries())
-    console.log('Form submitted', formDataEntries)
-    // You can also redirect or perform other actions based on the form data
 
-    // example: add location to the URL
+    // Redirect to search results with location
     const location = formDataEntries['location'] as string
     let url = '/stay-categories/all'
     if (location) {

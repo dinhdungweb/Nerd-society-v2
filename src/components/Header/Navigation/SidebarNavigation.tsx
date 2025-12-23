@@ -33,8 +33,6 @@ const SidebarNavigation: React.FC<Props> = ({ data, currencies, languages }) => 
   // Handle form submission
   const handleSubmitForm = async (formData: FormData) => {
     const formObject = Object.fromEntries(formData.entries())
-    // Handle form submission logic here
-    console.log('Form submitted:', formObject)
     const searchQuery = formObject.search as string
     // Close the popover
     handleClose()

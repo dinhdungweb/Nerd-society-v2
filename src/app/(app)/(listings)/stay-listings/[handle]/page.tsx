@@ -88,9 +88,7 @@ const Page = async ({ params }: { params: Promise<{ handle: string }> }) => {
   const handleSubmitForm = async (formData: FormData) => {
     'use server'
 
-    // Handle form submission logic here
-    console.log('Form submitted with data:', Object.fromEntries(formData.entries()))
-    // For example, you can redirect to a checkout page or process the booking
+    // Process booking and redirect to checkout
     redirect('/checkout')
   }
   //

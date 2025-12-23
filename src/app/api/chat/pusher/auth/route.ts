@@ -2,6 +2,11 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { pusherServer } from '@/lib/pusher-server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+
+// Staff-like roles allowed to access admin channels
+const ADMIN_CHANNEL_ROLES = ['ADMIN', 'MANAGER', 'STAFF']
 
 // Pusher authentication endpoint cho private channels
 export async function POST(request: NextRequest) {
@@ -18,7 +23,15 @@ export async function POST(request: NextRequest) {
         // Private channels bắt đầu bằng 'private-'
         if (channel.startsWith('private-admin')) {
             // Chỉ admin/staff mới được subscribe admin channels
-            // TODO: Verify session role here
+            const session = await getServerSession(authOptions)
+            if (!session?.user?.email) {
+                return NextResponse.json({ error: 'Unauthorized - Login required' }, { status: 401 })
+            }
+
+            const role = session.user.role as string
+            if (!ADMIN_CHANNEL_ROLES.includes(role)) {
+                return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 })
+            }
         }
 
         // Authorize the channel
