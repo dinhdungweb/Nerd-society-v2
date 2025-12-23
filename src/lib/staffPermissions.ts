@@ -2,25 +2,52 @@ import { prisma } from '@/lib/prisma'
 
 // Default Staff permissions
 export const DEFAULT_STAFF_PERMISSIONS = {
+    // Dashboard
     canViewDashboard: true,
+    canViewReports: false,
+
+    // Bookings
     canViewBookings: true,
     canCreateBookings: true,
     canEditBookings: true,
     canDeleteBookings: false,
     canCheckIn: true,
     canCheckOut: true,
-    canViewCustomers: true,
+
+    // Chat
+    canViewChat: true,
+
+    // Rooms
     canViewRooms: false,
+    canManageRooms: false,
+
+    // Services & Combos
     canViewServices: false,
+    canManageServices: false,
+
+    // Locations
     canViewLocations: false,
+    canManageLocations: false,
+
+    // Content (Posts, Gallery, Media)
     canViewPosts: false,
+    canManagePosts: false,
+
+    // Customers
+    canViewCustomers: true,
+    canManageCustomers: false,
+
+    // Nerd Coin
     canViewNerdCoin: false,
-    canViewReports: false,
+    canManageNerdCoin: false,
+
+    // System
     canViewSettings: false,
-    // New permissions
     canViewStaff: false,
+    canManageStaff: false,
     canViewAuditLog: false,
     canViewEmailTemplates: false,
+    canManageEmailTemplates: false,
 }
 
 export type StaffPermissions = typeof DEFAULT_STAFF_PERMISSIONS
@@ -48,10 +75,11 @@ export async function getStaffPermissions(): Promise<StaffPermissions> {
 export const PERMISSION_ROUTE_MAP: Record<string, keyof StaffPermissions> = {
     '/admin': 'canViewDashboard',
     '/admin/bookings': 'canViewBookings',
+    '/admin/chat': 'canViewChat',
     '/admin/customers': 'canViewCustomers',
     '/admin/rooms': 'canViewRooms',
     '/admin/services': 'canViewServices',
-    '/admin/combos': 'canViewServices', // Combos use same permission as services
+    '/admin/combos': 'canViewServices',
     '/admin/locations': 'canViewLocations',
     '/admin/posts': 'canViewPosts',
     '/admin/gallery': 'canViewPosts',
@@ -60,8 +88,6 @@ export const PERMISSION_ROUTE_MAP: Record<string, keyof StaffPermissions> = {
     '/admin/nerdcoin': 'canViewNerdCoin',
     '/admin/reports': 'canViewReports',
     '/admin/settings': 'canViewSettings',
-    '/admin/permissions': 'canViewSettings',
-    // New routes
     '/admin/staff': 'canViewStaff',
     '/admin/audit-log': 'canViewAuditLog',
     '/admin/email-templates': 'canViewEmailTemplates',

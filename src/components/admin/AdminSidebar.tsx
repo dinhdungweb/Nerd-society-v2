@@ -52,7 +52,7 @@ const navigationGroups: NavGroup[] = [
         name: 'Quản lý đặt lịch',
         items: [
             { name: 'Bookings', href: '/admin/bookings', icon: CalendarDaysIcon, permissionKey: 'canViewBookings' },
-            { name: 'Chat hỗ trợ', href: '/admin/chat', icon: ChatBubbleLeftRightIcon, permissionKey: 'canViewBookings' },
+            { name: 'Chat hỗ trợ', href: '/admin/chat', icon: ChatBubbleLeftRightIcon, permissionKey: 'canViewChat' },
             { name: 'Phòng', href: '/admin/rooms', icon: CubeIcon, permissionKey: 'canViewRooms' },
             { name: 'Dịch vụ', href: '/admin/services', icon: Squares2X2Icon, permissionKey: 'canViewServices' },
             { name: 'Combos', href: '/admin/combos', icon: RectangleStackIcon, permissionKey: 'canViewServices' },
@@ -73,9 +73,9 @@ const navigationGroups: NavGroup[] = [
         items: [
             { name: 'Khách hàng', href: '/admin/customers', icon: UsersIcon, permissionKey: 'canViewCustomers' },
             { name: 'Nerd Coin', href: '/admin/nerdcoin', icon: SparklesIcon, permissionKey: 'canViewNerdCoin' },
-            { name: 'Email Templates', href: '/admin/email-templates', icon: EnvelopeIcon, adminOnly: true },
-            { name: 'Lịch sử', href: '/admin/audit-log', icon: ClipboardDocumentListIcon, adminOnly: true },
-            { name: 'Nhân viên', href: '/admin/staff', icon: UserGroupIcon, adminOnly: true },
+            { name: 'Email Templates', href: '/admin/email-templates', icon: EnvelopeIcon, permissionKey: 'canViewEmailTemplates' },
+            { name: 'Lịch sử', href: '/admin/audit-log', icon: ClipboardDocumentListIcon, permissionKey: 'canViewAuditLog' },
+            { name: 'Nhân viên', href: '/admin/staff', icon: UserGroupIcon, permissionKey: 'canViewStaff' },
             { name: 'Phân quyền', href: '/admin/permissions', icon: ShieldCheckIcon, adminOnly: true },
             { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon, permissionKey: 'canViewSettings' },
         ]

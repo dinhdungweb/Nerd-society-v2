@@ -6,13 +6,15 @@ import { calculateBookingPriceFromDB, calculateDeposit, SYSTEM_CONFIG } from '@/
 import { isSlotAvailable, generateBookingCode, getBookingDateTime, parseTimeToMinutes, OPERATING_HOURS } from '@/lib/booking-utils'
 import { parseISO, addMinutes, format } from 'date-fns'
 import { audit } from '@/lib/audit'
+import { canView, canBooking } from '@/lib/apiPermissions'
 
-// GET /api/admin/bookings - Get all bookings
+// GET /api/admin/bookings - Get all bookings (requires canViewBookings permission)
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canView('Bookings')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem bookings' }, { status: 403 })
         }
 
         const bookings = await prisma.booking.findMany({
@@ -47,12 +49,13 @@ export async function GET() {
     }
 }
 
-// POST /api/admin/bookings - Create Walk-in Booking
+// POST /api/admin/bookings - Create Walk-in Booking (requires canCreateBookings permission)
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email || (session.user.role !== 'ADMIN' && session.user.role !== 'STAFF')) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canBooking('Create')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền tạo booking' }, { status: 403 })
         }
 
         const body = await req.json()

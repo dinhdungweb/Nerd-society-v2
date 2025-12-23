@@ -3,16 +3,18 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { audit } from '@/lib/audit'
+import { canView, canManage } from '@/lib/apiPermissions'
 
-// GET /api/admin/posts/[id] - Get a single post
+// GET /api/admin/posts/[id] - Get a single post (requires canViewPosts permission)
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canView('Posts')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem bài viết' }, { status: 403 })
         }
 
         const { id } = await params
@@ -37,24 +39,21 @@ export async function GET(
     }
 }
 
-// PUT /api/admin/posts/[id] - Update a post
+// PUT /api/admin/posts/[id] - Update a post (requires canManagePosts permission)
 export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canManage('Posts')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền sửa bài viết' }, { status: 403 })
         }
 
         const user = await prisma.user.findUnique({
             where: { email: session.user.email },
         })
-
-        if (!user || !['ADMIN', 'STAFF', 'CONTENT_EDITOR'].includes(user.role)) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
 
         const { id } = await params
         const body = await request.json()
@@ -129,8 +128,8 @@ export async function PUT(
 
         // Audit logging
         await audit.update(
-            user.id,
-            user.name || user.email || 'Admin',
+            user?.id || session.user.id || 'unknown',
+            user?.name || session.user.name || session.user.email || 'Admin',
             'post',
             post.id,
             { title: post.title, type: post.type, status: post.status }
@@ -143,23 +142,16 @@ export async function PUT(
     }
 }
 
-// DELETE /api/admin/posts/[id] - Delete a post
+// DELETE /api/admin/posts/[id] - Delete a post (requires canManagePosts permission)
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+        const { session, hasAccess } = await canManage('Posts')
 
-        const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-        })
-
-        if (!user || user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xóa bài viết' }, { status: 403 })
         }
 
         const { id } = await params
@@ -178,8 +170,8 @@ export async function DELETE(
 
         // Audit logging
         await audit.delete(
-            user.id,
-            user.name || user.email || 'Admin',
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
             'post',
             id,
             { title: existingPost.title, type: existingPost.type }

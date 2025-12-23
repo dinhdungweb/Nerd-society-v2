@@ -2,16 +2,18 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { canView } from '@/lib/apiPermissions'
 
 /**
  * GET /api/admin/audit-log
- * Get audit log entries with filtering and pagination
+ * Get audit log entries with filtering and pagination (requires canViewAuditLog permission)
  */
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canView('AuditLog')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem audit log' }, { status: 403 })
         }
 
         const { searchParams } = new URL(request.url)

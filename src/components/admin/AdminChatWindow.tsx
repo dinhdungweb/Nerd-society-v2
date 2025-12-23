@@ -12,6 +12,7 @@ import { useAdminChat } from '@/contexts/AdminChatContext'
 import useSWR from 'swr'
 import Image from 'next/image'
 import { Conversation } from '../../types/chat'
+import { usePermissions } from '@/contexts/PermissionsContext'
 
 // Reusing fetcher
 const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -22,6 +23,10 @@ export default function AdminChatWindow() {
     const [isSending, setIsSending] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const { hasPermission } = usePermissions()
+
+    // Check permission
+    const canViewChat = hasPermission('canViewChat')
 
     // Auto-resize textarea
     useEffect(() => {
@@ -43,7 +48,7 @@ export default function AdminChatWindow() {
     // Fetch conversation details to get real-time messages
     // Note: In a real app we might want to share this SWR cache with the main chat page
     const { data: conversation, mutate } = useSWR<Conversation>(
-        isOpen && activeConversation ? `/api/chat/conversations/${activeConversation.id}` : null,
+        isOpen && activeConversation && canViewChat ? `/api/chat/conversations/${activeConversation.id}` : null,
         fetcher,
         { refreshInterval: 5000 }
     )
@@ -55,7 +60,8 @@ export default function AdminChatWindow() {
         }
     }, [conversation?.messages, isOpen, isMinimized])
 
-    if (!isOpen || !activeConversation) return null
+    // Hide if no permission or not open
+    if (!canViewChat || !isOpen || !activeConversation) return null
 
     const handleSend = async () => {
         if (!replyMessage.trim()) return

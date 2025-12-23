@@ -8,7 +8,7 @@ import { useEffect, ReactNode } from 'react'
 const ROUTE_PERMISSIONS: Record<string, keyof StaffPermissions> = {
     '/admin': 'canViewDashboard',
     '/admin/bookings': 'canViewBookings',
-    '/admin/chat': 'canViewBookings',
+    '/admin/chat': 'canViewChat',
     '/admin/rooms': 'canViewRooms',
     '/admin/services': 'canViewServices',
     '/admin/combos': 'canViewServices',
@@ -20,14 +20,15 @@ const ROUTE_PERMISSIONS: Record<string, keyof StaffPermissions> = {
     '/admin/customers': 'canViewCustomers',
     '/admin/nerdcoin': 'canViewNerdCoin',
     '/admin/settings': 'canViewSettings',
+    // New routes - permission-based, not admin-only
+    '/admin/staff': 'canViewStaff',
+    '/admin/audit-log': 'canViewAuditLog',
+    '/admin/email-templates': 'canViewEmailTemplates',
 }
 
-// Routes that are ONLY for ADMIN
+// Routes that are ONLY for ADMIN (only permissions page now)
 const ADMIN_ONLY_ROUTES = [
-    '/admin/staff',
     '/admin/permissions',
-    '/admin/audit-log',
-    '/admin/email-templates',
 ]
 
 interface AdminRouteGuardProps {
@@ -52,9 +53,12 @@ export default function AdminRouteGuard({ children }: AdminRouteGuardProps) {
         )
 
         if (isAdminOnlyRoute && !isAdmin) {
-            router.replace('/admin/posts?error=access_denied')
+            router.replace('/admin?error=access_denied')
             return
         }
+
+        // Admin has full access to everything
+        if (isAdmin) return
 
         // Find matching route permission
         const matchingRoute = Object.keys(ROUTE_PERMISSIONS)
@@ -68,7 +72,7 @@ export default function AdminRouteGuard({ children }: AdminRouteGuardProps) {
                 const allowedRoute = Object.entries(ROUTE_PERMISSIONS)
                     .find(([, perm]) => hasPermission(perm))
 
-                const redirectTo = allowedRoute ? allowedRoute[0] : '/admin/posts'
+                const redirectTo = allowedRoute ? allowedRoute[0] : '/admin'
                 router.replace(`${redirectTo}?error=access_denied`)
                 return
             }
@@ -94,6 +98,11 @@ export default function AdminRouteGuard({ children }: AdminRouteGuardProps) {
 
     if (isAdminOnlyRoute && !isAdmin) {
         return null
+    }
+
+    // Admin has full access
+    if (isAdmin) {
+        return <>{children}</>
     }
 
     // Check permission-based routes

@@ -11,9 +11,11 @@ import {
     TrashIcon,
     FolderOpenIcon,
     EnvelopeIcon,
+    CursorArrowRippleIcon,
 } from '@heroicons/react/24/outline'
 import MediaPickerModal from '@/components/admin/MediaPickerModal'
 import Image from 'next/image'
+import FloatingButtonsSettings from '@/components/admin/FloatingButtonsSettings'
 
 interface GeneralSettings {
     siteName: string
@@ -600,6 +602,21 @@ export default function AdminSettingsPage() {
                             </label>
                         </div>
                     </div>
+                </div>
+
+                {/* FLOATING BUTTONS CARD */}
+                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-6 flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white">
+                            <CursorArrowRippleIcon className="size-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Nút liên hệ nổi</h2>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">Quản lý các nút liên hệ hiển thị trên trang chủ</p>
+                        </div>
+                    </div>
+
+                    <FloatingButtonsSettings />
                 </div>
 
                 {/* Save Button */}

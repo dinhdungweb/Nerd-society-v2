@@ -6,55 +6,121 @@ import { NextResponse } from 'next/server'
 // Default permissions for each role
 const DEFAULT_ROLE_PERMISSIONS = {
     MANAGER: {
+        // Dashboard
         canViewDashboard: true,
+        canViewReports: true,
+        // Bookings
         canViewBookings: true,
         canCreateBookings: true,
         canEditBookings: true,
         canDeleteBookings: true,
         canCheckIn: true,
         canCheckOut: true,
-        canViewCustomers: true,
+        // Chat
+        canViewChat: true,
+        // Rooms
         canViewRooms: true,
+        canManageRooms: true,
+        // Services
         canViewServices: true,
+        canManageServices: true,
+        // Locations
         canViewLocations: true,
+        canManageLocations: true,
+        // Content
         canViewPosts: true,
+        canManagePosts: true,
+        // Customers
+        canViewCustomers: true,
+        canManageCustomers: true,
+        // Nerd Coin
         canViewNerdCoin: true,
-        canViewReports: true,
-        canViewSettings: true,
+        canManageNerdCoin: true,
+        // System
+        canViewSettings: false, // Manager không nên thay đổi settings hệ thống
+        canViewStaff: true,     // Manager có thể quản lý Staff/Editor
+        canManageStaff: true,
+        canViewAuditLog: true,
+        canViewEmailTemplates: true,
+        canManageEmailTemplates: true,
     },
     STAFF: {
+        // Dashboard
         canViewDashboard: true,
+        canViewReports: false,
+        // Bookings
         canViewBookings: true,
         canCreateBookings: true,
         canEditBookings: true,
         canDeleteBookings: false,
         canCheckIn: true,
         canCheckOut: true,
-        canViewCustomers: true,
+        // Chat
+        canViewChat: true,
+        // Rooms
         canViewRooms: false,
+        canManageRooms: false,
+        // Services
         canViewServices: false,
+        canManageServices: false,
+        // Locations
         canViewLocations: false,
+        canManageLocations: false,
+        // Content
         canViewPosts: false,
+        canManagePosts: false,
+        // Customers
+        canViewCustomers: true,
+        canManageCustomers: false,
+        // Nerd Coin
         canViewNerdCoin: false,
-        canViewReports: false,
+        canManageNerdCoin: false,
+        // System
         canViewSettings: false,
+        canViewStaff: false,
+        canManageStaff: false,
+        canViewAuditLog: false,
+        canViewEmailTemplates: false,
+        canManageEmailTemplates: false,
     },
     CONTENT_EDITOR: {
-        canViewDashboard: true,
+        // Dashboard
+        canViewDashboard: false,
+        canViewReports: false,
+        // Bookings
         canViewBookings: false,
         canCreateBookings: false,
         canEditBookings: false,
         canDeleteBookings: false,
         canCheckIn: false,
         canCheckOut: false,
-        canViewCustomers: false,
+        // Chat
+        canViewChat: false,
+        // Rooms
         canViewRooms: false,
+        canManageRooms: false,
+        // Services
         canViewServices: false,
+        canManageServices: false,
+        // Locations
         canViewLocations: false,
+        canManageLocations: false,
+        // Content
         canViewPosts: true,
+        canManagePosts: true,
+        // Customers
+        canViewCustomers: false,
+        canManageCustomers: false,
+        // Nerd Coin
         canViewNerdCoin: false,
-        canViewReports: false,
+        canManageNerdCoin: false,
+        // System
         canViewSettings: false,
+        canViewStaff: false,
+        canManageStaff: false,
+        canViewAuditLog: false,
+        canViewEmailTemplates: false,
+        canManageEmailTemplates: false,
     },
 }
 

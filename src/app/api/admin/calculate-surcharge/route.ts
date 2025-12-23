@@ -5,13 +5,15 @@ import { NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
 import { parseISO, differenceInMinutes, format } from 'date-fns'
 import { getBookingDateTime } from '@/lib/booking-utils'
+import { canBooking } from '@/lib/apiPermissions'
 
-// POST /api/admin/calculate-surcharge
+// POST /api/admin/calculate-surcharge (requires canCheckOut permission)
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email || (session.user.role !== 'ADMIN' && session.user.role !== 'STAFF')) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canBooking('CheckOut')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền tính phụ phí' }, { status: 403 })
         }
 
         const body = await req.json()

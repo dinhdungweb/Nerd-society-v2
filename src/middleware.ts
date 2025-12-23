@@ -5,9 +5,9 @@ import { NextResponse } from 'next/server'
 const STAFF_ROLES = ['STAFF', 'MANAGER', 'CONTENT_EDITOR']
 
 // Routes that are ONLY for ADMIN (never for other roles regardless of permissions)
+// Note: /admin/staff is now permission-based (canViewStaff), not admin-only
 const ADMIN_ONLY_ROUTES = [
-    '/admin/staff',
-    '/admin/permissions',
+    '/admin/permissions',  // Chỉ Admin mới được phân quyền cho các role
 ]
 
 // Routes for CONTENT_EDITOR - they can only access content-related pages

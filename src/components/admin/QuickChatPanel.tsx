@@ -6,6 +6,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { useAdminChat } from '@/contexts/AdminChatContext'
 import { Conversation } from '../../types/chat'
+import { usePermissions } from '@/contexts/PermissionsContext'
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
 
@@ -13,10 +14,14 @@ export default function QuickChatPanel() {
     const [isOpen, setIsOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
     const { openChat, closeChat } = useAdminChat()
+    const { hasPermission } = usePermissions()
 
-    // Fetch conversations
+    // Check permission - but call this after all hooks
+    const canViewChat = hasPermission('canViewChat')
+
+    // Fetch conversations (only if has permission)
     const { data: conversations } = useSWR<Conversation[]>(
-        '/api/chat/conversations',
+        canViewChat ? '/api/chat/conversations' : null,
         fetcher,
         { refreshInterval: 10000 }
     )
@@ -31,6 +36,11 @@ export default function QuickChatPanel() {
         document.addEventListener('mousedown', handleClickOutside)
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [])
+
+    // Hide chat panel if user doesn't have chat permission (after all hooks)
+    if (!canViewChat) {
+        return null
+    }
 
     const unreadTotal = Array.isArray(conversations)
         ? conversations.reduce((sum, c) => sum + c.unreadCount, 0)

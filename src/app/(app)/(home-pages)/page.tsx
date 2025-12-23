@@ -79,12 +79,24 @@ function getHeroStats(settings: Record<string, string>) {
   return undefined
 }
 
+function getHeroFloatingCards(settings: Record<string, string>) {
+  try {
+    if (settings.heroFloatingCards) {
+      return JSON.parse(settings.heroFloatingCards)
+    }
+  } catch (error) {
+    console.error('Error parsing heroFloatingCards:', error)
+  }
+  return undefined
+}
+
 export default async function Page() {
   const settings = await getSettings()
   const combos = await getCombos()
   const aboutFeatures = getAboutFeatures(settings)
   const heroFeatures = getHeroFeatures(settings)
   const heroStats = getHeroStats(settings)
+  const heroFloatingCards = getHeroFloatingCards(settings)
 
   return (
     <>
@@ -99,6 +111,7 @@ export default async function Page() {
           heroBackgroundImage={settings.heroBackgroundImage}
           heroFeatures={heroFeatures}
           heroStats={heroStats}
+          heroFloatingCards={heroFloatingCards}
         />
         <AboutNerd
           aboutTitle={settings.aboutTitle}

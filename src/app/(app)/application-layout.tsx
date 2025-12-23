@@ -4,6 +4,7 @@ import Header from '@/components/Header/Header'
 import HeroSearchFormMobile from '@/components/HeroSearchFormMobile/HeroSearchFormMobile'
 import Aside from '@/components/aside'
 import AsideSidebarNavigation from '@/components/aside-sidebar-navigation'
+import { FloatingContact } from '@/components/ui/FloatingContact'
 import 'rc-slider/assets/index.css'
 import React, { ReactNode } from 'react'
 
@@ -32,8 +33,11 @@ const ApplicationLayout: React.FC<Props> = ({ children, header }) => {
       <Footer2 /> {/* <Footer /> or <Footer2 /> or <Footer3 /> or <Footer4 />*/}
       {/*  */}
       <AsideSidebarNavigation />
+      {/* Floating Contact Buttons */}
+      <FloatingContact />
     </Aside.Provider>
   )
 }
 
 export { ApplicationLayout }
+

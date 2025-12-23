@@ -3,11 +3,11 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 
-// GET - Fetch notifications for admin
+// GET - Fetch notifications for admin/staff
 export async function GET(req: Request) {
     try {
         const session = await getServerSession(authOptions)
-        if (!session || !['ADMIN', 'STAFF'].includes(session.user.role)) {
+        if (!session || !['ADMIN', 'MANAGER', 'STAFF'].includes(session.user.role)) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
         }
 
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
     try {
         const session = await getServerSession(authOptions)
-        if (!session || !['ADMIN', 'STAFF'].includes(session.user.role)) {
+        if (!session || !['ADMIN', 'MANAGER', 'STAFF'].includes(session.user.role)) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
         }
 

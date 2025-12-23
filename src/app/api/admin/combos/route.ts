@@ -3,16 +3,19 @@ import { prisma } from '@/lib/prisma'
 import { kebabCase } from 'lodash'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
+import { canManage } from '@/lib/apiPermissions'
 
+// POST - Create new combo (requires canManageServices permission)
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canManage('Services')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền tạo combo' }, { status: 403 })
         }
 
         const body = await req.json()
-        const { name, duration, price, description, features, sortOrder, isActive, isPopular } = body
+        const { name, duration, price, description, features, sortOrder, isActive, isPopular, icon } = body
 
         if (!name || !duration || !price || !description) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -26,6 +29,7 @@ export async function POST(req: Request) {
                 price: parseInt(price),
                 description,
                 features: Array.isArray(features) ? features : [features],
+                icon: icon || null,
                 sortOrder: sortOrder ? parseInt(sortOrder) : 0,
                 isActive: isActive !== undefined ? isActive : true,
                 isPopular: isPopular || false,

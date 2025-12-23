@@ -4,77 +4,163 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { useSession } from 'next-auth/react'
 
 export interface StaffPermissions {
+    // Dashboard
     canViewDashboard: boolean
+    canViewReports: boolean
+
+    // Bookings
     canViewBookings: boolean
     canCreateBookings: boolean
     canEditBookings: boolean
     canDeleteBookings: boolean
     canCheckIn: boolean
     canCheckOut: boolean
-    canViewCustomers: boolean
+
+    // Chat
+    canViewChat: boolean
+
+    // Rooms
     canViewRooms: boolean
+    canManageRooms: boolean
+
+    // Services & Combos
     canViewServices: boolean
+    canManageServices: boolean
+
+    // Locations
     canViewLocations: boolean
+    canManageLocations: boolean
+
+    // Content (Posts, Gallery, Media)
     canViewPosts: boolean
+    canManagePosts: boolean
+
+    // Customers
+    canViewCustomers: boolean
+    canManageCustomers: boolean
+
+    // Nerd Coin
     canViewNerdCoin: boolean
-    canViewReports: boolean
+    canManageNerdCoin: boolean
+
+    // System
     canViewSettings: boolean
+    canViewStaff: boolean
+    canManageStaff: boolean
+    canViewAuditLog: boolean
+    canViewEmailTemplates: boolean
+    canManageEmailTemplates: boolean
 }
 
 const DEFAULT_PERMISSIONS: StaffPermissions = {
+    // Dashboard
     canViewDashboard: true,
+    canViewReports: false,
+
+    // Bookings
     canViewBookings: true,
     canCreateBookings: true,
     canEditBookings: true,
     canDeleteBookings: false,
     canCheckIn: true,
     canCheckOut: true,
-    canViewCustomers: true,
+
+    // Chat
+    canViewChat: true,
+
+    // Rooms
     canViewRooms: false,
+    canManageRooms: false,
+
+    // Services & Combos
     canViewServices: false,
+    canManageServices: false,
+
+    // Locations
     canViewLocations: false,
+    canManageLocations: false,
+
+    // Content (Posts, Gallery, Media)
     canViewPosts: false,
+    canManagePosts: false,
+
+    // Customers
+    canViewCustomers: true,
+    canManageCustomers: false,
+
+    // Nerd Coin
     canViewNerdCoin: false,
-    canViewReports: false,
+    canManageNerdCoin: false,
+
+    // System
     canViewSettings: false,
+    canViewStaff: false,
+    canManageStaff: false,
+    canViewAuditLog: false,
+    canViewEmailTemplates: false,
+    canManageEmailTemplates: false,
 }
 
 // Full permissions for ADMIN
 const ADMIN_PERMISSIONS: StaffPermissions = {
     canViewDashboard: true,
+    canViewReports: true,
     canViewBookings: true,
     canCreateBookings: true,
     canEditBookings: true,
     canDeleteBookings: true,
     canCheckIn: true,
     canCheckOut: true,
-    canViewCustomers: true,
+    canViewChat: true,
     canViewRooms: true,
+    canManageRooms: true,
     canViewServices: true,
+    canManageServices: true,
     canViewLocations: true,
+    canManageLocations: true,
     canViewPosts: true,
+    canManagePosts: true,
+    canViewCustomers: true,
+    canManageCustomers: true,
     canViewNerdCoin: true,
-    canViewReports: true,
+    canManageNerdCoin: true,
     canViewSettings: true,
+    canViewStaff: true,
+    canManageStaff: true,
+    canViewAuditLog: true,
+    canViewEmailTemplates: true,
+    canManageEmailTemplates: true,
 }
 
 // Limited permissions for CONTENT_EDITOR - only content management
 const CONTENT_EDITOR_PERMISSIONS: StaffPermissions = {
     canViewDashboard: false,
+    canViewReports: false,
     canViewBookings: false,
     canCreateBookings: false,
     canEditBookings: false,
     canDeleteBookings: false,
     canCheckIn: false,
     canCheckOut: false,
-    canViewCustomers: false,
+    canViewChat: false,
     canViewRooms: false,
+    canManageRooms: false,
     canViewServices: false,
+    canManageServices: false,
     canViewLocations: false,
+    canManageLocations: false,
     canViewPosts: true,  // Only content access
+    canManagePosts: true,
+    canViewCustomers: false,
+    canManageCustomers: false,
     canViewNerdCoin: false,
-    canViewReports: false,
+    canManageNerdCoin: false,
     canViewSettings: false,
+    canViewStaff: false,
+    canManageStaff: false,
+    canViewAuditLog: false,
+    canViewEmailTemplates: false,
+    canManageEmailTemplates: false,
 }
 
 interface PermissionsContextType {
@@ -118,19 +204,24 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
                     const res = await fetch('/api/staff/permissions')
                     if (res.ok) {
                         const data = await res.json()
-                        // Merge with defaults, falling back to CONTENT_EDITOR defaults if API fails
-                        const basePermissions = role === 'CONTENT_EDITOR'
-                            ? CONTENT_EDITOR_PERMISSIONS
-                            : DEFAULT_PERMISSIONS
-                        setPermissions({ ...basePermissions, ...data.permissions })
+                        // Use the permissions from API directly (already merged with defaults on server)
+                        setPermissions(data.permissions)
                     } else {
                         // If API fails, use role-specific defaults
-                        setPermissions(role === 'CONTENT_EDITOR' ? CONTENT_EDITOR_PERMISSIONS : DEFAULT_PERMISSIONS)
+                        if (role === 'CONTENT_EDITOR') {
+                            setPermissions(CONTENT_EDITOR_PERMISSIONS)
+                        } else {
+                            setPermissions(DEFAULT_PERMISSIONS)
+                        }
                     }
                 } catch (error) {
                     console.error('Error fetching permissions:', error)
                     // Fallback to role-specific defaults
-                    setPermissions(role === 'CONTENT_EDITOR' ? CONTENT_EDITOR_PERMISSIONS : DEFAULT_PERMISSIONS)
+                    if (role === 'CONTENT_EDITOR') {
+                        setPermissions(CONTENT_EDITOR_PERMISSIONS)
+                    } else {
+                        setPermissions(DEFAULT_PERMISSIONS)
+                    }
                 }
                 setLoading(false)
             }

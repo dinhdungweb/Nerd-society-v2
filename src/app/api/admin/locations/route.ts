@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { audit } from '@/lib/audit'
+import { canView, canManage } from '@/lib/apiPermissions'
 
 // GET - Lấy danh sách locations
 export async function GET() {
@@ -17,11 +18,13 @@ export async function GET() {
     }
 }
 
+// POST - Tạo location mới (requires canManageLocations permission)
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canManage('Locations')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền thêm cơ sở' }, { status: 403 })
         }
 
         const body = await req.json()

@@ -7,8 +7,10 @@ import { differenceInMinutes, parseISO } from 'date-fns'
 import { getBookingDateTime } from '@/lib/booking-utils'
 import { sendBookingCancelledEmail } from '@/lib/email'
 import { audit } from '@/lib/audit'
+import { notifyBookingCancelled, notifyCheckIn, notifyCheckOut } from '@/lib/notifications'
+import { canBooking, checkApiPermission } from '@/lib/apiPermissions'
 
-// POST /api/admin/bookings/[id]/status
+// POST /api/admin/bookings/[id]/status (requires canCheckIn/canCheckOut/canEditBookings permission)
 export async function POST(
     req: Request,
     props: { params: Promise<{ id: string }> }
@@ -16,7 +18,7 @@ export async function POST(
     const params = await props.params;
     try {
         const session = await getServerSession(authOptions)
-        if (!session?.user?.email || (session.user.role !== 'ADMIN' && session.user.role !== 'STAFF')) {
+        if (!session?.user?.email) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
@@ -26,6 +28,25 @@ export async function POST(
 
         if (!id) {
             return NextResponse.json({ error: 'Missing booking ID' }, { status: 400 })
+        }
+
+        // Check permission based on action
+        const role = session.user.role as string
+        if (action === 'CHECK_IN') {
+            const { hasAccess } = await canBooking('CheckIn')
+            if (!hasAccess) {
+                return NextResponse.json({ error: 'Không có quyền check-in' }, { status: 403 })
+            }
+        } else if (action === 'CHECK_OUT') {
+            const { hasAccess } = await canBooking('CheckOut')
+            if (!hasAccess) {
+                return NextResponse.json({ error: 'Không có quyền check-out' }, { status: 403 })
+            }
+        } else if (action === 'CANCEL') {
+            const { hasAccess } = await canBooking('Edit')
+            if (!hasAccess) {
+                return NextResponse.json({ error: 'Không có quyền hủy booking' }, { status: 403 })
+            }
         }
 
         const booking = await prisma.booking.findUnique({
@@ -108,9 +129,8 @@ export async function POST(
             }
 
             // Create notification for check-in
-            import('@/lib/notifications').then(({ notifyCheckIn }) => {
-                notifyCheckIn(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
-            })
+            // Create notification for check-in
+            notifyCheckIn(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
 
             // Audit logging
             await audit.checkIn(
@@ -174,9 +194,8 @@ export async function POST(
             })
 
             // Create notification for check-out
-            import('@/lib/notifications').then(({ notifyCheckOut }) => {
-                notifyCheckOut(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
-            })
+            // Create notification for check-out
+            notifyCheckOut(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
 
             // Audit logging
             await audit.checkOut(
@@ -190,6 +209,11 @@ export async function POST(
         }
 
         if (action === 'CANCEL') {
+            // Idempotency Check: IF booking is already cancelled, just return success
+            if (booking.status === 'CANCELLED') {
+                return NextResponse.json(booking)
+            }
+
             const updatedBooking = await prisma.booking.update({
                 where: { id },
                 data: {
@@ -198,9 +222,7 @@ export async function POST(
             })
 
             // Create notification for booking cancelled
-            import('@/lib/notifications').then(({ notifyBookingCancelled }) => {
-                notifyBookingCancelled(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
-            })
+            notifyBookingCancelled(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
 
             // Send cancellation email to customer
             sendBookingCancelledEmail({

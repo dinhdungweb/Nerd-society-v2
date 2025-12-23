@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { audit } from '@/lib/audit'
+import { canManage } from '@/lib/apiPermissions'
 
 // GET - Lấy thông tin 1 location
 export async function GET(
@@ -26,16 +27,17 @@ export async function GET(
     }
 }
 
-// PUT - Cập nhật location
+// PUT - Cập nhật location (requires canManageLocations permission)
 export async function PUT(
     req: Request,
     props: { params: Promise<{ id: string }> }
 ) {
     const params = await props.params
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canManage('Locations')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền sửa cơ sở' }, { status: 403 })
         }
 
         const body = await req.json()
@@ -69,16 +71,17 @@ export async function PUT(
     }
 }
 
-// DELETE - Xóa location
+// DELETE - Xóa location (requires canManageLocations permission)
 export async function DELETE(
     req: Request,
     props: { params: Promise<{ id: string }> }
 ) {
     const params = await props.params
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canManage('Locations')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xóa cơ sở' }, { status: 403 })
         }
 
         // Check if location has rooms

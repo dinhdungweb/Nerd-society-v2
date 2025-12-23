@@ -2,16 +2,18 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { canView, canManage } from '@/lib/apiPermissions'
 
 /**
  * GET /api/admin/email-templates
- * Get all email templates
+ * Get all email templates (requires canViewEmailTemplates permission)
  */
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canView('EmailTemplates')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem email templates' }, { status: 403 })
         }
 
         const templates = await prisma.emailTemplate.findMany({
@@ -27,13 +29,14 @@ export async function GET() {
 
 /**
  * POST /api/admin/email-templates
- * Create or update an email template
+ * Create or update an email template (requires canManageEmailTemplates permission)
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canManage('EmailTemplates')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền sửa email templates' }, { status: 403 })
         }
 
         const body = await request.json()
@@ -69,13 +72,14 @@ export async function POST(request: NextRequest) {
 
 /**
  * DELETE /api/admin/email-templates
- * Delete an email template
+ * Delete an email template (requires canManageEmailTemplates permission)
  */
 export async function DELETE(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canManage('EmailTemplates')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xóa email templates' }, { status: 403 })
         }
 
         const { searchParams } = new URL(request.url)

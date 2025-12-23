@@ -5,25 +5,52 @@ import { ShieldCheckIcon, UserGroupIcon, BriefcaseIcon, PencilSquareIcon } from 
 import toast from 'react-hot-toast'
 
 interface Permissions {
+    // Dashboard
     canViewDashboard: boolean
+    canViewReports: boolean
+
+    // Bookings
     canViewBookings: boolean
     canCreateBookings: boolean
     canEditBookings: boolean
     canDeleteBookings: boolean
     canCheckIn: boolean
     canCheckOut: boolean
-    canViewCustomers: boolean
+
+    // Chat
+    canViewChat: boolean
+
+    // Rooms
     canViewRooms: boolean
+    canManageRooms: boolean
+
+    // Services & Combos
     canViewServices: boolean
+    canManageServices: boolean
+
+    // Locations
     canViewLocations: boolean
+    canManageLocations: boolean
+
+    // Content
     canViewPosts: boolean
+    canManagePosts: boolean
+
+    // Customers
+    canViewCustomers: boolean
+    canManageCustomers: boolean
+
+    // Nerd Coin
     canViewNerdCoin: boolean
-    canViewReports: boolean
+    canManageNerdCoin: boolean
+
+    // System
     canViewSettings: boolean
-    // New permissions
     canViewStaff: boolean
+    canManageStaff: boolean
     canViewAuditLog: boolean
     canViewEmailTemplates: boolean
+    canManageEmailTemplates: boolean
 }
 
 type RoleKey = 'MANAGER' | 'STAFF' | 'CONTENT_EDITOR'
@@ -33,7 +60,7 @@ const roleConfig: Record<RoleKey, { name: string; icon: typeof UserGroupIcon; co
         name: 'Manager',
         icon: BriefcaseIcon,
         color: 'amber',
-        description: 'Quản lý cơ sở - có quyền cao, xem tất cả dữ liệu'
+        description: 'Quản lý cơ sở - có quyền cao, quản lý nhân sự và vận hành'
     },
     STAFF: {
         name: 'Staff',
@@ -50,25 +77,52 @@ const roleConfig: Record<RoleKey, { name: string; icon: typeof UserGroupIcon; co
 }
 
 const permissionLabels: Record<keyof Permissions, { label: string; description: string; group: string }> = {
+    // Dashboard
     canViewDashboard: { label: 'Xem Dashboard', description: 'Xem tổng quan và biểu đồ', group: 'Tổng quan' },
+    canViewReports: { label: 'Xem Reports', description: 'Xem báo cáo doanh thu', group: 'Tổng quan' },
+
+    // Bookings
     canViewBookings: { label: 'Xem Bookings', description: 'Xem danh sách đặt lịch', group: 'Đặt lịch' },
     canCreateBookings: { label: 'Tạo Booking', description: 'Tạo booking mới', group: 'Đặt lịch' },
     canEditBookings: { label: 'Sửa Booking', description: 'Chỉnh sửa thông tin booking', group: 'Đặt lịch' },
     canDeleteBookings: { label: 'Xóa Booking', description: 'Xóa booking (nguy hiểm)', group: 'Đặt lịch' },
     canCheckIn: { label: 'Check-in', description: 'Thực hiện check-in khách', group: 'Đặt lịch' },
     canCheckOut: { label: 'Check-out', description: 'Thực hiện check-out khách', group: 'Đặt lịch' },
+
+    // Chat
+    canViewChat: { label: 'Xem Chat', description: 'Xem và trả lời tin nhắn hỗ trợ', group: 'Hỗ trợ' },
+
+    // Rooms
+    canViewRooms: { label: 'Xem Phòng', description: 'Xem danh sách phòng', group: 'Phòng & Dịch vụ' },
+    canManageRooms: { label: 'Quản lý Phòng', description: 'Thêm, sửa, xóa phòng', group: 'Phòng & Dịch vụ' },
+
+    // Services
+    canViewServices: { label: 'Xem Dịch vụ', description: 'Xem dịch vụ và combo', group: 'Phòng & Dịch vụ' },
+    canManageServices: { label: 'Quản lý Dịch vụ', description: 'Thêm, sửa, xóa dịch vụ/combo', group: 'Phòng & Dịch vụ' },
+
+    // Locations
+    canViewLocations: { label: 'Xem Cơ sở', description: 'Xem danh sách cơ sở', group: 'Phòng & Dịch vụ' },
+    canManageLocations: { label: 'Quản lý Cơ sở', description: 'Thêm, sửa, xóa cơ sở', group: 'Phòng & Dịch vụ' },
+
+    // Content
+    canViewPosts: { label: 'Xem Nội dung', description: 'Xem tin tức, gallery, media', group: 'Nội dung' },
+    canManagePosts: { label: 'Quản lý Nội dung', description: 'Thêm, sửa, xóa tin tức/media', group: 'Nội dung' },
+
+    // Customers
     canViewCustomers: { label: 'Xem Khách hàng', description: 'Xem danh sách khách hàng', group: 'Khách hàng' },
-    canViewRooms: { label: 'Xem Phòng', description: 'Xem và quản lý phòng', group: 'Quản lý' },
-    canViewServices: { label: 'Xem Dịch vụ', description: 'Xem và quản lý dịch vụ, combo', group: 'Quản lý' },
-    canViewLocations: { label: 'Xem Cơ sở', description: 'Xem và quản lý cơ sở', group: 'Quản lý' },
-    canViewPosts: { label: 'Xem Nội dung', description: 'Quản lý tin tức, gallery, media', group: 'Nội dung' },
-    canViewNerdCoin: { label: 'Xem Nerd Coin', description: 'Quản lý Nerd Coin khách hàng', group: 'Hệ thống' },
-    canViewReports: { label: 'Xem Reports', description: 'Xem báo cáo doanh thu', group: 'Hệ thống' },
-    canViewSettings: { label: 'Xem Settings', description: 'Truy cập cài đặt hệ thống', group: 'Hệ thống' },
-    // New permissions
-    canViewStaff: { label: 'Xem Nhân viên', description: 'Quản lý danh sách nhân viên', group: 'Hệ thống' },
-    canViewAuditLog: { label: 'Xem Lịch sử', description: 'Xem lịch sử thao tác (Audit Log)', group: 'Hệ thống' },
-    canViewEmailTemplates: { label: 'Xem Email Templates', description: 'Quản lý mẫu email', group: 'Hệ thống' },
+    canManageCustomers: { label: 'Quản lý Khách hàng', description: 'Sửa, xóa thông tin khách', group: 'Khách hàng' },
+
+    // Nerd Coin
+    canViewNerdCoin: { label: 'Xem Nerd Coin', description: 'Xem số dư Nerd Coin', group: 'Hệ thống' },
+    canManageNerdCoin: { label: 'Quản lý Nerd Coin', description: 'Điều chỉnh Nerd Coin khách', group: 'Hệ thống' },
+
+    // System
+    canViewSettings: { label: 'Xem Settings', description: 'Xem cài đặt hệ thống', group: 'Hệ thống' },
+    canViewStaff: { label: 'Xem Nhân viên', description: 'Xem danh sách nhân viên', group: 'Hệ thống' },
+    canManageStaff: { label: 'Quản lý Nhân viên', description: 'Thêm, sửa, xóa Staff/Editor', group: 'Hệ thống' },
+    canViewAuditLog: { label: 'Xem Lịch sử', description: 'Xem lịch sử thao tác', group: 'Hệ thống' },
+    canViewEmailTemplates: { label: 'Xem Email Templates', description: 'Xem mẫu email', group: 'Hệ thống' },
+    canManageEmailTemplates: { label: 'Quản lý Email Templates', description: 'Sửa mẫu email', group: 'Hệ thống' },
 }
 
 export default function PermissionsPage() {

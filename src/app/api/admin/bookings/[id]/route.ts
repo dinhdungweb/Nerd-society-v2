@@ -2,17 +2,19 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
+import { canView, canBooking } from '@/lib/apiPermissions'
 
-// GET /api/admin/bookings/[id]
+// GET /api/admin/bookings/[id] (requires canViewBookings permission)
 export async function GET(
     req: Request,
     props: { params: Promise<{ id: string }> }
 ) {
     const params = await props.params;
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canView('Bookings')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem booking' }, { status: 403 })
         }
 
         const { id } = params
@@ -50,16 +52,17 @@ export async function GET(
     }
 }
 
-// PATCH /api/admin/bookings/[id]
+// PATCH /api/admin/bookings/[id] (requires canEditBookings permission)
 export async function PATCH(
     req: Request,
     props: { params: Promise<{ id: string }> }
 ) {
     const params = await props.params;
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email || (session.user.role !== 'ADMIN' && session.user.role !== 'STAFF')) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const { session, hasAccess } = await canBooking('Edit')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền sửa booking' }, { status: 403 })
         }
 
         const { id } = params

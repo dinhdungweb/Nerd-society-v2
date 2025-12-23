@@ -2,13 +2,15 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
+import { canView } from '@/lib/apiPermissions'
 
-// GET - Fetch all customers (ADMIN and STAFF can view)
+// GET - Fetch all customers (requires canViewCustomers permission)
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'STAFF')) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canView('Customers')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xem khách hàng' }, { status: 403 })
         }
 
         const customers = await prisma.user.findMany({

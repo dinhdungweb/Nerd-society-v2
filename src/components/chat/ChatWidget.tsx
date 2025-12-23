@@ -9,11 +9,14 @@ import {
     PhotoIcon,
     XCircleIcon,
     PhoneIcon,
+    LinkIcon,
+    EnvelopeIcon,
 } from '@heroicons/react/24/outline'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import { getPusherClient, CHAT_CHANNELS, CHAT_EVENTS } from '@/lib/pusher-client'
+import useSWR from 'swr'
 
 interface Message {
     id: string
@@ -29,13 +32,42 @@ interface Conversation {
     messages: Message[]
 }
 
+interface FloatingButton {
+    id: string
+    label: string
+    type: 'phone' | 'chat' | 'zalo' | 'messenger' | 'link' | 'email'
+    value: string
+    icon: string
+    bgColor: string
+    textColor: string
+    isActive: boolean
+    order: number
+}
+
 interface ChatWidgetProps {
     logoUrl?: string
 }
 
+const floatingButtonsFetcher = (url: string) => fetch(url).then(res => res.json())
+
 export function ChatWidget({ logoUrl }: ChatWidgetProps) {
     const pathname = usePathname()
     const { data: session } = useSession()
+
+    // Hide on admin pages
+    const isAdminPage = pathname?.startsWith('/admin')
+
+    // Fetch floating buttons config from API
+    const { data: floatingButtonsData } = useSWR<{ buttons: FloatingButton[] }>(
+        isAdminPage ? null : '/api/admin/settings/floating-buttons',
+        floatingButtonsFetcher,
+        { revalidateOnFocus: false }
+    )
+
+    // Get active buttons sorted by order
+    const activeButtons = (floatingButtonsData?.buttons || [])
+        .filter(btn => btn.isActive)
+        .sort((a, b) => a.order - b.order)
 
     // States
     const [isOpen, setIsOpen] = useState(false)
@@ -81,9 +113,6 @@ export function ChatWidget({ logoUrl }: ChatWidgetProps) {
             }
         }
     }, [inputMessage])
-
-    // Hide on admin pages
-    const isAdminPage = pathname?.startsWith('/admin')
 
     // Generate or retrieve session ID
     useEffect(() => {
@@ -350,12 +379,47 @@ export function ChatWidget({ logoUrl }: ChatWidgetProps) {
 
     if (isAdminPage) return null
 
+    // Helper function to get href for button
+    const getButtonHref = (btn: FloatingButton) => {
+        switch (btn.type) {
+            case 'phone': return `tel:${btn.value}`
+            case 'email': return `mailto:${btn.value}`
+            case 'zalo': return btn.value.startsWith('http') ? btn.value : `https://zalo.me/${btn.value}`
+            case 'messenger': return btn.value.startsWith('http') ? btn.value : `https://m.me/${btn.value}`
+            case 'link': return btn.value
+            default: return btn.value
+        }
+    }
+
+    // Helper function to render icon
+    const renderButtonIcon = (icon: string) => {
+        switch (icon) {
+            case 'phone': return <PhoneIcon className="size-5" />
+            case 'chat': return <ChatBubbleLeftRightIcon className="size-5" />
+            case 'email': return <EnvelopeIcon className="size-5" />
+            case 'link': return <LinkIcon className="size-5" />
+            case 'zalo': return (
+                <svg className="size-5" viewBox="0 0 614.501 613.667" fill="currentColor">
+                    <path d="M464.721,301.399c-13.984-0.014-23.707,11.478-23.944,28.312c-0.251,17.771,9.168,29.208,24.037,29.202c14.287-0.007,23.799-11.095,24.01-27.995C489.028,313.536,479.127,301.399,464.721,301.399z" />
+                    <path d="M291.83,301.392c-14.473-0.316-24.578,11.603-24.604,29.024c-0.02,16.959,9.294,28.259,23.496,28.502c15.072,0.251,24.592-10.87,24.539-28.707C315.214,313.318,305.769,301.696,291.83,301.392z" />
+                    <path d="M310.518,3.158C143.102,3.158,7.375,138.884,7.375,306.3s135.727,303.142,303.143,303.142c167.415,0,303.143-135.727,303.143-303.142S477.933,3.158,310.518,3.158z M217.858,391.083c-33.364,0.818-66.828,1.353-100.133-0.343c-21.326-1.095-27.652-18.647-14.248-36.583c21.55-28.826,43.886-57.065,65.792-85.621c2.546-3.305,6.214-5.996,7.15-12.705c-16.609,0-32.784,0.04-48.958-0.013c-19.195-0.066-28.278-5.805-28.14-17.652c0.132-11.768,9.175-17.329,28.397-17.348c25.159-0.026,50.324-0.06,75.476,0.026c9.637,0.033,19.604,0.105,25.304,9.789c6.22,10.561,0.284,19.512-5.646,27.454c-21.26,28.497-43.015,56.624-64.559,84.902c-2.599,3.41-5.119,6.88-9.453,12.725c23.424,0,44.123-0.053,64.816,0.026c8.674,0.026,16.662,1.873,19.941,11.267C237.892,379.329,231.368,390.752,217.858,391.083z M350.854,330.211c0,13.417-0.093,26.841,0.039,40.265c0.073,7.599-2.599,13.647-9.512,17.084c-7.296,3.642-14.71,3.028-20.304-2.968c-3.997-4.281-6.214-3.213-10.488-0.422c-17.955,11.728-39.908,9.96-56.597-3.866c-29.928-24.789-30.026-74.803-0.211-99.776c16.194-13.562,39.592-15.462,56.709-4.143c3.951,2.619,6.201,4.815,10.396-0.053c5.39-6.267,13.055-6.761,20.271-3.357c7.454,3.509,9.935,10.165,9.776,18.265C350.67,304.222,350.86,317.217,350.854,330.211z M395.617,369.579c-0.118,12.837-6.398,19.783-17.196,19.908c-10.779,0.132-17.593-6.966-17.646-19.512c-0.179-43.352-0.185-86.696,0.007-130.041c0.059-12.256,7.302-19.921,17.896-19.222c11.425,0.752,16.992,7.448,16.992,18.833c0,22.104,0,44.216,0,66.327C395.677,327.105,395.828,348.345,395.617,369.579z M463.981,391.868c-34.399-0.336-59.037-26.444-58.786-62.289c0.251-35.66,25.304-60.713,60.383-60.396c34.631,0.304,59.374,26.306,58.998,61.986C524.207,366.492,498.534,392.205,463.981,391.868z" />
+                </svg>
+            )
+            case 'messenger': return (
+                <svg className="size-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.936 1.444 5.53 3.675 7.222V22l3.334-1.827c.89.247 1.833.38 2.791.38 5.523 0 10-4.144 10-9.253S17.523 2 12 2zm.994 12.472l-2.548-2.72-4.97 2.72 5.47-5.804 2.612 2.72 4.904-2.72-5.468 5.804z" />
+                </svg>
+            )
+            default: return <LinkIcon className="size-5" />
+        }
+    }
+
     return (
         <>
             {/* Main FAB Menu */}
             {!isOpen && (
                 <AnimatePresence>
-                    {isVisible && (
+                    {isVisible && activeButtons.length > 0 && (
                         <motion.div
                             initial={{ scale: 0, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
@@ -365,37 +429,51 @@ export function ChatWidget({ logoUrl }: ChatWidgetProps) {
                             <AnimatePresence>
                                 {isMenuOpen && (
                                     <>
-                                        {/* Call Button */}
-                                        <motion.a
-                                            initial={{ opacity: 0, scale: 0, y: 10 }}
-                                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0, y: 10 }}
-                                            transition={{ delay: 0.05 }}
-                                            href="tel:0368483689"
-                                            className="group flex items-center gap-3 rounded-full bg-white pl-4 pr-1 py-1 shadow-lg ring-1 ring-neutral-200 hover:bg-neutral-50 dark:bg-neutral-800 dark:ring-neutral-700 dark:hover:bg-neutral-700"
-                                        >
-                                            <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">Gọi ngay</span>
-                                            <div className="flex size-10 items-center justify-center rounded-full bg-primary-600 text-white shadow-sm group-hover:bg-primary-700">
-                                                <PhoneIcon className="size-5" />
-                                            </div>
-                                        </motion.a>
-
-                                        {/* Chat Button */}
-                                        <motion.button
-                                            initial={{ opacity: 0, scale: 0, y: 10 }}
-                                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0, y: 10 }}
-                                            onClick={() => {
-                                                setIsOpen(true)
-                                                setIsMenuOpen(false)
-                                            }}
-                                            className="group flex items-center gap-3 rounded-full bg-white pl-4 pr-1 py-1 shadow-lg ring-1 ring-neutral-200 hover:bg-neutral-50 dark:bg-neutral-800 dark:ring-neutral-700 dark:hover:bg-neutral-700"
-                                        >
-                                            <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">Chat hỗ trợ</span>
-                                            <div className="flex size-10 items-center justify-center rounded-full bg-primary-600 text-white shadow-sm group-hover:bg-primary-700">
-                                                <ChatBubbleLeftRightIcon className="size-5" />
-                                            </div>
-                                        </motion.button>
+                                        {/* Dynamic Buttons from API */}
+                                        {activeButtons.map((btn, index) => (
+                                            btn.type === 'chat' ? (
+                                                <motion.button
+                                                    key={btn.id}
+                                                    initial={{ opacity: 0, scale: 0, y: 10 }}
+                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                    exit={{ opacity: 0, scale: 0, y: 10 }}
+                                                    transition={{ delay: index * 0.05 }}
+                                                    onClick={() => {
+                                                        setIsOpen(true)
+                                                        setIsMenuOpen(false)
+                                                    }}
+                                                    className="group flex items-center gap-3 rounded-full bg-white pl-4 pr-1 py-1 shadow-lg ring-1 ring-neutral-200 hover:bg-neutral-50 dark:bg-neutral-800 dark:ring-neutral-700 dark:hover:bg-neutral-700"
+                                                >
+                                                    <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">{btn.label}</span>
+                                                    <div
+                                                        className="flex size-10 items-center justify-center rounded-full shadow-sm"
+                                                        style={{ backgroundColor: btn.bgColor, color: btn.textColor }}
+                                                    >
+                                                        {renderButtonIcon(btn.icon)}
+                                                    </div>
+                                                </motion.button>
+                                            ) : (
+                                                <motion.a
+                                                    key={btn.id}
+                                                    initial={{ opacity: 0, scale: 0, y: 10 }}
+                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                    exit={{ opacity: 0, scale: 0, y: 10 }}
+                                                    transition={{ delay: index * 0.05 }}
+                                                    href={getButtonHref(btn)}
+                                                    target={btn.type === 'link' || btn.type === 'messenger' || btn.type === 'zalo' ? '_blank' : undefined}
+                                                    rel={btn.type === 'link' || btn.type === 'messenger' || btn.type === 'zalo' ? 'noopener noreferrer' : undefined}
+                                                    className="group flex items-center gap-3 rounded-full bg-white pl-4 pr-1 py-1 shadow-lg ring-1 ring-neutral-200 hover:bg-neutral-50 dark:bg-neutral-800 dark:ring-neutral-700 dark:hover:bg-neutral-700"
+                                                >
+                                                    <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">{btn.label}</span>
+                                                    <div
+                                                        className="flex size-10 items-center justify-center rounded-full shadow-sm"
+                                                        style={{ backgroundColor: btn.bgColor, color: btn.textColor }}
+                                                    >
+                                                        {renderButtonIcon(btn.icon)}
+                                                    </div>
+                                                </motion.a>
+                                            )
+                                        ))}
                                     </>
                                 )}
                             </AnimatePresence>

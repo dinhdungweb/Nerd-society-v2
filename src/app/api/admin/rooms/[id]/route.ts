@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { audit } from '@/lib/audit'
+import { canView, canManage } from '@/lib/apiPermissions'
 
 // GET - Lấy chi tiết phòng
 export async function GET(
@@ -33,15 +34,16 @@ export async function GET(
     }
 }
 
-// PUT - Cập nhật phòng (ADMIN only)
+// PUT - Cập nhật phòng (requires canManageRooms permission)
 export async function PUT(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Chỉ Admin mới có thể sửa phòng' }, { status: 403 })
+        const { session, hasAccess } = await canManage('Rooms')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền sửa phòng' }, { status: 403 })
         }
 
         const { id } = await params
@@ -86,15 +88,16 @@ export async function PUT(
     }
 }
 
-// DELETE - Xóa phòng (ADMIN only)
+// DELETE - Xóa phòng (requires canManageRooms permission)
 export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Chỉ Admin mới có thể xóa phòng' }, { status: 403 })
+        const { session, hasAccess } = await canManage('Rooms')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xóa phòng' }, { status: 403 })
         }
 
         const { id } = await params

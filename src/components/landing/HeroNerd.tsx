@@ -23,6 +23,7 @@ const iconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>
   WifiIcon,
   CoffeeIcon,
   ClockIcon,
+  BookOpenIcon,
   BoltIcon: (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
@@ -61,6 +62,13 @@ export interface HeroStat {
   label: string
 }
 
+// Floating Card interface
+export interface HeroFloatingCard {
+  icon: string
+  title: string
+  subtitle: string
+}
+
 interface HeroNerdProps {
   heroTitle?: string
   heroSubtitle?: string
@@ -70,6 +78,7 @@ interface HeroNerdProps {
   heroBackgroundImage?: string
   heroFeatures?: HeroFeaturePill[]
   heroStats?: HeroStat[]
+  heroFloatingCards?: HeroFloatingCard[]
 }
 
 const DEFAULT_HERO_IMAGE = 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?q=80&w=2070'
@@ -83,10 +92,26 @@ export default function HeroNerd({
   heroBackgroundImage,
   heroFeatures,
   heroStats,
+  heroFloatingCards,
 }: HeroNerdProps) {
   const backgroundSrc = heroBackgroundImage || DEFAULT_HERO_IMAGE
   const features = heroFeatures && heroFeatures.length > 0 ? heroFeatures : defaultFeatures
   const stats = heroStats && heroStats.length > 0 ? heroStats : defaultStats
+
+  // Default floating cards
+  const defaultFloatingCards: HeroFloatingCard[] = [
+    { icon: 'CoffeeIcon', title: 'Cafe miễn phí', subtitle: 'Không giới hạn' },
+    { icon: 'WifiIcon', title: 'Wifi siêu tốc', subtitle: '100Mbps+' },
+    { icon: 'BookOpenIcon', title: 'Học tập hiệu quả', subtitle: 'Không gian yên tĩnh' },
+  ]
+  const floatingCards = heroFloatingCards && heroFloatingCards.length > 0 ? heroFloatingCards : defaultFloatingCards
+
+  // Floating card positions and animations
+  const cardPositions = [
+    { className: 'absolute left-10 top-[20%]', initial: { opacity: 0, x: -20 }, delay: 0.8 },
+    { className: 'absolute right-0 top-[45%]', initial: { opacity: 0, x: 20 }, delay: 0.9 },
+    { className: 'absolute bottom-[15%] left-[20%]', initial: { opacity: 0, y: 20 }, delay: 1 },
+  ]
 
   return (
     <section className="relative min-h-screen overflow-hidden">
@@ -210,59 +235,29 @@ export default function HeroNerd({
             transition={{ duration: 0.8, delay: 0.3 }}
             className="relative hidden lg:flex lg:items-center lg:justify-center"
           >
-            {/* Floating card 1 - Updated position */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
-              className="absolute left-10 top-[20%] rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white">
-                  <CoffeeIcon className="size-6" />
-                </div>
-                <div>
-                  <p className="font-semibold text-white">Cafe miễn phí</p>
-                  <p className="text-sm text-neutral-300">Không giới hạn</p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Floating card 2 - Updated position */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.9 }}
-              className="absolute right-0 top-[45%] rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white">
-                  <WifiIcon className="size-6" />
-                </div>
-                <div>
-                  <p className="font-semibold text-white">Wifi siêu tốc</p>
-                  <p className="text-sm text-neutral-300">100Mbps+</p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Floating card 3 - Updated position */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 1 }}
-              className="absolute bottom-[15%] left-[20%] rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white">
-                  <BookOpenIcon className="size-6" />
-                </div>
-                <div>
-                  <p className="font-semibold text-white">Học tập hiệu quả</p>
-                  <p className="text-sm text-neutral-300">Không gian yên tĩnh</p>
-                </div>
-              </div>
-            </motion.div>
+            {floatingCards.slice(0, 3).map((card, index) => {
+              const position = cardPositions[index] || cardPositions[0]
+              const IconComponent = iconMap[card.icon] || CoffeeIcon
+              return (
+                <motion.div
+                  key={card.title + index}
+                  initial={position.initial}
+                  animate={{ opacity: 1, x: 0, y: 0 }}
+                  transition={{ duration: 0.6, delay: position.delay }}
+                  className={`${position.className} rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white">
+                      <IconComponent className="size-6" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-white">{card.title}</p>
+                      <p className="text-sm text-neutral-300">{card.subtitle}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
           </motion.div>
         </div>
       </div>

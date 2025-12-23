@@ -120,6 +120,30 @@ const defaultHeroFeaturePills: HeroFeaturePill[] = [
     { icon: 'ClockIcon', text: '24/7' },
 ]
 
+// Hero Floating Card interface
+interface HeroFloatingCard {
+    icon: string
+    title: string
+    subtitle: string
+}
+
+// Available icons for floating cards
+const floatingCardIcons = [
+    { value: 'CoffeeIcon', label: 'Cafe' },
+    { value: 'WifiIcon', label: 'Wifi' },
+    { value: 'BookOpenIcon', label: 'Sách' },
+    { value: 'ClockIcon', label: 'Đồng hồ' },
+    { value: 'BoltIcon', label: 'Điện' },
+    { value: 'SparklesIcon', label: 'Tiện ích' },
+]
+
+// Default floating cards
+const defaultFloatingCards: HeroFloatingCard[] = [
+    { icon: 'CoffeeIcon', title: 'Cafe miễn phí', subtitle: 'Không giới hạn' },
+    { icon: 'WifiIcon', title: 'Wifi siêu tốc', subtitle: '100Mbps+' },
+    { icon: 'BookOpenIcon', title: 'Học tập hiệu quả', subtitle: 'Không gian yên tĩnh' },
+]
+
 export default function AdminContentPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -130,6 +154,7 @@ export default function AdminContentPage() {
     const [features, setFeatures] = useState<AboutFeature[]>(defaultFeatures)
     const [heroStats, setHeroStats] = useState<HeroStat[]>(defaultHeroStats)
     const [heroFeaturePills, setHeroFeaturePills] = useState<HeroFeaturePill[]>(defaultHeroFeaturePills)
+    const [heroFloatingCards, setHeroFloatingCards] = useState<HeroFloatingCard[]>(defaultFloatingCards)
     const [settings, setSettings] = useState<Settings>({
         heroTitle: 'Nerd Society',
         heroSubtitle: 'Cộng đồng học tập năng động tại Hà Nội. Không gian làm việc chung, học nhóm lý tưởng với đầy đủ tiện nghi và đồ uống miễn phí!',
@@ -217,6 +242,17 @@ export default function AdminContentPage() {
                         }
                     } catch (e) {
                         console.error('Error parsing heroFeatures:', e)
+                    }
+                }
+                // Parse heroFloatingCards if exists
+                if (data.heroFloatingCards) {
+                    try {
+                        const parsedFloatingCards = JSON.parse(data.heroFloatingCards)
+                        if (Array.isArray(parsedFloatingCards)) {
+                            setHeroFloatingCards(parsedFloatingCards)
+                        }
+                    } catch (e) {
+                        console.error('Error parsing heroFloatingCards:', e)
                     }
                 }
             }
@@ -314,6 +350,23 @@ export default function AdminContentPage() {
         setHeroFeaturePills(prev => prev.filter((_, i) => i !== index))
     }
 
+    // Hero Floating Cards CRUD handlers
+    const addHeroFloatingCard = () => {
+        if (heroFloatingCards.length >= 3) {
+            toast.error('Tối đa 3 floating cards')
+            return
+        }
+        setHeroFloatingCards(prev => [...prev, { icon: 'CoffeeIcon', title: '', subtitle: '' }])
+    }
+
+    const updateHeroFloatingCard = (index: number, field: keyof HeroFloatingCard, value: string) => {
+        setHeroFloatingCards(prev => prev.map((c, i) => i === index ? { ...c, [field]: value } : c))
+    }
+
+    const removeHeroFloatingCard = (index: number) => {
+        setHeroFloatingCards(prev => prev.filter((_, i) => i !== index))
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setSaving(true)
@@ -324,6 +377,7 @@ export default function AdminContentPage() {
                 aboutFeatures: JSON.stringify(features),
                 heroStats: JSON.stringify(heroStats),
                 heroFeatures: JSON.stringify(heroFeaturePills),
+                heroFloatingCards: JSON.stringify(heroFloatingCards),
             }
             const res = await fetch('/api/admin/settings', {
                 method: 'POST',
@@ -523,6 +577,60 @@ export default function AdminContentPage() {
                                         <button
                                             type="button"
                                             onClick={() => removeHeroStat(index)}
+                                            className="text-red-400 hover:text-red-600"
+                                        >
+                                            <TrashIcon className="size-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Hero Floating Cards */}
+                        <div className="lg:col-span-2">
+                            <div className="mb-3 flex items-center justify-between">
+                                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                    Floating Cards ({heroFloatingCards.length}/3)
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={addHeroFloatingCard}
+                                    disabled={heroFloatingCards.length >= 3}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-600 transition-colors hover:bg-primary-100 disabled:opacity-50 dark:bg-primary-900/20 dark:text-primary-400"
+                                >
+                                    <PlusIcon className="size-4" />
+                                    Thêm
+                                </button>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {heroFloatingCards.map((card, index) => (
+                                    <div key={index} className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-700 dark:bg-neutral-800">
+                                        <select
+                                            value={card.icon}
+                                            onChange={e => updateHeroFloatingCard(index, 'icon', e.target.value)}
+                                            className="rounded border border-neutral-200 bg-white px-2 py-1 text-xs dark:border-neutral-600 dark:bg-neutral-700 dark:text-white"
+                                        >
+                                            {floatingCardIcons.map(icon => (
+                                                <option key={icon.value} value={icon.value}>{icon.label}</option>
+                                            ))}
+                                        </select>
+                                        <input
+                                            type="text"
+                                            value={card.title}
+                                            onChange={e => updateHeroFloatingCard(index, 'title', e.target.value)}
+                                            placeholder="Tiêu đề"
+                                            className="w-28 rounded border border-neutral-200 bg-white px-2 py-1 text-xs dark:border-neutral-600 dark:bg-neutral-700 dark:text-white"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={card.subtitle}
+                                            onChange={e => updateHeroFloatingCard(index, 'subtitle', e.target.value)}
+                                            placeholder="Mô tả"
+                                            className="w-24 rounded border border-neutral-200 bg-white px-2 py-1 text-xs dark:border-neutral-600 dark:bg-neutral-700 dark:text-white"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeHeroFloatingCard(index)}
                                             className="text-red-400 hover:text-red-600"
                                         >
                                             <TrashIcon className="size-4" />

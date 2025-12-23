@@ -3,10 +3,16 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { audit } from '@/lib/audit'
+import { canView, canManage } from '@/lib/apiPermissions'
 
 // GET - Lấy danh sách phòng
 export async function GET() {
     try {
+        const { session, hasAccess } = await canView('Rooms')
+
+        // Allow public access to rooms list for booking form
+        // API still works without auth for frontend display
+
         const rooms = await prisma.room.findMany({
             include: {
                 location: {
@@ -33,12 +39,13 @@ export async function GET() {
     }
 }
 
-// POST - Tạo phòng mới (ADMIN only)
+// POST - Tạo phòng mới (requires canManageRooms permission)
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Chỉ Admin mới có thể thêm phòng' }, { status: 403 })
+        const { session, hasAccess, role } = await canManage('Rooms')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền thêm phòng' }, { status: 403 })
         }
 
         const body = await request.json()

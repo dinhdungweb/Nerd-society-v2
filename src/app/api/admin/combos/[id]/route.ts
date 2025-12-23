@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { kebabCase } from 'lodash'
 import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { canView, canManage } from '@/lib/apiPermissions'
 
 // GET /api/admin/combos/[id] - Get single combo
 export async function GET(
@@ -10,8 +11,9 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
+        const { session, hasAccess } = await canView('Services')
+
+        if (!session || !hasAccess) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
         }
 
@@ -32,15 +34,16 @@ export async function GET(
     }
 }
 
-// PUT /api/admin/combos/[id] - Update combo
+// PUT /api/admin/combos/[id] - Update combo (requires canManageServices permission)
 export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canManage('Services')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền sửa combo' }, { status: 403 })
         }
 
         const { id } = await params
@@ -83,15 +86,16 @@ export async function PUT(
     }
 }
 
-// DELETE /api/admin/combos/[id] - Delete combo
+// DELETE /api/admin/combos/[id] - Delete combo (requires canManageServices permission)
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        const { session, hasAccess } = await canManage('Services')
+
+        if (!session || !hasAccess) {
+            return NextResponse.json({ error: 'Không có quyền xóa combo' }, { status: 403 })
         }
 
         const { id } = await params

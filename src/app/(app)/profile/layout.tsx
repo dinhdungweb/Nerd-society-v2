@@ -27,8 +27,8 @@ export default async function ProfileLayout({ children }: { children: React.Reac
     return (
         <>
             <HeaderNerd logoUrl={config.siteLogo} logoLightUrl={config.siteLogoLight} />
-            <div className="bg-neutral-50 min-h-screen pt-28 pb-10 dark:bg-neutral-950">
-                <div className="container max-w-[100rem]">
+            <div className="bg-neutral-50 pb-16 pt-28 dark:bg-neutral-950">
+                <div className="container">
                     <h1 className="mb-8 text-3xl font-bold text-neutral-900 dark:text-white">
                         Tài khoản của tôi
                     </h1>
