@@ -2,6 +2,9 @@ import { prisma } from '@/lib/prisma'
 import AddComboWrapper from '@/components/admin/AddComboWrapper'
 import ComboCard from '@/components/admin/ComboCard'
 
+// Disable caching - always fetch fresh data
+export const dynamic = 'force-dynamic'
+
 async function getCombos() {
     return prisma.combo.findMany({
         orderBy: { sortOrder: 'asc' },
