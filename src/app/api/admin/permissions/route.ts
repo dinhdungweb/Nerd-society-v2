@@ -2,6 +2,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
+import { audit } from '@/lib/audit'
 
 // Default permissions for each role
 const DEFAULT_ROLE_PERMISSIONS = {
@@ -214,6 +215,15 @@ export async function POST(req: Request) {
             update: { value: JSON.stringify(permissions) },
             create: { key: `${PERMISSION_KEY_PREFIX}${role}`, value: JSON.stringify(permissions) },
         })
+
+        // Audit log for permission changes
+        await audit.update(
+            session.user.id || 'unknown',
+            session.user.name || session.user.email || 'Admin',
+            'permissions',
+            role,
+            { role, permissions }
+        )
 
         return NextResponse.json({ success: true, role, permissions })
     } catch (error) {
