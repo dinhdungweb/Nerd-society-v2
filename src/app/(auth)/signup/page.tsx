@@ -101,7 +101,7 @@ export default function SignupPage() {
 
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Đăng ký tài khoản</h1>
           <p className="mt-2 text-neutral-500 dark:text-neutral-400">
-            Tạo tài khoản để đặt lịch nhanh chóng hơn.
+            Tạo tài khoản để đặt phòng nhanh hơn và theo dõi tích luỹ nâng hạng, ưu đãi thành viên.
           </p>
 
           {/* Error message */}
@@ -130,7 +130,7 @@ export default function SignupPage() {
 
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                Email
+                Email <span className="text-neutral-400 font-normal">(dùng để gửi xác nhận & cập nhật đặt phòng)</span>
               </label>
               <input
                 id="email"

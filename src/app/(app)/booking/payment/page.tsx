@@ -496,7 +496,7 @@ const CheckoutContent = () => {
                             {/* Note */}
                             <div className="flex items-start gap-2 rounded-xl bg-blue-50 p-4 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
                                 <LightBulbIcon className="mt-0.5 size-4 flex-shrink-0" />
-                                <span>Phòng sẽ được giữ sau khi bạn thanh toán cọc 50%. Số tiền còn lại thanh toán khi check-in.</span>
+                                <span>Phòng sẽ được giữ sau khi bạn thanh toán cọc 50%. Số tiền còn lại thanh toán khi check-out dựa trên thời gian sử dụng thực tế.</span>
                             </div>
                         </div>
 
