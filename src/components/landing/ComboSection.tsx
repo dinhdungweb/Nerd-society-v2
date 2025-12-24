@@ -43,6 +43,7 @@ interface Combo {
     description: string | null
     isPopular: boolean
     icon: string | null
+    image: string | null
 }
 
 interface ComboSectionProps {
@@ -112,8 +113,12 @@ export default function ComboSection({ combos = [] }: ComboSectionProps) {
                                     </div>
                                 )}
 
-                                <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-primary-100 dark:bg-primary-900/50">
-                                    <Icon className="size-6 text-primary-600 dark:text-primary-400" />
+                                <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-primary-100 dark:bg-primary-900/50 overflow-hidden">
+                                    {combo.image ? (
+                                        <img src={combo.image} alt={combo.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                        <Icon className="size-6 text-primary-600 dark:text-primary-400" />
+                                    )}
                                 </div>
 
                                 <h3 className="text-xl font-bold text-neutral-900 dark:text-white">{combo.name}</h3>
