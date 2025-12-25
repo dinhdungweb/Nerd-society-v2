@@ -15,8 +15,13 @@ const JWT_SECRET = process.env.VIETQR_WEBHOOK_SECRET || 'fallback_secret_for_dev
  */
 export async function POST(request: NextRequest) {
     try {
-        // 1. Verify Bearer Token (Security)
+        // 0. LOG EVERYTHING (Debug Phase)
         const authHeader = request.headers.get('authorization')
+        console.log('[VietQR Sync] INCOMING REQUEST ---------------------------')
+        console.log('[VietQR Sync] Headers:', Object.fromEntries(request.headers))
+        console.log('[VietQR Sync] Auth Header:', authHeader)
+
+        // 1. Verify Bearer Token (Security)
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return NextResponse.json(
                 { code: '401', desc: 'Unauthorized - Missing Token', data: null },
