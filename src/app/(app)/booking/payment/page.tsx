@@ -133,6 +133,21 @@ const CheckoutContent = () => {
                 const res = await fetch(`/api/booking/${bookingId}`)
                 if (res.ok) {
                     const data = await res.json()
+
+                    // Check if booking is cancelled
+                    if (data.booking.status === 'CANCELLED') {
+                        toast.error('Đặt phòng này đã bị hủy')
+                        router.push('/booking')
+                        return
+                    }
+
+                    // Check if booking is already confirmed/completed
+                    if (data.booking.status === 'CONFIRMED' || data.booking.status === 'COMPLETED') {
+                        toast.success('Đặt phòng đã được xác nhận!')
+                        router.push('/profile')
+                        return
+                    }
+
                     setBookingInfo(data.booking)
 
                     // Calculate remaining time based on createdAt (booking creation time)
