@@ -77,6 +77,13 @@ export async function POST(request: NextRequest) {
         console.log('[VietQR Sync] Extracted Code:', extractedCode)
         const transactionAmount = Number(amount)
 
+        // Debug: Find booking without status filter first
+        const debugBooking = await prisma.booking.findFirst({
+            where: { bookingCode: extractedCode },
+            select: { id: true, bookingCode: true, status: true, depositPaidAt: true }
+        })
+        console.log('[VietQR Sync] Debug booking lookup:', debugBooking)
+
         // Find booking
         const booking = await prisma.booking.findFirst({
             where: {
