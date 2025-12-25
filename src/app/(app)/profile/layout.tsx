@@ -45,7 +45,7 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                     </div>
                 </div>
             </div>
-            <FooterNerd logoUrl={config.siteLogo} />
+            <FooterNerd logoUrl={config.siteLogoLight || config.siteLogo} />
         </>
     )
 }
