@@ -34,6 +34,14 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Check if booking is cancelled or completed
+        if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
+            return NextResponse.json(
+                { error: 'Booking has been cancelled or completed' },
+                { status: 400 }
+            )
+        }
+
         // Check if already confirmed
         if (booking.depositPaidAt) {
             return NextResponse.json(

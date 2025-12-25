@@ -41,6 +41,7 @@ interface BookingInfo {
         name: string
         type: string
     }
+    status: string // Add status field
     payment: {
         id: string
         method: string
@@ -134,18 +135,13 @@ const CheckoutContent = () => {
                     const data = await res.json()
                     setBookingInfo(data.booking)
 
-                    // Calculate remaining time based on paymentStartedAt (when user selected payment)
-                    // If paymentStartedAt is not set yet, show full 5 minutes
-                    if (data.booking.paymentStartedAt) {
-                        const paymentStarted = new Date(data.booking.paymentStartedAt)
-                        const now = new Date()
-                        const elapsedSeconds = Math.floor((now.getTime() - paymentStarted.getTime()) / 1000)
-                        const remainingSeconds = Math.max(0, 5 * 60 - elapsedSeconds)
-                        setCountdown(remainingSeconds)
-                    } else {
-                        // Timer hasn't started yet - show full 5 minutes
-                        setCountdown(5 * 60)
-                    }
+                    // Calculate remaining time based on createdAt (booking creation time)
+                    // This matches the cron job logic which cancels bookings 5 minutes after creation
+                    const createdAt = new Date(data.booking.createdAt)
+                    const now = new Date()
+                    const elapsedSeconds = Math.floor((now.getTime() - createdAt.getTime()) / 1000)
+                    const remainingSeconds = Math.max(0, 5 * 60 - elapsedSeconds)
+                    setCountdown(remainingSeconds)
 
                     // If payment already selected AND user is on QR step (via URL param), restore that state
                     if (data.booking.payment?.method) {
@@ -402,11 +398,12 @@ const CheckoutContent = () => {
                                 {/* Confirm Button */}
                                 <Button
                                     onClick={handleConfirmPayment}
-                                    disabled={confirming}
+                                    disabled={confirming || countdown <= 0 || bookingInfo.status === 'CANCELLED'}
                                     className="w-full"
                                 >
                                     <CheckCircleIcon className="mr-2 size-5" />
-                                    {confirming ? 'Đang xác nhận...' : 'Tôi đã thanh toán'}
+                                    {bookingInfo.status === 'CANCELLED' || countdown <= 0 ? 'Hết thời gian thanh toán' :
+                                        confirming ? 'Đang xác nhận...' : 'Tôi đã thanh toán'}
                                 </Button>
                             </div>
                         </div>

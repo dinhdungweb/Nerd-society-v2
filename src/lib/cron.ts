@@ -10,7 +10,7 @@ const OVERTIME_NOTIFICATION_INTERVAL = 15 // Thông báo lại mỗi 15 phút kh
 
 /**
  * Cancel pending bookings that haven't been paid within 5 minutes
- * Only cancels bookings where paymentStartedAt is set (customer has selected payment method)
+ * Cancels all PENDING bookings created more than 5 minutes ago
  */
 async function cancelPendingBookings() {
     try {
@@ -21,9 +21,7 @@ async function cancelPendingBookings() {
             where: {
                 status: 'PENDING',
                 depositStatus: 'PENDING',
-                // Only cancel if payment process has started (customer selected payment method)
-                paymentStartedAt: {
-                    not: null,
+                createdAt: {
                     lt: timeoutThreshold
                 }
             },
