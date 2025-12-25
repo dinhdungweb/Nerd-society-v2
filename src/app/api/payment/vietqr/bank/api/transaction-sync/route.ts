@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         // 1. Verify Bearer Token (Security)
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return NextResponse.json(
-                { code: '401', desc: 'Unauthorized - Missing Token', data: null },
+                { error: true, errorReason: 'INVALID_AUTH_HEADER', toastMessage: 'Authorization header is missing or invalid', object: null },
                 { status: 401 }
             )
         }
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
             jwt.verify(token, JWT_SECRET)
         } catch (err) {
             return NextResponse.json(
-                { code: '401', desc: 'Unauthorized - Invalid Token', data: null },
+                { error: true, errorReason: 'INVALID_TOKEN', toastMessage: 'Invalid or expired token', object: null },
                 { status: 401 }
             )
         }
@@ -50,38 +50,29 @@ export async function POST(request: NextRequest) {
         // VietQR spec: transType 'C' or '+' 
         if (transType !== 'C' && transType !== '+') {
             console.log('[VietQR Sync] Skipped: Not a credit transaction', transType)
-            return NextResponse.json({ code: '00', desc: 'Ignored non-credit transaction', data: null })
+            return NextResponse.json({ error: false, errorReason: null, toastMessage: 'Ignored non-credit transaction', object: null })
         }
 
         // Parse booking code from content
-        // Regex to find "NERD" followed by optional space/dash and then alphanumeric code (including dashes)
-        // Supports: "NERD-123", "NERD 123", "NERD123", "NERD-2024-001"
-        const bookingCodeMatch = (content || '').match(/NERD[- ]?([a-zA-Z0-9-]+)/i)
+        // Format DB: NERD-YYYYMMDD-XXX (ví dụ: NERD-20251225-001)
+        // Format trong content (sau khi sanitize): NERD20251225001
+        // Regex tìm: NERD + 8 số (ngày) + 3 số (thứ tự)
+        const bookingCodeMatch = (content || '').match(/NERD[- ]?(\d{8})[- ]?(\d{3})/i)
 
         if (!bookingCodeMatch) {
             console.log('[VietQR Sync] No booking code found in content:', content)
-            return NextResponse.json({ code: '00', desc: 'No booking code found', data: { status: false } })
+            return NextResponse.json({
+                error: true,
+                errorReason: 'NO_BOOKING_CODE',
+                toastMessage: 'No booking code found in transfer content',
+                object: null
+            })
         }
 
-        // Standardize: If user typed "NERD123", we might want to treat it as "NERD-123" if that's how it's stored
-        // OR just extract the ID part if your system relies on ID. 
-        // Assuming your DB stores "NERD-123":
-        // let rawCode = bookingCodeMatch[1].toUpperCase()
-        // const bookingCode = `NERD-${rawCode}` 
-
-        // HOWEVER, based on previous regex /NERD-\d{8}-\d{3}/, it seems strict.
-        // Let's rely on the FULL match normalized.
-
-        let extractedCode = bookingCodeMatch[0].toUpperCase();
-        // Normalize: Ensure it has a dash if your DB expects "NERD-..." but user typed "NERD..."
-        // If DB has "NERD-123" and user typed "NERD123", we need to insert dash.
-        if (!extractedCode.includes('-') && !extractedCode.includes(' ')) {
-            // "NERD123" -> "NERD-123"
-            extractedCode = extractedCode.replace('NERD', 'NERD-');
-        } else if (extractedCode.includes(' ')) {
-            // "NERD 123" -> "NERD-123"
-            extractedCode = extractedCode.replace(' ', '-');
-        }
+        // Rebuild đúng format DB: NERD-YYYYMMDD-XXX
+        const datePart = bookingCodeMatch[1]  // 8 số ngày: 20251225
+        const seqPart = bookingCodeMatch[2]   // 3 số thứ tự: 001
+        const extractedCode = `NERD-${datePart}-${seqPart}`
 
         console.log('[VietQR Sync] Extracted Code:', extractedCode)
         const transactionAmount = Number(amount)
@@ -98,8 +89,12 @@ export async function POST(request: NextRequest) {
 
         if (!booking) {
             console.log('[VietQR Sync] Booking not found/valid for code:', extractedCode)
-            // Try fuzzy search just in case? (Optional)
-            return NextResponse.json({ code: '00', desc: 'Booking invalid', data: { status: false } })
+            return NextResponse.json({
+                error: true,
+                errorReason: 'BOOKING_NOT_FOUND',
+                toastMessage: 'Booking not found or already paid',
+                object: null
+            })
         }
 
         // Verify amount (optional loose check)
@@ -146,15 +141,21 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json({
-            code: '00',
-            desc: 'Success',
-            data: { status: true }
+            error: false,
+            errorReason: null,
+            toastMessage: 'Transaction processed successfully',
+            object: { reftransactionid: booking.id }
         })
 
     } catch (error) {
         console.error('[VietQR Sync] Error:', error)
         return NextResponse.json(
-            { code: '500', desc: 'Internal Server Error', data: null },
+            {
+                error: true,
+                errorReason: 'INTERNAL_ERROR',
+                toastMessage: 'Internal Server Error',
+                object: null
+            },
             { status: 500 }
         )
     }
