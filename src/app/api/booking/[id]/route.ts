@@ -40,6 +40,13 @@ export async function GET(
             )
         }
 
+        // Calculate remaining seconds server-side to match cron job timing
+        const PENDING_TIMEOUT_MINUTES = 5
+        const createdAt = new Date(booking.createdAt)
+        const now = new Date()
+        const elapsedSeconds = Math.floor((now.getTime() - createdAt.getTime()) / 1000)
+        const remainingSeconds = Math.max(0, PENDING_TIMEOUT_MINUTES * 60 - elapsedSeconds)
+
         return NextResponse.json({
             booking: {
                 id: booking.id,
@@ -56,7 +63,8 @@ export async function GET(
                 depositPaidAt: booking.depositPaidAt,
                 status: booking.status,
                 createdAt: booking.createdAt,
-                paymentStartedAt: booking.paymentStartedAt, // For countdown calculation
+                paymentStartedAt: booking.paymentStartedAt,
+                remainingSeconds, // Server-calculated remaining time
                 location: booking.location,
                 room: booking.room,
                 payment: booking.payment ? {

@@ -150,13 +150,9 @@ const CheckoutContent = () => {
 
                     setBookingInfo(data.booking)
 
-                    // Calculate remaining time based on createdAt (booking creation time)
-                    // This matches the cron job logic which cancels bookings 5 minutes after creation
-                    const createdAt = new Date(data.booking.createdAt)
-                    const now = new Date()
-                    const elapsedSeconds = Math.floor((now.getTime() - createdAt.getTime()) / 1000)
-                    const remainingSeconds = Math.max(0, 5 * 60 - elapsedSeconds)
-                    setCountdown(remainingSeconds)
+                    // Use server-calculated remaining time to match cron job timing
+                    // This ensures the countdown matches the server's cancellation logic
+                    setCountdown(data.booking.remainingSeconds ?? 0)
 
                     // If payment already selected AND user is on QR step (via URL param), restore that state
                     if (data.booking.payment?.method) {
@@ -210,6 +206,33 @@ const CheckoutContent = () => {
 
         return () => clearInterval(timer)
     }, [showQR, paymentInfo])
+
+    // Poll booking status every 10 seconds to detect if admin cancels the booking
+    useEffect(() => {
+        if (!bookingId || !bookingInfo) return
+
+        const checkStatus = async () => {
+            try {
+                const res = await fetch(`/api/booking/${bookingId}`)
+                if (res.ok) {
+                    const data = await res.json()
+                    if (data.booking.status === 'CANCELLED') {
+                        toast.error('Đặt phòng này đã bị hủy')
+                        router.push('/booking')
+                    } else if (data.booking.status === 'CONFIRMED' || data.booking.status === 'COMPLETED') {
+                        toast.success('Đặt phòng đã được xác nhận!')
+                        router.push('/profile')
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking booking status:', error)
+            }
+        }
+
+        const interval = setInterval(checkStatus, 10000) // Check every 10 seconds
+
+        return () => clearInterval(interval)
+    }, [bookingId, bookingInfo, router])
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60)
