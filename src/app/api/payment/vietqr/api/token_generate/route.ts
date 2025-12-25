@@ -60,11 +60,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             code: '00',
             desc: 'Success',
-            data: {
-                access_token: token,
-                token_type: 'Bearer',
-                expires_in: 300
-            }
+            access_token: token,
+            token_type: 'Bearer',
+            expires_in: 300
         })
 
     } catch (error) {
