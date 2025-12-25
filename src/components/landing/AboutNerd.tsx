@@ -35,13 +35,38 @@ export interface AboutFeature {
     image?: string
 }
 
+// Default features
 const defaultFeatures: AboutFeature[] = [
-    { icon: 'BookOpenIcon', title: 'Không gian yên tĩnh', description: 'Môi trường lý tưởng để tập trung học tập và làm việc' },
-    { icon: 'CoffeeIcon', title: 'Đồ uống miễn phí', description: 'Cafe đen, trà túi lọc không giới hạn suốt thời gian sử dụng' },
-    { icon: 'WifiIcon', title: 'Wifi tốc độ cao', description: 'Kết nối internet ổn định, tốc độ cao cho mọi nhu cầu' },
-    { icon: 'BoltIcon', title: 'Ổ cắm điện', description: 'Ổ cắm điện tiện lợi tại mọi vị trí ngồi' },
-    { icon: 'SparklesIcon', title: 'Máy lạnh', description: 'Không gian mát mẻ, thoải mái quanh năm' },
-    { icon: 'PresentationChartBarIcon', title: 'Phòng họp riêng', description: 'Phòng họp có máy chiếu, bảng trắng cho nhóm 2-12 người' },
+    {
+        icon: 'BookOpenIcon',
+        title: 'Không gian yên tĩnh',
+        description: 'Môi trường lý tưởng để tập trung học tập và làm việc',
+    },
+    {
+        icon: 'CoffeeIcon',
+        title: 'Đồ uống miễn phí',
+        description: 'Cafe đen, trà túi lọc không giới hạn suốt thời gian sử dụng',
+    },
+    {
+        icon: 'WifiIcon',
+        title: 'Wifi tốc độ cao',
+        description: 'Kết nối internet ổn định, tốc độ cao cho mọi nhu cầu',
+    },
+    {
+        icon: 'BoltIcon',
+        title: 'Ổ cắm điện',
+        description: 'Ổ cắm điện tiện lợi tại mọi vị trí ngồi',
+    },
+    {
+        icon: 'SparklesIcon',
+        title: 'Máy lạnh',
+        description: 'Không gian mát mẻ, thoải mái quanh năm',
+    },
+    {
+        icon: 'PresentationChartBarIcon',
+        title: 'Phòng họp riêng',
+        description: 'Phòng họp có máy chiếu, bảng trắng cho nhóm 2-12 người',
+    },
 ]
 
 interface AboutNerdProps {
@@ -51,36 +76,49 @@ interface AboutNerdProps {
 }
 
 export default function AboutNerd({
-    aboutTitle = 'Câu chuyện của Nerd',
-    aboutContent = 'Chúng mình tin rằng một không gian tốt sẽ khơi nguồn cảm hứng vô tận. Tại Nerd Society, mỗi góc nhỏ đều được chăm chút để bạn có thể tập trung tối đa.',
-    aboutFeatures = defaultFeatures,
+    aboutTitle = 'Nerd Society là gì?',
+    aboutContent = 'Cộng đồng học tập Gen Z năng động tại Hà Nội. Chúng tôi mang đến không gian làm việc chung và học nhóm lý tưởng, nơi bạn có thể kết nối, phát triển bản thân và chinh phục mọi kiến thức!',
+    aboutFeatures,
 }: AboutNerdProps) {
-    const features = (aboutFeatures && aboutFeatures.length > 0) ? aboutFeatures : defaultFeatures
+    const features = aboutFeatures && aboutFeatures.length > 0 ? aboutFeatures : defaultFeatures
 
     return (
-        <section id="about" className="relative overflow-hidden bg-neutral-50 py-20 dark:bg-neutral-900/50 lg:py-32">
-            <div className="container mx-auto px-4">
+        <section id="about" className="py-20 lg:py-28">
+            <div className="container">
+                {/* Header */}
                 <div className="mx-auto max-w-2xl text-center">
+                    <motion.span
+                        initial={{ opacity: 0, y: 10 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="inline-block rounded-full bg-primary-100 px-4 py-2 text-sm font-medium text-primary-700 dark:bg-primary-900/50 dark:text-primary-300"
+                    >
+                        Về chúng tôi
+                    </motion.span>
+
                     <motion.h2
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-white sm:text-4xl"
+                        transition={{ delay: 0.1 }}
+                        className="mt-4 text-3xl font-bold text-neutral-900 sm:text-4xl dark:text-white"
                     >
                         {aboutTitle}
                     </motion.h2>
+
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        transition={{ delay: 0.1 }}
-                        className="mt-4 text-lg text-neutral-600 dark:text-neutral-400"
+                        transition={{ delay: 0.2 }}
+                        className="mt-4 text-lg text-neutral-600 dark:text-neutral-300"
                     >
                         {aboutContent}
                     </motion.p>
                 </div>
 
-                <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-8 sm:mt-20 sm:grid-cols-2 lg:max-w-none lg:grid-cols-3">
+                {/* Features Grid */}
+                <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
                     {features.map((feature, index) => {
                         const IconComponent = iconMap[feature.icon] || BookOpenIcon
                         return (
@@ -117,3 +155,4 @@ export default function AboutNerd({
         </section>
     )
 }
+
