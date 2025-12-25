@@ -39,30 +39,52 @@ export async function POST(request: NextRequest) {
         console.log('[VietQR Sync] Received:', JSON.stringify(body, null, 2))
 
         const { notificationType, transactionid, amount, content, transType } = body as VietQRVNWebhookPayload
+        console.log('[VietQR Sync] Payload:', { transactionid, amount, content, transType, notificationType })
 
         // Only process incoming transfers (Credit)
         // VietQR spec: transType 'C' or '+' 
         if (transType !== 'C' && transType !== '+') {
+            console.log('[VietQR Sync] Skipped: Not a credit transaction', transType)
             return NextResponse.json({ code: '00', desc: 'Ignored non-credit transaction', data: null })
         }
 
         // Parse booking code from content
-        // Expected format in description: "NERD-XXXXXXXX-XXX"
-        // Note: content might be "MBVCB.1234... NERD-..."
-        const bookingCodeMatch = (content || '').match(/NERD-\d{8}-\d{3}/i)
+        // Regex to find "NERD" followed by optional space/dash and then alphanumeric code (including dashes)
+        // Supports: "NERD-123", "NERD 123", "NERD123", "NERD-2024-001"
+        const bookingCodeMatch = (content || '').match(/NERD[- ]?([a-zA-Z0-9-]+)/i)
 
         if (!bookingCodeMatch) {
-            console.log('[VietQR Sync] No booking code found:', content)
+            console.log('[VietQR Sync] No booking code found in content:', content)
             return NextResponse.json({ code: '00', desc: 'No booking code found', data: { status: false } })
         }
 
-        const bookingCode = bookingCodeMatch[0].toUpperCase()
+        // Standardize: If user typed "NERD123", we might want to treat it as "NERD-123" if that's how it's stored
+        // OR just extract the ID part if your system relies on ID. 
+        // Assuming your DB stores "NERD-123":
+        // let rawCode = bookingCodeMatch[1].toUpperCase()
+        // const bookingCode = `NERD-${rawCode}` 
+
+        // HOWEVER, based on previous regex /NERD-\d{8}-\d{3}/, it seems strict.
+        // Let's rely on the FULL match normalized.
+
+        let extractedCode = bookingCodeMatch[0].toUpperCase();
+        // Normalize: Ensure it has a dash if your DB expects "NERD-..." but user typed "NERD..."
+        // If DB has "NERD-123" and user typed "NERD123", we need to insert dash.
+        if (!extractedCode.includes('-') && !extractedCode.includes(' ')) {
+            // "NERD123" -> "NERD-123"
+            extractedCode = extractedCode.replace('NERD', 'NERD-');
+        } else if (extractedCode.includes(' ')) {
+            // "NERD 123" -> "NERD-123"
+            extractedCode = extractedCode.replace(' ', '-');
+        }
+
+        console.log('[VietQR Sync] Extracted Code:', extractedCode)
         const transactionAmount = Number(amount)
 
         // Find booking
         const booking = await prisma.booking.findFirst({
             where: {
-                bookingCode,
+                bookingCode: extractedCode, // Match EXACTLY what is in DB
                 status: 'PENDING',
                 depositPaidAt: null,
             },
@@ -70,7 +92,8 @@ export async function POST(request: NextRequest) {
         })
 
         if (!booking) {
-            console.log('[VietQR Sync] Booking not found/valid:', bookingCode)
+            console.log('[VietQR Sync] Booking not found/valid for code:', extractedCode)
+            // Try fuzzy search just in case? (Optional)
             return NextResponse.json({ code: '00', desc: 'Booking invalid', data: { status: false } })
         }
 
