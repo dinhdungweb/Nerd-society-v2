@@ -76,9 +76,16 @@ export default function CancelBookingButton({
                         <p className="mt-4 text-neutral-600 dark:text-neutral-400">
                             Bạn có chắc muốn hủy đặt lịch <strong>#{bookingCode}</strong>?
                         </p>
-                        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-500">
-                            Hành động này không thể hoàn tác. Nếu đã thanh toán cọc, vui lòng liên hệ staff để được hoàn tiền.
-                        </p>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                            <p className="font-semibold text-blue-800 dark:text-blue-300">Chính sách hoàn hủy:</p>
+                            <p className="mt-2 text-sm text-blue-700 dark:text-blue-400">
+                                Bạn đang thực hiện hủy <strong>trước giờ bắt đầu 6 tiếng</strong>.
+                            </p>
+                            <p className="mt-1 text-sm text-blue-700 dark:text-blue-400">
+                                Vui lòng liên hệ Fanpage để được hỗ trợ <strong>lưu cọc</strong> cho lần sử dụng sau.
+                            </p>
+                        </div>
 
                         <div className="mt-6 flex gap-3">
                             <button

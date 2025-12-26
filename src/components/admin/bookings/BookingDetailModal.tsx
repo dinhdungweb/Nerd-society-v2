@@ -210,6 +210,11 @@ export default function BookingDetailModal({ open, setOpen, booking, onRefresh }
                                                 <p>{booking.customerPhone}</p>
                                                 <p className="truncate">{booking.customerEmail || 'Không có email'}</p>
                                                 <p>{booking.guests} khách</p>
+                                                {booking.note && booking.status !== 'CANCELLED' && (
+                                                    <p className="mt-2 pt-2 border-t border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 italic">
+                                                        📝 {booking.note}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
 
@@ -307,6 +312,28 @@ export default function BookingDetailModal({ open, setOpen, booking, onRefresh }
                                                 )}
                                             </div>
                                         </div>
+
+                                        {/* Cancellation Info - Show when booking is cancelled */}
+                                        {booking.status === 'CANCELLED' && (
+                                            <div className="space-y-3 sm:col-span-2">
+                                                <h4 className="font-medium text-red-600 dark:text-red-400 flex items-center gap-2">
+                                                    <XMarkIcon className="size-4" /> Thông tin hủy
+                                                </h4>
+                                                <div className="text-sm bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
+                                                    <p className="font-medium text-red-700 dark:text-red-300">
+                                                        {booking.note?.includes('Khách tự hủy') ? '👤 Khách hàng tự hủy' :
+                                                            booking.note?.includes('Tự động hủy') ? '⏰ Hệ thống tự động hủy' :
+                                                                booking.note?.includes('Admin') || booking.note?.includes('Staff') ? '👨‍💼 Admin/Staff hủy' :
+                                                                    '❌ Đã hủy'}
+                                                    </p>
+                                                    {booking.note && (
+                                                        <p className="text-red-600 dark:text-red-400 mt-1">
+                                                            {booking.note}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Checkout Preview */}
                                         {checkoutPreview && (

@@ -3,8 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { differenceInMinutes } from 'date-fns'
+import { notifyBookingCancelled } from '@/lib/notifications'
 
-const CANCEL_BEFORE_MINUTES = 30 // Cho phép hủy trước 30 phút
+const CANCEL_BEFORE_MINUTES = 360 // Cho phép hủy trước 6 tiếng
 
 /**
  * POST /api/booking/[id]/cancel
@@ -71,6 +72,13 @@ export async function POST(
                 note: `Khách tự hủy lúc ${now.toLocaleString('vi-VN')}`,
             },
         })
+
+        // Send notification to admin
+        notifyBookingCancelled(
+            updatedBooking.bookingCode,
+            updatedBooking.customerName || 'Khách',
+            updatedBooking.id
+        ).catch(console.error)
 
         return NextResponse.json({
             success: true,

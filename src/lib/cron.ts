@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { notifyOvertime, notifyEndingSoon } from '@/lib/notifications'
+import { notifyOvertime, notifyEndingSoon, notifyBookingCancelled } from '@/lib/notifications'
 import { sendCheckinReminderEmail } from '@/lib/email'
 import cron from 'node-cron'
 import { differenceInMinutes, startOfDay } from 'date-fns'
@@ -17,7 +17,8 @@ async function cancelPendingBookings() {
         const timeoutThreshold = new Date()
         timeoutThreshold.setMinutes(timeoutThreshold.getMinutes() - PENDING_TIMEOUT_MINUTES)
 
-        const result = await prisma.booking.updateMany({
+        // Find pending bookings to cancel
+        const bookingsToCancel = await prisma.booking.findMany({
             where: {
                 status: 'PENDING',
                 depositStatus: 'PENDING',
@@ -25,15 +26,34 @@ async function cancelPendingBookings() {
                     lt: timeoutThreshold
                 }
             },
-            data: {
-                status: 'CANCELLED',
-                note: `Tự động hủy do không thanh toán cọc sau ${PENDING_TIMEOUT_MINUTES} phút`
+            select: {
+                id: true,
+                bookingCode: true,
+                customerName: true
             }
         })
 
-        if (result.count > 0) {
-            console.log(`[Cron] Auto-cancelled ${result.count} pending bookings at ${new Date().toISOString()}`)
+        if (bookingsToCancel.length === 0) return
+
+        // Cancel each booking and send notification
+        for (const booking of bookingsToCancel) {
+            await prisma.booking.update({
+                where: { id: booking.id },
+                data: {
+                    status: 'CANCELLED',
+                    note: `Tự động hủy do không thanh toán cọc sau ${PENDING_TIMEOUT_MINUTES} phút`
+                }
+            })
+
+            // Send notification
+            notifyBookingCancelled(
+                booking.bookingCode,
+                booking.customerName || 'Khách',
+                booking.id
+            ).catch(console.error)
         }
+
+        console.log(`[Cron] Auto-cancelled ${bookingsToCancel.length} pending bookings at ${new Date().toISOString()}`)
     } catch (error) {
         console.error('[Cron] Error cancelling pending bookings:', error)
     }

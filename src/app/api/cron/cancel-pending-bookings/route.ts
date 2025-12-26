@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { notifyBookingCancelled } from '@/lib/notifications'
 
 // Configuration
 const PENDING_TIMEOUT_MINUTES = 5 // Hủy booking PENDING sau 5 phút
@@ -23,8 +24,8 @@ export async function GET(request: Request) {
         const timeoutThreshold = new Date()
         timeoutThreshold.setMinutes(timeoutThreshold.getMinutes() - PENDING_TIMEOUT_MINUTES)
 
-        // Find and cancel PENDING bookings older than threshold
-        const result = await prisma.booking.updateMany({
+        // Find pending bookings to cancel
+        const bookingsToCancel = await prisma.booking.findMany({
             where: {
                 status: 'PENDING',
                 depositStatus: 'PENDING',
@@ -32,17 +33,36 @@ export async function GET(request: Request) {
                     lt: timeoutThreshold
                 }
             },
-            data: {
-                status: 'CANCELLED',
-                note: `Tự động hủy do không thanh toán cọc sau ${PENDING_TIMEOUT_MINUTES} phút`
+            select: {
+                id: true,
+                bookingCode: true,
+                customerName: true
             }
         })
 
-        console.log(`[Cron] Auto-cancelled ${result.count} pending bookings`)
+        // Cancel each booking and send notification
+        for (const booking of bookingsToCancel) {
+            await prisma.booking.update({
+                where: { id: booking.id },
+                data: {
+                    status: 'CANCELLED',
+                    note: `Tự động hủy do không thanh toán cọc sau ${PENDING_TIMEOUT_MINUTES} phút`
+                }
+            })
+
+            // Send notification
+            notifyBookingCancelled(
+                booking.bookingCode,
+                booking.customerName || 'Khách',
+                booking.id
+            ).catch(console.error)
+        }
+
+        console.log(`[Cron] Auto-cancelled ${bookingsToCancel.length} pending bookings`)
 
         return NextResponse.json({
             success: true,
-            cancelled: result.count,
+            cancelled: bookingsToCancel.length,
             timestamp: new Date().toISOString()
         })
 
@@ -54,3 +74,4 @@ export async function GET(request: Request) {
         )
     }
 }
+
