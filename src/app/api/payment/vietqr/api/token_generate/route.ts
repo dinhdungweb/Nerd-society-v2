@@ -1,8 +1,17 @@
-
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.VIETQR_WEBHOOK_SECRET || 'fallback_secret_for_dev'
+export const runtime = 'nodejs' // đảm bảo chạy Node runtime (jwt)
+
+/**
+ * Helper: Error response format theo VietQR spec
+ */
+function jsonError(message: string, status = 400) {
+    return NextResponse.json(
+        { status: 'FAILED', message },
+        { status }
+    )
+}
 
 /**
  * POST /api/payment/vietqr/api/token_generate
@@ -14,62 +23,66 @@ const JWT_SECRET = process.env.VIETQR_WEBHOOK_SECRET || 'fallback_secret_for_dev
  */
 export async function POST(request: NextRequest) {
     try {
-        // Get Authorization header
+        // 0) Check env config
+        const JWT_SECRET = process.env.VIETQR_WEBHOOK_SECRET
+        const expectedUser = process.env.VIETQR_PARTNER_USER
+        const expectedPass = process.env.VIETQR_PARTNER_PASS
+
+        if (!JWT_SECRET || !expectedUser || !expectedPass) {
+            console.error('[VietQR Token] Missing env: VIETQR_WEBHOOK_SECRET, VIETQR_PARTNER_USER, or VIETQR_PARTNER_PASS')
+            return jsonError('SERVER_MISCONFIG', 500)
+        }
+
+        // 1) Verify Authorization header (Basic Auth)
         const authHeader = request.headers.get('authorization')
+        console.log('[VietQR Token] Auth Header:', authHeader)
+
         if (!authHeader || !authHeader.startsWith('Basic ')) {
-            return NextResponse.json(
-                { code: '401', desc: 'Unauthorized', data: null },
-                { status: 401 }
-            )
+            return jsonError('E74') // E74: Authorization header is missing or invalid
         }
 
-        // Decode Basic Auth
-        const base64Credentials = authHeader.split(' ')[1]
-        const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii')
-        const [username, password] = credentials.split(':')
-
-        // Verify credentials
-        // Credentials must be set in .env
-        const expectedUser = process.env.VIETQR_PARTNER_USER;
-        const expectedPass = process.env.VIETQR_PARTNER_PASS;
-
-        if (!expectedUser || !expectedPass) {
-            console.error('[VietQR Token] Missing VIETQR_PARTNER_USER or VIETQR_PARTNER_PASS in env');
-            return NextResponse.json(
-                { code: '500', desc: 'Server Misconfiguration', data: null },
-                { status: 500 }
-            )
+        // 2) Decode Basic Auth
+        let username: string
+        let password: string
+        try {
+            const base64Credentials = authHeader.split(' ')[1]
+            const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8')
+            const parts = credentials.split(':')
+            if (parts.length < 2) {
+                return jsonError('E74')
+            }
+            username = parts[0]
+            password = parts.slice(1).join(':') // Handle password containing ':'
+        } catch {
+            return jsonError('E74')
         }
 
+        // 3) Verify credentials
         if (username !== expectedUser || password !== expectedPass) {
-            console.log('[VietQR Token] Auth failed for:', username)
-            return NextResponse.json(
-                { code: '401', desc: 'Invalid credentials', data: null },
-                { status: 401 }
-            )
+            console.log('[VietQR Token] Auth failed for user:', username)
+            return jsonError('E74') // Invalid credentials
         }
 
-        // Generate Token
-        // Token expires in 300 seconds (standard VietQR expectation)
+        // 4) Generate JWT Token
+        // VietQR expects HS512 algorithm, token expires in 300 seconds
         const token = jwt.sign(
             { user: username, type: 'vietqr_webhook' },
             JWT_SECRET,
-            { expiresIn: 300 }
+            {
+                algorithm: 'HS512',
+                expiresIn: 300
+            }
         )
 
+        // 5) Return success response (VietQR spec)
         return NextResponse.json({
-            code: '00',
-            desc: 'Success',
             access_token: token,
             token_type: 'Bearer',
             expires_in: 300
         })
 
     } catch (error) {
-        console.error('[VietQR Token] Error:', error)
-        return NextResponse.json(
-            { code: '500', desc: 'Internal Server Error', data: null },
-            { status: 500 }
-        )
+        console.error('[VietQR Token] Fatal error:', error)
+        return jsonError('E05', 500) // E05: Unknown error
     }
 }

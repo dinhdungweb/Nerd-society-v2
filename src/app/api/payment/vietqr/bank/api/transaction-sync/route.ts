@@ -1,142 +1,192 @@
-
 import { sendBookingEmail } from '@/lib/email'
 import { prisma } from '@/lib/prisma'
-import { VietQRVNWebhookPayload } from '@/lib/vietqr'
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.VIETQR_WEBHOOK_SECRET || 'fallback_secret_for_dev'
+export const runtime = 'nodejs' // đảm bảo chạy Node runtime (prisma/jwt)
+
+type VietQRTransactionSyncPayload = {
+    bankaccount?: string
+    amount?: string | number
+    transType?: string // D/C theo spec
+    content?: string
+    transactionid?: string
+    transactiontime?: string | number // timestamp ms
+    referencenumber?: string
+    orderId?: string
+    sign?: string
+}
+
+function jsonError(
+    errorReason: string,
+    toastMessage: string,
+    status = 400
+) {
+    return NextResponse.json(
+        { error: true, errorReason, toastMessage, object: null },
+        { status }
+    )
+}
+
+function jsonOk(toastMessage: string, reftransactionid = '') {
+    return NextResponse.json({
+        error: false,
+        errorReason: null,
+        toastMessage,
+        object: { reftransactionid }
+    })
+}
 
 /**
  * POST /api/payment/vietqr/bank/api/transaction-sync
- * 
- * Actual Webhook endpoint mandated by VietQR structure.
- * Path is usually: {BaseURL}/{Path}/bank/api/transaction-sync
  */
 export async function POST(request: NextRequest) {
     try {
-        // 0. LOG EVERYTHING (Debug Phase)
+        const JWT_SECRET = process.env.VIETQR_WEBHOOK_SECRET
+        if (!JWT_SECRET) {
+            // Đừng fallback secret ở prod
+            return jsonError('SERVER_MISCONFIG', 'Missing VIETQR_WEBHOOK_SECRET', 500)
+        }
+
+        // 0) Debug log
         const authHeader = request.headers.get('authorization')
         console.log('[VietQR Sync] INCOMING REQUEST ---------------------------')
         console.log('[VietQR Sync] Headers:', Object.fromEntries(request.headers))
         console.log('[VietQR Sync] Auth Header:', authHeader)
 
-        // 1. Verify Bearer Token (Security)
+        // 1) Verify Bearer Token
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return NextResponse.json(
-                { error: true, errorReason: 'INVALID_AUTH_HEADER', toastMessage: 'Authorization header is missing or invalid', object: null },
-                { status: 401 }
-            )
+            // dùng E74 để VietQR dễ hiểu là token invalid
+            return jsonError('E74', 'Authorization header is missing or invalid', 400)
         }
 
         const token = authHeader.split(' ')[1]
         try {
-            jwt.verify(token, JWT_SECRET)
+            jwt.verify(token, JWT_SECRET, { algorithms: ['HS512', 'HS256'] })
         } catch (err) {
-            return NextResponse.json(
-                { error: true, errorReason: 'INVALID_TOKEN', toastMessage: 'Invalid or expired token', object: null },
-                { status: 401 }
-            )
+            return jsonError('E74', 'Invalid or expired token', 400)
         }
 
-        // 2. Process Payload
-        const body = await request.json()
+        // 2) Parse body
+        let body: VietQRTransactionSyncPayload
+        try {
+            body = (await request.json()) as VietQRTransactionSyncPayload
+        } catch {
+            return jsonError('INVALID_JSON', 'Body must be valid JSON', 400)
+        }
+
         console.log('[VietQR Sync] Received:', JSON.stringify(body, null, 2))
 
-        const { notificationType, transactionid, amount, content, transType } = body as VietQRVNWebhookPayload
-        console.log('[VietQR Sync] Payload:', { transactionid, amount, content, transType, notificationType })
+        const {
+            transactionid,
+            amount,
+            content,
+            transType,
+            transactiontime
+        } = body
 
-        // Only process incoming transfers (Credit)
-        // VietQR spec: transType 'C' or '+' 
-        if (transType !== 'C' && transType !== '+') {
-            console.log('[VietQR Sync] Skipped: Not a credit transaction', transType)
-            return NextResponse.json({ error: false, errorReason: null, toastMessage: 'Ignored non-credit transaction', object: null })
+        if (!transactionid) {
+            return jsonError('INVALID_PAYLOAD', 'Missing transactionid', 400)
         }
 
-        // Parse booking code from content
-        // Format DB: NERD-YYYYMMDD-XXX (ví dụ: NERD-20251225-001)
-        // Format trong content (sau khi sanitize): NERD20251225001
-        // Regex tìm: NERD + 8 số (ngày) + 3 số (thứ tự)
-        const bookingCodeMatch = (content || '').match(/NERD[- ]?(\d{8})[- ]?(\d{3})/i)
+        // 3) Idempotency: nếu transactionid đã được ghi nhận -> OK luôn
+        const existed = await prisma.payment.findFirst({
+            where: { transactionId: transactionid },
+            select: { id: true, bookingId: true }
+        })
 
+        if (existed) {
+            console.log('[VietQR Sync] Idempotent hit - already processed:', transactionid)
+            return jsonOk('Already processed', transactionid)
+        }
+
+        // 4) Only process credit transactions
+        // Spec: transType D/C
+        if (transType !== 'C') {
+            console.log('[VietQR Sync] Ignored non-credit transaction:', transType)
+            return jsonOk('Ignored non-credit transaction', transactionid)
+        }
+
+        // 5) Parse booking code from content
+        // Content example: "... NERD 20251226 001"
+        const bookingCodeMatch = (content || '').match(/NERD[- ]?(\d{8})[- ]?(\d{3})/i)
         if (!bookingCodeMatch) {
             console.log('[VietQR Sync] No booking code found in content:', content)
-            return NextResponse.json({
-                error: true,
-                errorReason: 'NO_BOOKING_CODE',
-                toastMessage: 'No booking code found in transfer content',
-                object: null
-            })
+            return jsonOk('No booking code found in transfer content', transactionid)
         }
 
-        // Rebuild đúng format DB: NERD-YYYYMMDD-XXX
-        const datePart = bookingCodeMatch[1]  // 8 số ngày: 20251225
-        const seqPart = bookingCodeMatch[2]   // 3 số thứ tự: 001
+        const datePart = bookingCodeMatch[1]
+        const seqPart = bookingCodeMatch[2]
         const extractedCode = `NERD-${datePart}-${seqPart}`
 
         console.log('[VietQR Sync] Extracted Code:', extractedCode)
+
         const transactionAmount = Number(amount)
+        if (!Number.isFinite(transactionAmount) || transactionAmount <= 0) {
+            return jsonError('INVALID_AMOUNT', 'Invalid amount', 400)
+        }
 
-        // Debug: Find booking without status filter first
-        const debugBooking = await prisma.booking.findFirst({
-            where: { bookingCode: extractedCode },
-            select: { id: true, bookingCode: true, status: true, depositPaidAt: true }
-        })
-        console.log('[VietQR Sync] Debug booking lookup:', debugBooking)
+        const paidAt =
+            transactiontime !== undefined && transactiontime !== null && String(transactiontime).trim() !== ''
+                ? new Date(Number(transactiontime))
+                : new Date()
 
-        // Find booking
+        if (Number.isNaN(paidAt.getTime())) {
+            // nếu transactiontime sai format thì fallback now
+            console.log('[VietQR Sync] Invalid transactiontime, fallback now:', transactiontime)
+        }
+
+        const finalPaidAt = Number.isNaN(paidAt.getTime()) ? new Date() : paidAt
+
+        // 6) Find booking
         const booking = await prisma.booking.findFirst({
             where: {
-                bookingCode: extractedCode, // Match EXACTLY what is in DB
+                bookingCode: extractedCode,
                 status: 'PENDING',
-                depositPaidAt: null,
+                depositPaidAt: null
             },
             include: { user: true }
         })
 
         if (!booking) {
-            console.log('[VietQR Sync] Booking not found/valid for code:', extractedCode)
-            return NextResponse.json({
-                error: true,
-                errorReason: 'BOOKING_NOT_FOUND',
-                toastMessage: 'Booking not found or already paid',
-                object: null
-            })
+            console.log('[VietQR Sync] Booking not found or already paid:', extractedCode)
+            return jsonOk('Booking not found or already paid', transactionid)
         }
 
-        // Verify amount (optional loose check)
+        // 7) Optional amount check (log only)
         if (transactionAmount < booking.depositAmount) {
-            console.log('[VietQR Sync] Amount partial:', { received: transactionAmount, expected: booking.depositAmount })
-            // Decide policy: Accept or Reject? For now acknowledge but maybe not confirm?
-            // Let's confirm for UX, but log it.
+            console.log('[VietQR Sync] Amount is lower than depositAmount:', {
+                received: transactionAmount,
+                expected: booking.depositAmount
+            })
+            // tuỳ policy: reject hay vẫn confirm
+            // hiện tại vẫn confirm để không làm kẹt UX, nhưng bạn có thể đổi sang error nếu muốn
         }
 
-        // Update DB
+        // 8) Update DB (transaction)
         await prisma.$transaction([
             prisma.booking.update({
                 where: { id: booking.id },
                 data: {
                     status: 'CONFIRMED',
-                    depositPaidAt: new Date(),
-                },
+                    depositPaidAt: finalPaidAt
+                }
             }),
             prisma.payment.updateMany({
                 where: { bookingId: booking.id },
                 data: {
                     status: 'COMPLETED',
                     transactionId: transactionid,
-                    paidAt: new Date(),
-                    amount: transactionAmount,
-                },
+                    paidAt: finalPaidAt,
+                    amount: transactionAmount
+                }
             })
         ])
 
-        // Send Email
-        const emailRecipient = booking.customerEmail || booking.user?.email;
+        // 9) Send email (best-effort)
+        const emailRecipient = booking.customerEmail || booking.user?.email
         if (emailRecipient) {
             try {
-                // Ensure customerEmail is present in object passed to email function
-                // Fetch full booking data again or rely on types logic if sendBookingEmail handles it
                 const fullBooking = await prisma.booking.findUnique({
                     where: { id: booking.id },
                     include: { location: true, room: true, user: true }
@@ -147,22 +197,12 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        return NextResponse.json({
-            error: false,
-            errorReason: null,
-            toastMessage: 'Transaction processed successfully',
-            object: { reftransactionid: booking.id }
-        })
-
+        return jsonOk('Transaction processed successfully', transactionid)
     } catch (error) {
-        console.error('[VietQR Sync] Error:', error)
+        console.error('[VietQR Sync] Fatal error:', error)
+        // E05: Unknown error
         return NextResponse.json(
-            {
-                error: true,
-                errorReason: 'INTERNAL_ERROR',
-                toastMessage: 'Internal Server Error',
-                object: null
-            },
+            { error: true, errorReason: 'E05', toastMessage: 'Internal Server Error', object: null },
             { status: 500 }
         )
     }
