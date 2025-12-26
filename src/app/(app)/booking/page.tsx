@@ -41,7 +41,7 @@ export default async function BookingPage() {
                         Muốn check xem hiện tại có đông không?
                         <br />
                         <a
-                            href="https://m.me/nerdsociety.vn"
+                            href="https://m.me/61573495496393"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary-100 px-6 py-2 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-200 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50"

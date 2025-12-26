@@ -549,9 +549,11 @@ export default function BookingFormV2({
                 >
                     {loading ? 'Đang xử lý...' : 'Thanh toán cọc & Giữ phòng'}
                 </Button>
-                <p className="mt-3 text-center text-xs text-neutral-500 dark:text-neutral-400">
-                    Phòng sẽ được giữ sau khi bạn thanh toán cọc 50%
-                </p>
+                <ul className="mt-3 space-y-1 text-xs text-neutral-500 dark:text-neutral-400">
+                    <li>• Phòng sẽ được giữ sau khi bạn thanh toán cọc 50%</li>
+                    <li>• Huỷ/đổi lịch trước giờ bắt đầu 6 tiếng: bạn vui lòng liên hệ page để được lưu cọc cho lần sử dụng sau</li>
+                    <li>• Huỷ trong vòng 6 tiếng hoặc không đến: không hoàn tiền cọc.</li>
+                </ul>
             </div>
         </div>
     )

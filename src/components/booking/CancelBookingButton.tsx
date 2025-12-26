@@ -47,8 +47,8 @@ export default function CancelBookingButton({
     if (!canCancel) {
         return (
             <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
-                {minutesToStart < 30
-                    ? 'Không thể hủy (dưới 30 phút trước giờ)'
+                {minutesToStart < 360
+                    ? 'Không thể hủy (dưới 6 tiếng trước giờ)'
                     : 'Không thể hủy booking này'}
             </div>
         )
