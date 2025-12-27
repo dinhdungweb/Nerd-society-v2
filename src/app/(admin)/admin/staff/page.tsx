@@ -78,6 +78,7 @@ export default function StaffPage() {
             if (res.ok) {
                 const data = await res.json()
                 setStaffList(data.staff)
+                console.log('Staff data loaded:', data.staff) // DEBUG
                 setLocations(data.locations)
                 setCurrentUserRole(data.currentUserRole || 'ADMIN')
             }
@@ -340,6 +341,8 @@ export default function StaffPage() {
                     <p className="mt-1 text-neutral-500 dark:text-neutral-400">
                         {staffList.length} nhân viên
                         {!isAdmin && <span className="ml-2 text-amber-600 dark:text-amber-400">• Bạn đang đăng nhập với quyền Manager</span>}
+                        {/* DEBUG MARKER */}
+                        <span className="ml-2 text-xs text-green-500 font-mono">[v2.1]</span>
                     </p>
                 </div>
                 <button
