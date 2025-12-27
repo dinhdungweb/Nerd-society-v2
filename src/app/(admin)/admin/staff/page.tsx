@@ -420,36 +420,29 @@ export default function StaffPage() {
                                     )}
                                 </div>
                                 <div className="col-span-2 flex justify-end gap-2">
-                                    {canManage ? (
-                                        <>
-                                            {/* DEBUG: Lock button moved to first */}
-                                            <button
-                                                onClick={() => handleToggleLock(staff)}
-                                                className={`rounded-lg p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 ${staff.isLocked ? 'text-amber-600' : 'text-neutral-500'}`}
-                                                title={staff.isLocked ? 'Mở khóa' : 'Khóa tài khoản'}
-                                            >
-                                                {staff.isLocked ? <LockClosedIcon className="size-4" /> : <LockClosedIcon className="size-4" />}
-                                            </button>
-                                            <button
-                                                onClick={() => openEditModal(staff)}
-                                                className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                                title="Chỉnh sửa"
-                                            >
-                                                <PencilIcon className="size-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(staff)}
-                                                className="rounded-lg p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                                title="Xóa"
-                                            >
-                                                <TrashIcon className="size-4" />
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <span className="flex items-center gap-1 text-xs text-neutral-400" title="Bạn không có quyền chỉnh sửa">
-                                            <LockClosedIcon className="size-4" />
-                                            Chỉ xem
-                                        </span>
+                                    {/* TEMP DEBUG: Always show buttons */}
+                                    <button
+                                        onClick={() => handleToggleLock(staff)}
+                                        className={`rounded-lg p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 ${staff.isLocked ? 'text-amber-600' : 'text-neutral-500'}`}
+                                        title={staff.isLocked ? 'Mở khóa' : 'Khóa tài khoản'}
+                                    >
+                                        {staff.isLocked ? <LockClosedIcon className="size-4" /> : <LockOpenIcon className="size-4" />}
+                                    </button>
+                                    <button
+                                        onClick={() => openEditModal(staff)}
+                                        className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                        title="Chỉnh sửa"
+                                    >
+                                        <PencilIcon className="size-4" />
+                                    </button>
+                                    {canManage && (
+                                        <button
+                                            onClick={() => handleDelete(staff)}
+                                            className="rounded-lg p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                            title="Xóa"
+                                        >
+                                            <TrashIcon className="size-4" />
+                                        </button>
                                     )}
                                 </div>
                             </div>
