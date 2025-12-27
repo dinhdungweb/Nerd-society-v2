@@ -68,8 +68,8 @@ export function RevenueChart({ data }: RevenueChartProps) {
                             borderRadius: '8px',
                             color: '#fff',
                         }}
-                        formatter={(value: number) => [
-                            new Intl.NumberFormat('vi-VN').format(value) + 'đ',
+                        formatter={(value) => [
+                            new Intl.NumberFormat('vi-VN').format(Number(value) || 0) + 'đ',
                             'Doanh thu'
                         ]}
                     />
@@ -125,7 +125,7 @@ export function BookingChart({ data }: BookingChartProps) {
                             borderRadius: '8px',
                             color: '#fff',
                         }}
-                        formatter={(value: number) => [value, 'Booking']}
+                        formatter={(value) => [value, 'Booking']}
                     />
                     <Bar
                         dataKey="bookings"
@@ -174,7 +174,7 @@ export function RoomUsageChart({ data }: RoomUsageChartProps) {
                             borderRadius: '8px',
                             color: '#fff',
                         }}
-                        formatter={(value: number) => [value, 'Lượt đặt']}
+                        formatter={(value) => [value, 'Lượt đặt']}
                     />
                     <Bar
                         dataKey="bookings"
