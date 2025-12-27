@@ -65,7 +65,7 @@ export default async function BookingDetailsPage({
     const now = new Date()
     const minutesToStart = differenceInMinutes(bookingStart, now)
     const canCancel = ['PENDING', 'CONFIRMED'].includes(booking.status) && minutesToStart >= 120
-    const canReschedule = booking.status === 'CONFIRMED' && minutesToStart >= 120
+    const canReschedule = booking.status === 'CONFIRMED' && minutesToStart >= 120 && !booking.isRescheduled
 
     return (
         <div>
@@ -226,11 +226,17 @@ export default async function BookingDetailsPage({
                                 currentStartTime={booking.startTime}
                                 currentEndTime={booking.endTime}
                                 canReschedule={canReschedule}
+                                isRescheduled={booking.isRescheduled}
                                 minutesToStart={minutesToStart}
                             />
                             {canReschedule && (
                                 <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
                                     Có thể đổi lịch trước 2 tiếng
+                                </p>
+                            )}
+                            {booking.isRescheduled && (
+                                <p className="mt-2 text-xs text-amber-500 italic">
+                                    Đã đổi lịch 1 lần
                                 </p>
                             )}
                         </div>

@@ -267,6 +267,7 @@ model Booking {
   source          BookingSource @default(WEBSITE)
   status          BookingStatus @default(PENDING)
   note            String?
+  isRescheduled   Boolean       @default(false)
   
   // Relations
   payment         Payment?

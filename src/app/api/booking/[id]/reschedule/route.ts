@@ -45,6 +45,13 @@ export async function POST(
             return NextResponse.json({ error: 'Not your booking' }, { status: 403 })
         }
 
+        if (booking.isRescheduled) {
+            return NextResponse.json(
+                { error: 'Bạn chỉ được đổi lịch 1 lần duy nhất.' },
+                { status: 400 }
+            )
+        }
+
         // Check if can reschedule (only CONFIRMED bookings)
         if (booking.status !== 'CONFIRMED') {
             return NextResponse.json({
@@ -97,6 +104,9 @@ export async function POST(
                 date: newDateObj,
                 startTime: newStartTime,
                 endTime: newEndTime,
+                status: 'CONFIRMED', // Ensure status is confirmed
+                updatedAt: new Date(),
+                isRescheduled: true,
                 note: `${booking.note || ''}\n[Đổi lịch từ ${booking.date.toLocaleDateString('vi-VN')} ${booking.startTime} lúc ${now.toLocaleString('vi-VN')}]`.trim(),
             },
         })

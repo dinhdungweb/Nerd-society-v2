@@ -13,6 +13,7 @@ interface RescheduleBookingButtonProps {
     currentEndTime: string
     canReschedule: boolean
     minutesToStart: number
+    isRescheduled?: boolean
 }
 
 export default function RescheduleBookingButton({
@@ -22,7 +23,8 @@ export default function RescheduleBookingButton({
     currentStartTime,
     currentEndTime,
     canReschedule,
-    minutesToStart
+    minutesToStart,
+    isRescheduled = false
 }: RescheduleBookingButtonProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [loading, setLoading] = useState(false)
@@ -71,9 +73,12 @@ export default function RescheduleBookingButton({
     if (!canReschedule) {
         return (
             <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
-                {minutesToStart < 120
-                    ? 'Không thể đổi lịch (dưới 2 tiếng trước giờ)'
-                    : 'Không thể đổi lịch booking này'}
+                {isRescheduled
+                    ? 'Bạn chỉ được đổi lịch 1 lần duy nhất'
+                    : minutesToStart < 120
+                        ? 'Không thể đổi lịch (dưới 2 tiếng trước giờ)'
+                        : 'Không thể đổi lịch booking này'
+                }
             </div>
         )
     }
