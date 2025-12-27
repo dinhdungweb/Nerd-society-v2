@@ -74,7 +74,13 @@ export default function StaffPage() {
 
     const fetchStaff = async () => {
         try {
-            const res = await fetch('/api/admin/staff')
+            // Add timestamp to bypass ALL caching (browser, Next.js, Cloudflare)
+            const res = await fetch(`/api/admin/staff?_t=${Date.now()}`, {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                },
+            })
             if (res.ok) {
                 const data = await res.json()
                 // DEBUG: Detailed logging
