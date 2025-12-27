@@ -6,13 +6,10 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
 import authBg from '../../../../public/images/auth-bg.png'
+import Logo from '@/shared/Logo'
 
 // Coffee cup icon for logo
-const CoffeeIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8h15a3 3 0 013 3v1a3 3 0 01-3 3h-1.5M3 8v8a4 4 0 004 4h5a4 4 0 004-4v-3M3 8l1-4h13l1 4M7.5 8v1.5m4-1.5v1.5" />
-  </svg>
-)
+
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -60,17 +57,9 @@ export default function ForgotPasswordPage() {
           </Link>
 
           {/* Logo */}
-          <Link href="/" className="mb-6 flex items-center gap-2.5">
-            <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white shadow-lg shadow-primary-500/30">
-              <CoffeeIcon className="size-6" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-bold text-neutral-900 dark:text-white">Nerd Society</span>
-              <span className="text-xs font-medium uppercase tracking-wider text-primary-600 dark:text-primary-400">
-                Study & Work Space
-              </span>
-            </div>
-          </Link>
+          <div className="mb-6">
+            <Logo />
+          </div>
 
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Quên mật khẩu?</h1>
           <p className="mt-2 text-neutral-500 dark:text-neutral-400">

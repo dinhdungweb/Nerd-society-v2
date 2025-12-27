@@ -6,7 +6,7 @@ import {
     OPERATING_HOURS,
     getBookingDateTime,
 } from '@/lib/booking-utils'
-import { sendBookingEmail } from '@/lib/email'
+import { sendBookingEmail, sendAdminNewBookingEmail } from '@/lib/email'
 import {
     calculateBookingPriceFromDB,
     calculateDeposit,
@@ -246,6 +246,15 @@ export async function POST(request: NextRequest) {
         sendBookingEmail({
             ...booking,
             user: booking.user || null,
+        }).catch(console.error)
+
+        // Send email to Admin (async)
+        sendAdminNewBookingEmail({
+            ...booking,
+            // Ensure necessary fields are populated for template
+            customerName,
+            customerPhone,
+            note
         }).catch(console.error)
 
         // Create admin notification (async, don't wait)

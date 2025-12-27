@@ -35,6 +35,8 @@ interface GeneralSettings {
     smtpUser: string
     smtpPass: string
     smtpFrom: string
+    // Admin Notification
+    adminNotificationEmail: string
 }
 
 export default function AdminSettingsPage() {
@@ -71,6 +73,7 @@ export default function AdminSettingsPage() {
         smtpUser: '',
         smtpPass: '',
         smtpFrom: '',
+        adminNotificationEmail: '',
     })
 
     useEffect(() => {
@@ -517,6 +520,23 @@ export default function AdminSettingsPage() {
                     </div>
 
                     <div className="space-y-4">
+                        {/* Admin Notification Email */}
+                        <div className="mb-6 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Email nhận thông báo (Admin/Chủ quán)
+                            </label>
+                            <input
+                                type="email"
+                                value={settings.adminNotificationEmail}
+                                onChange={e => handleChange('adminNotificationEmail', e.target.value)}
+                                className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-600 dark:bg-neutral-900 dark:text-white"
+                                placeholder="admin@nerdsociety.com.vn"
+                            />
+                            <p className="mt-1 text-xs text-neutral-500">
+                                Nhập email để nhận thông báo (ngăn cách nhiều email bằng dấu phẩy). Ví dụ: admin@a.com, staff@b.com
+                            </p>
+                        </div>
+
                         {/* Booking Confirmation */}
                         <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
                             <div>

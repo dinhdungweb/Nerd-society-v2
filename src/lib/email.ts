@@ -494,3 +494,45 @@ export async function sendCheckinReminderEmail(booking: any) {
     await sendEmail({ to: recipientEmail, subject, html })
 }
 
+
+export async function sendAdminNewBookingEmail(booking: any) {
+    // 1. Get Admin Email from settings
+    const adminEmail = await getSmtpSetting('adminNotificationEmail', undefined)
+    
+    // If not configured, do nothing
+    if (!adminEmail) return
+
+    // 2. Prepare content
+    const customerName = booking.user?.name || booking.customerName || 'Khách vãng lai'
+    const serviceName = booking.room?.name || booking.combo?.name || 'Dịch vụ'
+    const amount = booking.estimatedAmount || booking.totalAmount || 0
+    const formattedAmount = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
+    
+    const subject = `[ADMIN] Booking mới #${booking.bookingCode} - ${customerName}`
+
+    // 3. Email Template
+    const content = `
+        <h1 class="h1" style="color: #9B7850;">🔔 Booking Mới!</h1>
+        <p class="p">Hệ thống vừa nhận được một yêu cầu đặt lịch mới.</p>
+        
+        <div class="info-box">
+            <div class="info-header">${ICONS.info}Thông tin chi tiết</div>
+            <div class="info-item"><span class="info-label">Mã đặt lịch</span><span class="info-value">#${booking.bookingCode}</span></div>
+            <div class="info-item"><span class="info-label">Khách hàng</span><span class="info-value">${customerName}</span></div>
+            <div class="info-item"><span class="info-label">SĐT</span><span class="info-value">${booking.customerPhone || 'N/A'}</span></div>
+            <div class="info-item"><span class="info-label">Dịch vụ</span><span class="info-value">${serviceName}</span></div>
+            <div class="info-item"><span class="info-label">Thời gian</span><span class="info-value">${ICONS.calendar}${new Date(booking.date).toLocaleDateString('vi-VN')} | ${ICONS.clock}${booking.startTime} - ${booking.endTime}</span></div>
+            <div class="info-item"><span class="info-label">Tổng tiền</span><span class="info-value" style="color: #9B7850; font-weight: 700;">${formattedAmount}</span></div>
+            <div class="info-item"><span class="info-label">Ghi chú</span><span class="info-value">${booking.note || 'Không có'}</span></div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="${process.env.NEXTAUTH_URL}/admin/bookings" class="button">Xem trong Admin</a>
+        </div>
+    `
+
+    const html = getBaseTemplate(content, subject)
+
+    // 4. Send Email
+    await sendEmail({ to: adminEmail, subject, html })
+}
