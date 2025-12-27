@@ -77,12 +77,24 @@ export default function StaffPage() {
             const res = await fetch('/api/admin/staff')
             if (res.ok) {
                 const data = await res.json()
+                // DEBUG: Detailed logging
+                console.log('=== STAFF API RESPONSE ===')
+                console.log('currentUserRole:', data.currentUserRole)
+                console.log('staff count:', data.staff?.length)
+                console.log('staff with isLocked:', data.staff?.map((s: any) => ({
+                    name: s.name,
+                    role: s.role,
+                    isLocked: s.isLocked
+                })))
+
                 setStaffList(data.staff)
-                console.log('API loaded. Current user role from API:', data.currentUserRole) // DEBUG
                 setLocations(data.locations)
                 setCurrentUserRole(data.currentUserRole || 'ADMIN')
+            } else {
+                console.error('API failed with status:', res.status)
             }
         } catch (error) {
+            console.error('fetchStaff error:', error)
             toast.error('Lỗi khi tải danh sách nhân viên')
         } finally {
             setLoading(false)
