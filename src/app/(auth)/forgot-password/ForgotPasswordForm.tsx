@@ -70,14 +70,14 @@ export default function ForgotPasswordForm({ logoUrl, logoLightUrl }: ForgotPass
                             <div className="relative h-12 w-auto overflow-hidden transition-transform hover:scale-105">
                                 {/* Light mode logo */}
                                 <img
-                                    src={logoUrl || logoLightUrl}
+                                    src={`${logoUrl || logoLightUrl}${typeof window !== 'undefined' ? `?v=${window.performance.now()}` : ''}`}
                                     alt="Nerd Society"
                                     className={`h-full w-auto object-contain ${logoLightUrl ? 'dark:hidden' : ''}`}
                                 />
                                 {/* Dark mode logo (if available) */}
                                 {logoLightUrl && (
                                     <img
-                                        src={logoLightUrl}
+                                        src={`${logoLightUrl}${typeof window !== 'undefined' ? `?v=${window.performance.now()}` : ''}`}
                                         alt="Nerd Society"
                                         className="hidden h-full w-auto object-contain dark:block"
                                     />

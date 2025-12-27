@@ -3,6 +3,8 @@ import { Suspense } from 'react'
 import LoginForm from './LoginForm'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 async function getSettings() {
   try {
     const settings = await prisma.setting.findMany()
