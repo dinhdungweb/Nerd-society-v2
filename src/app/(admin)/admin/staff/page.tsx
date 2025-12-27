@@ -5,9 +5,6 @@ import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon, MapPinIcon, LockClosed
 import toast from 'react-hot-toast'
 import NcModal from '@/shared/NcModal'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 type RoleType = 'ADMIN' | 'MANAGER' | 'STAFF' | 'CONTENT_EDITOR'
 
 interface Staff {
