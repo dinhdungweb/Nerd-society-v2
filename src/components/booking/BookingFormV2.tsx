@@ -551,8 +551,8 @@ export default function BookingFormV2({
                 </Button>
                 <ul className="mt-3 space-y-1 text-xs text-neutral-500 dark:text-neutral-400">
                     <li>• Phòng sẽ được giữ sau khi bạn thanh toán cọc 50%</li>
-                    <li>• Huỷ/đổi lịch trước giờ bắt đầu 6 tiếng: bạn vui lòng liên hệ page để được lưu cọc cho lần sử dụng sau</li>
-                    <li>• Huỷ trong vòng 6 tiếng hoặc không đến: không hoàn tiền cọc.</li>
+                    <li>• Huỷ/đổi lịch trước giờ bắt đầu 2 tiếng: bạn vui lòng liên hệ page để được lưu cọc cho lần sử dụng sau</li>
+                    <li>• Huỷ trong vòng 2 tiếng hoặc không đến: không hoàn tiền cọc.</li>
                 </ul>
             </div>
         </div>

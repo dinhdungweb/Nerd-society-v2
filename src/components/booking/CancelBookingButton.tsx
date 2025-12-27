@@ -47,8 +47,8 @@ export default function CancelBookingButton({
     if (!canCancel) {
         return (
             <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
-                {minutesToStart < 360
-                    ? 'Không thể hủy (dưới 6 tiếng trước giờ)'
+                {minutesToStart < 120
+                    ? 'Không thể hủy (dưới 2 tiếng trước giờ)'
                     : 'Không thể hủy booking này'}
             </div>
         )
@@ -80,7 +80,7 @@ export default function CancelBookingButton({
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
                             <p className="font-semibold text-blue-800 dark:text-blue-300">Chính sách hoàn hủy:</p>
                             <p className="mt-2 text-sm text-blue-700 dark:text-blue-400">
-                                Bạn đang thực hiện hủy <strong>trước giờ bắt đầu 6 tiếng</strong>.
+                                Bạn đang thực hiện hủy <strong>trước giờ bắt đầu 2 tiếng</strong>.
                             </p>
                             <p className="mt-1 text-sm text-blue-700 dark:text-blue-400">
                                 Vui lòng liên hệ Fanpage để được hỗ trợ <strong>lưu cọc</strong> cho lần sử dụng sau.

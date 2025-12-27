@@ -58,14 +58,14 @@ export default async function BookingDetailsPage({
 
     if (!booking || booking.userId !== session.user.id) notFound()
 
-    // Calculate if can cancel (6 hours before start)
+    // Calculate if can cancel (2 hours before start)
     const bookingStart = new Date(booking.date)
     const [hours, minutes] = booking.startTime.split(':').map(Number)
     bookingStart.setHours(hours, minutes, 0, 0)
     const now = new Date()
     const minutesToStart = differenceInMinutes(bookingStart, now)
-    const canCancel = ['PENDING', 'CONFIRMED'].includes(booking.status) && minutesToStart >= 360
-    const canReschedule = booking.status === 'CONFIRMED' && minutesToStart >= 60
+    const canCancel = ['PENDING', 'CONFIRMED'].includes(booking.status) && minutesToStart >= 120
+    const canReschedule = booking.status === 'CONFIRMED' && minutesToStart >= 120
 
     return (
         <div>
@@ -230,7 +230,7 @@ export default async function BookingDetailsPage({
                             />
                             {canReschedule && (
                                 <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
-                                    Có thể đổi lịch trước 60 phút
+                                    Có thể đổi lịch trước 2 tiếng
                                 </p>
                             )}
                         </div>
@@ -248,7 +248,7 @@ export default async function BookingDetailsPage({
                             />
                             {canCancel && (
                                 <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
-                                    Có thể hủy trước 6 tiếng
+                                    Có thể hủy trước 2 tiếng
                                 </p>
                             )}
                         </div>

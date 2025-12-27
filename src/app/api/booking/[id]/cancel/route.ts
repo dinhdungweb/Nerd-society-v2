@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { differenceInMinutes } from 'date-fns'
 import { notifyBookingCancelled } from '@/lib/notifications'
 
-const CANCEL_BEFORE_MINUTES = 360 // Cho phép hủy trước 6 tiếng
+const CANCEL_BEFORE_MINUTES = 120 // Cho phép hủy trước 2 tiếng
 
 /**
  * POST /api/booking/[id]/cancel

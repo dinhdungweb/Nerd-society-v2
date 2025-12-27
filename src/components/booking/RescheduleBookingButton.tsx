@@ -71,8 +71,8 @@ export default function RescheduleBookingButton({
     if (!canReschedule) {
         return (
             <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
-                {minutesToStart < 60
-                    ? 'Không thể đổi lịch (dưới 60 phút trước giờ)'
+                {minutesToStart < 120
+                    ? 'Không thể đổi lịch (dưới 2 tiếng trước giờ)'
                     : 'Không thể đổi lịch booking này'}
             </div>
         )

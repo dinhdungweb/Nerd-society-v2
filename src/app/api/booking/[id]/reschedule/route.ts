@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { differenceInMinutes } from 'date-fns'
 
-const RESCHEDULE_BEFORE_MINUTES = 60 // Cho phép đổi lịch trước 60 phút
+const RESCHEDULE_BEFORE_MINUTES = 120 // Cho phép đổi lịch trước 2 tiếng
 
 /**
  * POST /api/booking/[id]/reschedule
