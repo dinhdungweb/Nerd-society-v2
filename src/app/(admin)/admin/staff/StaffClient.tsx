@@ -352,13 +352,6 @@ export default function StaffPage() {
 
     return (
         <div className="space-y-6">
-            {/* DEBUG MARKER: Version 3.0 */}
-            <div className="animate-pulse rounded-lg bg-red-600 p-4 text-center text-xl font-bold text-white shadow-lg">
-                ⚠️ DEBUG MODE v3.0 - NEW CODE IS RUNNING ⚠️
-                <br />
-                <span className="text-sm font-normal">If you see this, the Lock Button MUST be visible below.</span>
-            </div>
-
             {/* Header */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -366,8 +359,6 @@ export default function StaffPage() {
                     <p className="mt-1 text-neutral-500 dark:text-neutral-400">
                         {staffList.length} nhân viên
                         {!isAdmin && <span className="ml-2 text-amber-600 dark:text-amber-400">• Bạn đang đăng nhập với quyền Manager</span>}
-                        {/* DEBUG MARKER */}
-                        <span className="ml-2 text-xs text-green-500 font-mono">[v2.2 | Role: {currentUserRole}]</span>
                     </p>
                 </div>
                 <button
