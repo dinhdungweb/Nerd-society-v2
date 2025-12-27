@@ -7,6 +7,8 @@ import { canView, canManage } from '@/lib/apiPermissions'
 // Roles that can be managed by MANAGER (not ADMIN or MANAGER itself)
 const MANAGER_ALLOWED_ROLES = ['STAFF', 'CONTENT_EDITOR']
 
+export const dynamic = 'force-dynamic'
+
 // Helper to check if a role can be managed by the current user
 function canManageTargetRole(userRole: string, targetRole: string): boolean {
     if (userRole === 'ADMIN') return true // Admin can manage all

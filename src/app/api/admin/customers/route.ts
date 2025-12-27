@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 import { canView } from '@/lib/apiPermissions'
 
+export const dynamic = 'force-dynamic'
+
 // GET - Fetch all customers (requires canViewCustomers permission)
 export async function GET() {
     try {
