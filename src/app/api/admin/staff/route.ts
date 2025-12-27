@@ -63,7 +63,16 @@ export async function GET() {
         })
 
         // Return current user role so frontend can adjust UI
-        return NextResponse.json({ staff, locations, currentUserRole: userRole })
+        return NextResponse.json(
+            { staff, locations, currentUserRole: userRole },
+            {
+                headers: {
+                    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
+                },
+            }
+        )
     } catch (error) {
         console.error('Error fetching staff:', error)
         return NextResponse.json({ error: 'Failed to fetch staff' }, { status: 500 })
