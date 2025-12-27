@@ -49,6 +49,18 @@ export async function POST(request: NextRequest) {
             },
         })
 
+        // AUTO-SYNC: Update existing guest bookings to belong to this new user
+        // Find bookings with matching email AND no userId, then set userId to this new user
+        await prisma.booking.updateMany({
+            where: {
+                customerEmail: email, // Email match (case sensitive in DB usually, but we normalized if needed)
+                userId: null,         // Only update guest bookings
+            },
+            data: {
+                userId: user.id,
+            },
+        })
+
         return NextResponse.json(
             { message: 'Đăng ký thành công', user },
             { status: 201 }

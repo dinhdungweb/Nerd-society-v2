@@ -42,6 +42,7 @@ export async function GET() {
                 email: true,
                 phone: true,
                 role: true,
+                isLocked: true,
                 assignedLocationId: true,
                 assignedLocation: {
                     select: {
@@ -117,6 +118,7 @@ export async function POST(req: Request) {
                 email: true,
                 phone: true,
                 role: true,
+                isLocked: true,
                 assignedLocationId: true,
                 createdAt: true,
             },
@@ -147,7 +149,7 @@ export async function PATCH(req: Request) {
         }
 
         const userRole = currentRole as string
-        const { id, name, phone, role: newRole, assignedLocationId, password } = await req.json()
+        const { id, name, phone, role: newRole, assignedLocationId, password, isLocked } = await req.json()
 
         if (!id) {
             return NextResponse.json({ error: 'Staff ID is required' }, { status: 400 })
@@ -185,6 +187,7 @@ export async function PATCH(req: Request) {
         if (password) {
             updateData.password = await bcrypt.hash(password, 12)
         }
+        if (isLocked !== undefined) updateData.isLocked = isLocked
 
         const user = await prisma.user.update({
             where: { id },
@@ -195,6 +198,7 @@ export async function PATCH(req: Request) {
                 email: true,
                 phone: true,
                 role: true,
+                isLocked: true,
                 assignedLocationId: true,
                 assignedLocation: {
                     select: { id: true, name: true },
@@ -260,6 +264,28 @@ export async function DELETE(req: Request) {
             return NextResponse.json({
                 error: 'Bạn không có quyền xóa tài khoản này. Manager chỉ có thể xóa Staff hoặc Content Editor.'
             }, { status: 403 })
+        }
+
+        // Check for dependencies
+        const bookingCount = await prisma.booking.count({ where: { userId: id } })
+        if (bookingCount > 0) {
+            return NextResponse.json({
+                error: `Không thể xóa: Nhân viên này đang có ${bookingCount} lịch đặt. Hãy chuyển các booking sang user khác hoặc gỡ quyền sở hữu trước.`
+            }, { status: 400 })
+        }
+
+        const postCount = await prisma.post.count({ where: { authorId: id } })
+        if (postCount > 0) {
+            return NextResponse.json({
+                error: `Không thể xóa: Nhân viên này là tác giả của ${postCount} bài viết.`
+            }, { status: 400 })
+        }
+
+        const txnCount = await prisma.nerdCoinTransaction.count({ where: { userId: id } })
+        if (txnCount > 0) {
+            return NextResponse.json({
+                error: `Không thể xóa: Nhân viên này có ${txnCount} giao dịch Nerd Coin.`
+            }, { status: 400 })
         }
 
         await prisma.user.delete({

@@ -26,6 +26,7 @@ model User {
   emailVerified      DateTime?
   nerdCoinBalance    Int       @default(0)  // Tổng Nerd Coin hiện có
   nerdCoinTier       String    @default("BRONZE") // BRONZE, SILVER, GOLD
+  isLocked           Boolean   @default(false)    // User locked status
   
   // Staff assignment (chỉ áp dụng cho STAFF role)
   assignedLocationId String?   // Location mà staff được phân công

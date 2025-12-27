@@ -32,6 +32,10 @@ export const authOptions: NextAuthOptions = {
                     throw new Error('Mật khẩu không đúng')
                 }
 
+                if (user.isLocked) {
+                    throw new Error('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.')
+                }
+
                 return {
                     id: user.id,
                     email: user.email,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon, MapPinIcon, LockClosedIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon, MapPinIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import NcModal from '@/shared/NcModal'
 
@@ -13,6 +13,7 @@ interface Staff {
     email: string
     phone: string | null
     role: RoleType
+    isLocked: boolean
     assignedLocationId: string | null
     assignedLocation: { id: string; name: string } | null
     createdAt: string
@@ -160,6 +161,37 @@ export default function StaffPage() {
                     const data = await res.json()
                     toast.error(data.error || 'Lỗi khi tạo nhân viên')
                 }
+            }
+        } catch (error) {
+            toast.error('Có lỗi xảy ra')
+        }
+    }
+
+    const handleToggleLock = async (staff: Staff) => {
+        if (!canManageStaff(staff)) {
+            toast.error('Bạn không có quyền quản lý tài khoản này')
+            return
+        }
+
+        const action = staff.isLocked ? 'Mở khóa' : 'Khóa'
+        if (!confirm(`${action} tài khoản nhân viên ${staff.name}?`)) return
+
+        try {
+            const res = await fetch('/api/admin/staff', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: staff.id,
+                    isLocked: !staff.isLocked
+                }),
+            })
+
+            if (res.ok) {
+                toast.success(`Đã ${action.toLowerCase()} tài khoản`)
+                fetchStaff()
+            } else {
+                const data = await res.json()
+                toast.error(data.error || 'Lỗi khi cập nhật trạng thái')
             }
         } catch (error) {
             toast.error('Có lỗi xảy ra')
@@ -389,6 +421,13 @@ export default function StaffPage() {
                                             >
                                                 <TrashIcon className="size-4" />
                                             </button>
+                                            <button
+                                                onClick={() => handleToggleLock(staff)}
+                                                className={`rounded-lg p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 ${staff.isLocked ? 'text-amber-600' : 'text-neutral-500'}`}
+                                                title={staff.isLocked ? 'Mở khóa' : 'Khóa tài khoản'}
+                                            >
+                                                {staff.isLocked ? <LockClosedIcon className="size-4" /> : <LockClosedIcon className="size-4 opacity-50" />}
+                                            </button>
                                         </>
                                     ) : (
                                         <span className="flex items-center gap-1 text-xs text-neutral-400" title="Bạn không có quyền chỉnh sửa">
@@ -466,6 +505,12 @@ export default function StaffPage() {
                                                     className="rounded-lg p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                                                 >
                                                     <TrashIcon className="size-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleToggleLock(staff)}
+                                                    className={`rounded-lg p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 ${staff.isLocked ? 'text-amber-600' : 'text-neutral-500'}`}
+                                                >
+                                                    {staff.isLocked ? <LockClosedIcon className="size-4" /> : <LockClosedIcon className="size-4 opacity-50" />}
                                                 </button>
                                             </>
                                         ) : (

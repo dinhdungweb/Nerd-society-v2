@@ -14,7 +14,11 @@ export async function GET() {
         }
 
         const customers = await prisma.user.findMany({
-            where: { role: 'CUSTOMER' },
+            where: {
+                role: {
+                    in: ['CUSTOMER', 'STAFF', 'MANAGER', 'CONTENT_EDITOR']
+                }
+            },
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
@@ -23,6 +27,7 @@ export async function GET() {
                 phone: true,
                 avatar: true,
                 createdAt: true,
+                isLocked: true,
                 _count: { select: { bookings: true } },
             },
         })
