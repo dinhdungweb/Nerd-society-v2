@@ -78,7 +78,7 @@ export default function StaffPage() {
             if (res.ok) {
                 const data = await res.json()
                 setStaffList(data.staff)
-                console.log('Staff data loaded:', data.staff) // DEBUG
+                console.log('API loaded. Current user role from API:', data.currentUserRole) // DEBUG
                 setLocations(data.locations)
                 setCurrentUserRole(data.currentUserRole || 'ADMIN')
             }
@@ -342,7 +342,7 @@ export default function StaffPage() {
                         {staffList.length} nhân viên
                         {!isAdmin && <span className="ml-2 text-amber-600 dark:text-amber-400">• Bạn đang đăng nhập với quyền Manager</span>}
                         {/* DEBUG MARKER */}
-                        <span className="ml-2 text-xs text-green-500 font-mono">[v2.1]</span>
+                        <span className="ml-2 text-xs text-green-500 font-mono">[v2.2 | Role: {currentUserRole}]</span>
                     </p>
                 </div>
                 <button
@@ -410,6 +410,14 @@ export default function StaffPage() {
                                 <div className="col-span-2 flex justify-end gap-2">
                                     {canManage ? (
                                         <>
+                                            {/* DEBUG: Lock button moved to first */}
+                                            <button
+                                                onClick={() => handleToggleLock(staff)}
+                                                className={`rounded-lg p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 ${staff.isLocked ? 'text-amber-600' : 'text-neutral-500'}`}
+                                                title={staff.isLocked ? 'Mở khóa' : 'Khóa tài khoản'}
+                                            >
+                                                {staff.isLocked ? <LockClosedIcon className="size-4" /> : <LockClosedIcon className="size-4" />}
+                                            </button>
                                             <button
                                                 onClick={() => openEditModal(staff)}
                                                 className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
@@ -423,13 +431,6 @@ export default function StaffPage() {
                                                 title="Xóa"
                                             >
                                                 <TrashIcon className="size-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleToggleLock(staff)}
-                                                className={`rounded-lg p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 ${staff.isLocked ? 'text-amber-600' : 'text-neutral-500'}`}
-                                                title={staff.isLocked ? 'Mở khóa' : 'Khóa tài khoản'}
-                                            >
-                                                {staff.isLocked ? <LockClosedIcon className="size-4" /> : <LockClosedIcon className="size-4 opacity-50" />}
                                             </button>
                                         </>
                                     ) : (
