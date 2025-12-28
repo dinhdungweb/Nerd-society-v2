@@ -22,8 +22,16 @@ const postFetcher = (url: string, { arg }: { arg: any }) =>
         body: JSON.stringify(arg)
     }).then(res => res.json())
 
+// Custom Vietnamese locale with short day names
+const viCustom = {
+    ...vi,
+    localize: {
+        ...vi.localize,
+        day: (n: number) => ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][n]
+    }
+}
 
-registerLocale('vi', vi)
+registerLocale('vi-custom', viCustom as any)
 
 interface BookedSlot {
     startTime: string
@@ -267,19 +275,7 @@ export default function BookingFormV2({
                         onChange={(d) => setDate(d)}
                         dateFormat="dd/MM/yyyy"
                         minDate={new Date()}
-                        locale="vi"
-                        formatWeekDay={(day) => {
-                            const dayMap: Record<string, string> = {
-                                'Thứ Hai': 'T2',
-                                'Thứ Ba': 'T3',
-                                'Thứ Tư': 'T4',
-                                'Thứ Năm': 'T5',
-                                'Thứ Sáu': 'T6',
-                                'Thứ Bảy': 'T7',
-                                'Chủ Nhật': 'CN'
-                            }
-                            return dayMap[day] || day.substring(0, 2)
-                        }}
+                        locale="vi-custom"
                         className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 pl-11 text-neutral-900 focus:border-primary-500 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
                         placeholderText="Chọn ngày"
                         wrapperClassName="w-full"
