@@ -50,11 +50,14 @@ export async function POST(request: NextRequest) {
         })
 
         // AUTO-SYNC: Update existing guest bookings to belong to this new user
-        // Find bookings with matching email AND no userId, then set userId to this new user
+        // Find bookings with matching email OR phone AND no userId
         await prisma.booking.updateMany({
             where: {
-                customerEmail: email, // Email match (case sensitive in DB usually, but we normalized if needed)
-                userId: null,         // Only update guest bookings
+                userId: null, // Only update guest bookings
+                OR: [
+                    { customerEmail: email },
+                    ...(phone ? [{ customerPhone: phone }] : [])
+                ]
             },
             data: {
                 userId: user.id,

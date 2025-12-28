@@ -157,6 +157,23 @@ export async function POST(req: Request) {
 
         const endTime = format(endDateTime, 'HH:mm')
 
+        // 3a. Find existing user to link
+        let userId: string | null = null
+        if (customerEmail || customerPhone) {
+            const existingUser = await prisma.user.findFirst({
+                where: {
+                    OR: [
+                        ...(customerEmail ? [{ email: customerEmail }] : []),
+                        ...(customerPhone ? [{ phone: customerPhone }] : [])
+                    ]
+                },
+                select: { id: true }
+            })
+            if (existingUser) {
+                userId = existingUser.id
+            }
+        }
+
         // 4. Create Booking
         const booking = await prisma.booking.create({
             data: {
@@ -177,6 +194,7 @@ export async function POST(req: Request) {
                 depositStatus: depositStatus === 'PAID_CASH' ? 'PAID_CASH' : (depositStatus === 'WAIVED' ? 'WAIVED' : 'PENDING'),
                 depositPaidAt: depositStatus === 'PAID_CASH' ? new Date() : null,
                 note,
+                userId,
                 nerdCoinIssued: 0,
             }
         })

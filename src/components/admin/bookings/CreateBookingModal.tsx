@@ -197,8 +197,8 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
 
                                     <div className="space-y-4">
                                         {/* Customer Info */}
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="sm:col-span-2">
                                                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Tên khách</label>
                                                 <input
                                                     type="text"
@@ -216,6 +216,16 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                                     className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
                                                     value={formData.customerPhone}
                                                     onChange={e => setFormData({ ...formData, customerPhone: e.target.value })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Email <span className="text-neutral-400 font-normal">(Tùy chọn)</span></label>
+                                                <input
+                                                    type="email"
+                                                    className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
+                                                    value={formData.customerEmail}
+                                                    onChange={e => setFormData({ ...formData, customerEmail: e.target.value })}
+                                                    placeholder="Để gửi tin nhắn xác nhận"
                                                 />
                                             </div>
                                         </div>

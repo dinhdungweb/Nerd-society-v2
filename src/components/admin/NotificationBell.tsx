@@ -17,7 +17,8 @@ import {
 import { BellAlertIcon } from '@heroicons/react/24/solid'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
-import Link from 'next/link'
+// import Link from 'next/link' // Removed Link
+import { useRouter } from 'next/navigation' // Added useRouter
 import { getPusherClient, NOTIFICATION_CHANNELS, NOTIFICATION_EVENTS } from '@/lib/pusher-client'
 import toast from 'react-hot-toast'
 
@@ -44,6 +45,7 @@ const typeIcons: Record<string, { icon: ReactNode; color: string }> = {
 }
 
 export default function NotificationBell() {
+    const router = useRouter()
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
     const [isOpen, setIsOpen] = useState(false)
@@ -162,6 +164,21 @@ export default function NotificationBell() {
         }
     }
 
+    const handleNotificationClick = useCallback((notification: Notification) => {
+        // 1. Mark as read if needed
+        if (!notification.isRead) {
+            markAsRead(notification.id)
+        }
+
+        // 2. Close dropdown
+        setIsOpen(false)
+
+        // 3. Navigate if link exists
+        if (notification.link) {
+            router.push(notification.link)
+        }
+    }, [router])
+
     return (
         <div className="relative" ref={dropdownRef}>
             <button
@@ -236,13 +253,14 @@ export default function NotificationBell() {
                                         ? typeIcons.ENDING_SOON
                                         : typeStyle
 
-                                const content = (
+                                return (
                                     <div
-                                        className={`flex gap-3 px-4 py-3 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800 
+                                        key={notification.id}
+                                        onClick={() => handleNotificationClick(notification)}
+                                        className={`flex gap-3 px-4 py-3 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer
                                             ${!notification.isRead ? 'bg-primary-50/50 dark:bg-primary-900/10' : ''}
                                             ${isUrgent && !notification.isRead ? 'border-l-4 border-red-500 bg-red-50/80 dark:bg-red-900/20' : ''}
                                         `}
-                                        onClick={() => !notification.isRead && markAsRead(notification.id)}
                                     >
                                         <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${displayIcon.color} ${isUrgent && !notification.isRead ? 'animate-pulse' : ''}`}>
                                             {displayIcon.icon}
@@ -278,14 +296,6 @@ export default function NotificationBell() {
                                             </p>
                                         </div>
                                     </div>
-                                )
-
-                                return notification.link ? (
-                                    <Link key={notification.id} href={notification.link} onClick={() => setIsOpen(false)}>
-                                        {content}
-                                    </Link>
-                                ) : (
-                                    <div key={notification.id}>{content}</div>
                                 )
                             })
                         ) : (
