@@ -41,4 +41,6 @@ next-env.d.ts
 # uploads
 /public/uploads
 
+# template folder
+/src-v3
 
