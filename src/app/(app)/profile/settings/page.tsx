@@ -3,10 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
-import ProfileForm from './ProfileForm'
+import SettingsForm from './SettingsForm'
 
 export const metadata: Metadata = {
-    title: 'Account Settings',
+    title: 'Cài đặt tài khoản',
 }
 
 export default async function SettingsPage() {
@@ -15,9 +15,20 @@ export default async function SettingsPage() {
 
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            avatar: true,
+            gender: true,
+            dateOfBirth: true,
+            address: true,
+            bio: true,
+        },
     })
 
     if (!user) redirect('/login')
 
-    return <ProfileForm user={user} />
+    return <SettingsForm user={user} />
 }
