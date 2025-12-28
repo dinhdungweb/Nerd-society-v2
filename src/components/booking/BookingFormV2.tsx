@@ -268,6 +268,18 @@ export default function BookingFormV2({
                         dateFormat="dd/MM/yyyy"
                         minDate={new Date()}
                         locale="vi"
+                        formatWeekDay={(day) => {
+                            const dayMap: Record<string, string> = {
+                                'Thứ Hai': 'T2',
+                                'Thứ Ba': 'T3',
+                                'Thứ Tư': 'T4',
+                                'Thứ Năm': 'T5',
+                                'Thứ Sáu': 'T6',
+                                'Thứ Bảy': 'T7',
+                                'Chủ Nhật': 'CN'
+                            }
+                            return dayMap[day] || day.substring(0, 2)
+                        }}
                         className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 pl-11 text-neutral-900 focus:border-primary-500 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
                         placeholderText="Chọn ngày"
                         wrapperClassName="w-full"
