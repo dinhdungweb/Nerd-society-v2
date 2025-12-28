@@ -121,8 +121,10 @@ export default function BookingFormV2({
 
     // Validation helpers
     const phoneRegex = /^0\d{9}$/
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     const isPhoneValid = phoneRegex.test(customerPhone)
     const isNameValid = customerName.trim().length >= 2
+    const isEmailValid = emailRegex.test(customerEmail)
 
     const timeStep = serviceType === 'MEETING' ? 30 : 15
     const allTimeSlots = generateTimeSlots(timeStep)
@@ -217,7 +219,7 @@ export default function BookingFormV2({
     const endTimeOptions = timeSlots.filter(t => t > startTime)
 
     const handleSubmit = () => {
-        if (!date || !startTime || !endTime || !customerName || !customerPhone) return
+        if (!date || !startTime || !endTime || !customerName || !customerPhone || !customerEmail) return
 
         onSubmit({
             date,
@@ -234,7 +236,7 @@ export default function BookingFormV2({
     // Check if selected range overlaps with booked slots
     const hasOverlap = isRangeOverlapping(startTime, endTime, bookedSlots)
 
-    const isValid = date && startTime && endTime && customerName && customerPhone && priceInfo && !hasOverlap && !availabilityError && !isCheckingAvailability
+    const isValid = date && startTime && endTime && customerName && customerPhone && customerEmail && isEmailValid && priceInfo && !hasOverlap && !availabilityError && !isCheckingAvailability
 
     return (
         <div className="space-y-5 rounded-2xl bg-white p-6 shadow-sm dark:bg-neutral-900 relative">
@@ -410,15 +412,27 @@ export default function BookingFormV2({
                     </div>
                     <div>
                         <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                            Email
+                            Email *
                         </label>
                         <input
                             type="email"
                             value={customerEmail}
                             onChange={(e) => setCustomerEmail(e.target.value)}
-                            className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 focus:border-primary-500 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                            onBlur={() => setTouchedFields(prev => ({ ...prev, email: true }))}
+                            className={`w-full rounded-xl border bg-white px-4 py-3 text-neutral-900 transition-colors focus:ring-2 dark:bg-neutral-800 dark:text-white ${touchedFields.email && !isEmailValid
+                                ? 'border-red-400 focus:border-red-500 focus:ring-red-200 dark:border-red-500 dark:focus:ring-red-900'
+                                : 'border-neutral-300 focus:border-primary-500 focus:ring-primary-200 dark:border-neutral-700 dark:focus:ring-primary-900'
+                                }`}
                             placeholder="email@example.com"
                         />
+                        {touchedFields.email && !isEmailValid && (
+                            <p className="mt-1 flex items-center gap-1 text-xs text-red-500">
+                                <svg className="size-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                Vui lòng nhập email hợp lệ
+                            </p>
+                        )}
                     </div>
                     <div>
                         <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">

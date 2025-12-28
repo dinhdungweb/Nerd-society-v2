@@ -526,11 +526,11 @@ export default function AdminSettingsPage() {
                                 Email nhận thông báo (Admin/Chủ quán)
                             </label>
                             <input
-                                type="email"
+                                type="text"
                                 value={settings.adminNotificationEmail}
                                 onChange={e => handleChange('adminNotificationEmail', e.target.value)}
                                 className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-600 dark:bg-neutral-900 dark:text-white"
-                                placeholder="admin@nerdsociety.com.vn"
+                                placeholder="admin@a.com, staff@b.com"
                             />
                             <p className="mt-1 text-xs text-neutral-500">
                                 Nhập email để nhận thông báo (ngăn cách nhiều email bằng dấu phẩy). Ví dụ: admin@a.com, staff@b.com
