@@ -6,7 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import authBg from '../../../../public/images/auth-bg.png'
+// import authBg from '../../../../public/images/auth-bg.png' // Removed for hot-swap
 
 // Coffee cup icon for logo
 const CoffeeIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -209,11 +209,10 @@ export default function ResetPasswordForm({ logoUrl, logoLightUrl }: ResetPasswo
             {/* Right side - Image */}
             <div className="relative hidden w-0 flex-1 lg:block">
                 <Image
-                    src={authBg}
+                    src="/images/login-background.jpg"
                     alt="Nerd Society Workspace"
                     fill
                     className="absolute inset-0 size-full object-cover"
-                    placeholder="blur"
                 />
                 <div className="absolute inset-0 bg-primary-900/40" />
             </div>

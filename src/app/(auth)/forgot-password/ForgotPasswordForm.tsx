@@ -166,7 +166,7 @@ export default function ForgotPasswordForm({ logoUrl, logoLightUrl }: ForgotPass
             {/* Right side - Image */}
             <div className="relative hidden w-0 flex-1 lg:block">
                 <Image
-                    src="/images/auth-bg.png"
+                    src="/images/login-background.jpg"
                     alt="Nerd Society Workspace"
                     fill
                     className="absolute inset-0 size-full object-cover"
