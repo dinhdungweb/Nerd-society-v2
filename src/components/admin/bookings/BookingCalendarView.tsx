@@ -59,10 +59,10 @@ const statusLabels: Record<string, string> = {
     NO_SHOW: 'Không đến',
 }
 
-// Generate time slots from 08:00 to 22:00
+// Generate time slots from 00:00 to 23:00 (24/7)
 function generateTimeSlots(): string[] {
     const slots: string[] = []
-    for (let hour = 8; hour <= 22; hour++) {
+    for (let hour = 0; hour <= 23; hour++) {
         slots.push(`${hour.toString().padStart(2, '0')}:00`)
     }
     return slots
