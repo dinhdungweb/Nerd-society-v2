@@ -463,7 +463,7 @@ export default function BookingCalendarView({
                         <div className="min-w-[800px]">
                             {/* Header Row - Days */}
                             <div className="grid border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50"
-                                style={{ gridTemplateColumns: `repeat(7, 1fr)` }}>
+                                style={{ gridTemplateColumns: `repeat(7, minmax(0, 1fr))` }}>
                                 {weekDates.map((date, i) => {
                                     const isDateToday = isSameDay(date, new Date())
                                     const isSelected = isSameDay(date, selectedDate)
@@ -499,7 +499,7 @@ export default function BookingCalendarView({
                             </div>
 
                             {/* Week Content - Show bookings per day */}
-                            <div className="grid" style={{ gridTemplateColumns: `repeat(7, 1fr)` }}>
+                            <div className="grid" style={{ gridTemplateColumns: `repeat(7, minmax(0, 1fr))` }}>
                                 {weekDates.map((date, i) => {
                                     const dateBookings = getBookingsForDate(date).slice(0, 5) // Show max 5
 
