@@ -193,11 +193,12 @@ function BookingsContent() {
             if (booking) {
                 setSelectedBooking(booking)
                 setDetailModalOpen(true)
-                // Clear the query param after opening
-                router.replace('/admin/bookings', { scroll: false })
+                // Clear the query param silently using history API to avoid re-renders/navigation
+                const newUrl = window.location.pathname
+                window.history.replaceState({}, '', newUrl)
             }
         }
-    }, [searchParams, bookings, router])
+    }, [searchParams, bookings])
 
     // Pagination
     const totalPages = Math.ceil(filteredBookings.length / ITEMS_PER_PAGE)
