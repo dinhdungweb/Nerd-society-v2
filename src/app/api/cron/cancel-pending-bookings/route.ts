@@ -3,11 +3,11 @@ import { NextResponse } from 'next/server'
 import { notifyBookingCancelled } from '@/lib/notifications'
 
 // Configuration
-const PENDING_TIMEOUT_MINUTES = 5 // Hủy booking PENDING sau 5 phút
+const PENDING_TIMEOUT_MINUTES = 15 // Hủy booking PENDING sau 15 phút
 
 /**
  * GET /api/cron/cancel-pending-bookings
- * Cron job: Auto-cancel PENDING bookings older than 5 minutes
+ * Cron job: Auto-cancel PENDING bookings older than 15 minutes
  * 
  * This endpoint should be called by Vercel Cron or external cron service
  */
