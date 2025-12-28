@@ -192,7 +192,7 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
 
                                 <form onSubmit={handleSubmit} className="p-6">
                                     <Dialog.Title as="h3" className="text-lg font-bold leading-6 text-neutral-900 dark:text-white mb-6">
-                                        Tạo Booking Mới (Walk-in)
+                                        Tạo Booking Mới (Walk-in) v2
                                     </Dialog.Title>
 
                                     <div className="space-y-4">
