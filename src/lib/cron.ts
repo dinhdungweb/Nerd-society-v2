@@ -4,13 +4,13 @@ import { sendCheckinReminderEmail } from '@/lib/email'
 import cron from 'node-cron'
 import { differenceInMinutes, startOfDay } from 'date-fns'
 
-const PENDING_TIMEOUT_MINUTES = 5
+const PENDING_TIMEOUT_MINUTES = 600 // Hủy booking PENDING sau 10 giờ (600 phút)
 const ENDING_SOON_MINUTES = 15 // Cảnh báo 15 phút trước khi hết giờ
 const OVERTIME_NOTIFICATION_INTERVAL = 15 // Thông báo lại mỗi 15 phút khi quá giờ
 
 /**
- * Cancel pending bookings that haven't been paid within 5 minutes
- * Cancels all PENDING bookings created more than 5 minutes ago
+ * Cancel pending bookings that haven't been paid within 10 hours
+ * Cancels all PENDING bookings created more than 10 hours ago
  */
 async function cancelPendingBookings() {
     try {
