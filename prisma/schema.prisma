@@ -534,3 +534,109 @@ model ChatMessage {
   @@index([createdAt])
   @@index([senderType])
 }
+
+// ============================================
+// Module 6: Tuyển dụng (Recruitment)
+// ============================================
+
+// Vị trí tuyển dụng
+model Job {
+  id            String   @id @default(cuid())
+  title         String   // "Barista", "Quản lý"
+  slug          String   @unique // URL-friendly slug
+  description   String   @db.Text  // Mô tả chi tiết
+  location      String   // "Tây Sơn", "Hồ Tùng Mậu", "Cả hai"
+  workShift     String   // Ca làm: "Sáng", "Chiều", "Tối", "Linh hoạt"
+  requirements  String   @db.Text  // Yêu cầu
+  benefits      String   @db.Text  // Quyền lợi
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  
+  applications  Application[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+// Trạng thái đơn ứng tuyển
+enum ApplicationStatus {
+  NEW
+  REVIEWING
+  INTERVIEWED
+  ACCEPTED
+  REJECTED
+}
+
+// Đơn ứng tuyển
+model Application {
+  id            String   @id @default(cuid())
+  jobId         String
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  name          String   // Họ tên
+  phone         String   // SĐT (bắt buộc)
+  email         String?  // Email (optional)
+  preferredLocation String // Cơ sở mong muốn làm việc
+  cvUrl         String?  // Link/File CV
+  availability  String?  // Có thể đi làm ca nào
+  
+  status        ApplicationStatus @default(NEW)
+  notes         String?  @db.Text  // Ghi chú admin
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([jobId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================
+// Module 5: Hòm thư góp ý (Feedback)
+// ============================================
+
+enum FeedbackStatus {
+  PENDING   // Chờ xử lý
+  REVIEWED  // Đã xem
+  RESOLVED  // Đã giải quyết  
+  IGNORED   // Bỏ qua
+}
+
+enum FeedbackType {
+  SERVICE_QUALITY   // Chất lượng dịch vụ
+  FACILITIES        // Cơ sở vật chất
+  STAFF_ATTITUDE    // Thái độ nhân viên
+  SUGGESTION        // Đề xuất
+  OTHER             // Khác
+}
+
+model Feedback {
+  id          String         @id @default(cuid())
+  
+  // Người gửi (có thể không đăng nhập)
+  userId      String?
+  name        String         // Tên người gửi
+  email       String?
+  phone       String?
+  
+  // Nội dung  
+  type        FeedbackType   @default(OTHER)
+  subject     String?        // Tiêu đề/chủ đề
+  content     String         @db.Text
+  images      String[]       // URLs ảnh đính kèm
+  
+  // Trạng thái
+  status      FeedbackStatus @default(PENDING)
+  adminNote   String?        @db.Text  // Ghi chú nội bộ
+  
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
+

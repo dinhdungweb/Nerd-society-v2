@@ -15,6 +15,8 @@ const navigation = {
         { name: 'Giới thiệu', href: '/#about' },
         { name: 'Bảng giá', href: '/#combos' },
         { name: 'Địa điểm', href: '/#locations' },
+        { name: 'Tuyển dụng', href: '/tuyen-dung' },
+        { name: 'Góp ý', href: '/gop-y' },
         { name: 'Liên hệ', href: '/#contact' },
     ],
     locations: [
@@ -77,7 +79,7 @@ export default function FooterNerd({ logoUrl }: { logoUrl?: string }) {
                 <div className="absolute -bottom-40 -right-40 size-80 rounded-full bg-primary-500/10 blur-3xl" />
             </div>
 
-            <div className="container relative">
+            <div className="container mx-auto relative">
                 {/* Top section */}
                 <div className="grid gap-12 border-b border-white/10 py-16 lg:grid-cols-12 lg:gap-8">
                     {/* Brand */}

@@ -20,6 +20,7 @@ import {
     ClipboardDocumentListIcon,
     ChatBubbleLeftRightIcon,
     RectangleStackIcon,
+    BriefcaseIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -66,12 +67,15 @@ const navigationGroups: NavGroup[] = [
             { name: 'Gallery', href: '/admin/gallery', icon: PhotoIcon, permissionKey: 'canViewGallery' },
             { name: 'Media', href: '/admin/media', icon: FolderIcon, permissionKey: 'canViewGallery' },
             { name: 'Content', href: '/admin/content', icon: PencilSquareIcon, permissionKey: 'canViewContent' },
+            { name: 'Tuyển dụng', href: '/admin/jobs', icon: BriefcaseIcon, permissionKey: 'canViewSettings' },
+            { name: 'Ứng viên', href: '/admin/applications', icon: UserGroupIcon, permissionKey: 'canViewSettings' },
         ]
     },
     {
         name: 'Hệ thống',
         items: [
             { name: 'Khách hàng', href: '/admin/customers', icon: UsersIcon, permissionKey: 'canViewCustomers' },
+            { name: 'Góp ý', href: '/admin/feedback', icon: ChatBubbleLeftRightIcon, permissionKey: 'canViewSettings' },
             { name: 'Nerd Coin', href: '/admin/nerdcoin', icon: SparklesIcon, permissionKey: 'canViewNerdCoin' },
             { name: 'Email Templates', href: '/admin/email-templates', icon: EnvelopeIcon, permissionKey: 'canViewEmailTemplates' },
             { name: 'Lịch sử', href: '/admin/audit-log', icon: ClipboardDocumentListIcon, permissionKey: 'canViewAuditLog' },

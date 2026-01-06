@@ -33,7 +33,12 @@ export async function POST(request: NextRequest) {
 
         for (const file of files) {
             // Validate file type
-            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+            const allowedTypes = [
+                'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ]
             if (!allowedTypes.includes(file.type)) {
                 continue
             }

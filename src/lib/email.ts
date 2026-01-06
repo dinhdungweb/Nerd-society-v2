@@ -498,7 +498,7 @@ export async function sendCheckinReminderEmail(booking: any) {
 export async function sendAdminNewBookingEmail(booking: any) {
     // 1. Get Admin Email from settings
     const adminEmail = await getSmtpSetting('adminNotificationEmail', undefined)
-    
+
     // If not configured, do nothing
     if (!adminEmail) return
 
@@ -507,7 +507,7 @@ export async function sendAdminNewBookingEmail(booking: any) {
     const serviceName = booking.room?.name || booking.combo?.name || 'Dịch vụ'
     const amount = booking.estimatedAmount || booking.totalAmount || 0
     const formattedAmount = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
-    
+
     const subject = `[ADMIN] Booking mới #${booking.bookingCode} - ${customerName}`
 
     // 3. Email Template
@@ -534,5 +534,74 @@ export async function sendAdminNewBookingEmail(booking: any) {
     const html = getBaseTemplate(content, subject)
 
     // 4. Send Email
+    await sendEmail({ to: adminEmail, subject, html })
+}
+
+export async function sendApplicationEmail(application: any) {
+    const enabled = await isEmailEnabled('emailApplicationReceived')
+    if (!enabled) return
+
+    const recipientEmail = application.email
+    if (!recipientEmail) return
+
+    const variables: Record<string, string> = {
+        name: application.name,
+        jobTitle: application.job?.title || 'Vị trí tuyển dụng',
+        date: new Date(application.createdAt).toLocaleDateString('vi-VN'),
+    }
+
+    const subject = `[Nerd Society] Xác nhận ứng tuyển: ${variables.jobTitle}`
+    const content = `
+        <h1 class="h1">${ICONS.check}Ứng tuyển thành công!</h1>
+        <p class="p">Chào <strong>${variables.name}</strong>,</p>
+        <p class="p">Cảm ơn bạn đã quan tâm và gửi hồ sơ ứng tuyển vào vị trí <strong>${variables.jobTitle}</strong> tại Nerd Society.</p>
+        <p class="p">Hồ sơ của bạn đã được chuyển đến bộ phận tuyển dụng. Chúng tôi sẽ xem xét và liên hệ lại với bạn trong thời gian sớm nhất nếu phù hợp.</p>
+        
+        <div class="info-box">
+             <div class="info-header">${ICONS.info}Thông tin đã gửi</div>
+             <div class="info-item"><span class="info-label">Họ tên</span><span class="info-value">${variables.name}</span></div>
+             <div class="info-item"><span class="info-label">Vị trí</span><span class="info-value">${variables.jobTitle}</span></div>
+             <div class="info-item"><span class="info-label">Ngày gửi</span><span class="info-value">${variables.date}</span></div>
+        </div>
+
+        <p class="p" style="font-size: 14px; text-align: center; color: #A09081;">Chúc bạn một ngày tốt lành!</p>
+    `
+    const html = getBaseTemplate(content, subject)
+
+    await sendEmail({ to: recipientEmail, subject, html })
+}
+
+export async function sendAdminNewApplicationEmail(application: any) {
+    const adminEmail = await getSmtpSetting('adminNotificationEmail', undefined)
+    if (!adminEmail) return
+
+    const subject = `[Recruitment] Ứng viên mới: ${application.name} - ${application.job?.title}`
+
+    // Determine CV link text
+    const cvLink = application.cvUrl
+        ? `<a href="${application.cvUrl.startsWith('http') ? application.cvUrl : process.env.NEXTAUTH_URL + application.cvUrl}" target="_blank" style="color: #9B7850; font-weight: bold;">Xem CV</a>`
+        : 'Không có'
+
+    const content = `
+        <h1 class="h1" style="color: #9B7850;">📄 Hồ sơ ứng tuyển mới</h1>
+        <p class="p">Có một ứng viên mới vừa nộp đơn.</p>
+        
+        <div class="info-box">
+            <div class="info-header">${ICONS.info}Thông tin ứng viên</div>
+            <div class="info-item"><span class="info-label">Vị trí</span><span class="info-value">${application.job?.title}</span></div>
+            <div class="info-item"><span class="info-label">Họ tên</span><span class="info-value">${application.name}</span></div>
+            <div class="info-item"><span class="info-label">Email</span><span class="info-value"><a href="mailto:${application.email}" style="color: inherit; text-decoration: none;">${application.email || 'N/A'}</a></span></div>
+            <div class="info-item"><span class="info-label">SĐT</span><span class="info-value"><a href="tel:${application.phone}" style="color: inherit; text-decoration: none;">${application.phone}</a></span></div>
+            <div class="info-item"><span class="info-label">Cơ sở</span><span class="info-value">${application.preferredLocation}</span></div>
+            <div class="info-item"><span class="info-label">Ca làm</span><span class="info-value">${application.availability || 'N/A'}</span></div>
+            <div class="info-item"><span class="info-label">CV/Porfolio</span><span class="info-value">${cvLink}</span></div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="${process.env.NEXTAUTH_URL}/admin/applications?id=${application.id}" class="button">Xem chi tiết</a>
+        </div>
+    `
+    const html = getBaseTemplate(content, subject)
+
     await sendEmail({ to: adminEmail, subject, html })
 }

@@ -95,7 +95,13 @@ export default function CustomersPage() {
     // V2 Statistics
     const stats = useMemo(() => {
         const total = customers.length
-        const completed = customers.filter(c => c.profileCompletedAt).length
+        const completed = customers.filter(c =>
+            c.dateOfBirth &&
+            c.region &&
+            c.occupation &&
+            c.visitPurpose &&
+            c.visitPurpose.length > 0
+        ).length
         const incomplete = total - completed
         const regions = [...new Set(customers.map(c => c.region).filter(Boolean))]
         const occupations = [...new Set(customers.map(c => c.occupation).filter(Boolean))]
@@ -595,196 +601,184 @@ export default function CustomersPage() {
                     <div className="space-y-6">
                         {selectedCustomer && (
                             <>
-                                {/* Customer Header */}
-                                <div className="flex items-center gap-4">
-                                    <div className="flex size-16 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-2xl font-bold text-white">
+                                {/* Header Profile Card */}
+                                <div className="flex items-center gap-5 rounded-2xl bg-neutral-50 p-4 dark:bg-neutral-800">
+                                    <div className="flex size-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-3xl font-bold text-white">
                                         {selectedCustomer.avatar ? (
-                                            <img src={selectedCustomer.avatar} alt="" className="size-16 rounded-full object-cover" />
+                                            <img src={selectedCustomer.avatar} alt="" className="size-20 rounded-full object-cover" />
                                         ) : (
                                             selectedCustomer.name[0]?.toUpperCase() || 'U'
                                         )}
                                     </div>
-                                    <div>
-                                        <h3 className="text-xl font-semibold text-neutral-900 dark:text-white">
-                                            {selectedCustomer.name}
-                                        </h3>
-                                        <p className="text-neutral-500 dark:text-neutral-400">{selectedCustomer.email}</p>
-                                    </div>
-                                </div>
-
-                                {/* Customer Info Grid */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
-                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Số điện thoại</p>
-                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            {selectedCustomer.phone || 'Chưa cập nhật'}
-                                        </p>
-                                    </div>
-                                    <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
-                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Tổng booking</p>
-                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            {selectedCustomer._count.bookings} lần
-                                        </p>
-                                    </div>
-                                    <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
-                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Giới tính</p>
-                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            {selectedCustomer.gender || 'Chưa cập nhật'}
-                                        </p>
-                                    </div>
-                                    <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
-                                        <div className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                            <CakeIcon className="size-3" />
-                                            <span>Ngày sinh</span>
-                                        </div>
-                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            {selectedCustomer.dateOfBirth
-                                                ? new Date(selectedCustomer.dateOfBirth).toLocaleDateString('vi-VN')
-                                                : 'Chưa cập nhật'}
-                                        </p>
-                                    </div>
-                                    <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
-                                        <div className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                            <CurrencyDollarIcon className="size-3" />
-                                            <span>Nerd Coin</span>
-                                        </div>
-                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            {selectedCustomer.nerdCoinBalance?.toLocaleString('vi-VN') || 0} coin
-                                        </p>
-                                    </div>
-                                    <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
-                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Hạng thành viên</p>
-                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${selectedCustomer.nerdCoinTier === 'GOLD'
-                                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                    <div className="space-y-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h3 className="text-xl font-bold text-neutral-900 dark:text-white">
+                                                {selectedCustomer.name}
+                                            </h3>
+                                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ring-inset ${selectedCustomer.nerdCoinTier === 'GOLD'
+                                                ? 'bg-amber-50 text-amber-700 ring-amber-600/20'
                                                 : selectedCustomer.nerdCoinTier === 'SILVER'
-                                                    ? 'bg-neutral-200 text-neutral-700 dark:bg-neutral-600 dark:text-neutral-300'
-                                                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                                    ? 'bg-neutral-100 text-neutral-700 ring-neutral-500/20'
+                                                    : 'bg-orange-50 text-orange-700 ring-orange-600/20'
                                                 }`}>
-                                                {selectedCustomer.nerdCoinTier || 'BRONZE'}
+                                                {selectedCustomer.nerdCoinTier || 'BRONZE'} MEMBER
                                             </span>
-                                        </p>
-                                    </div>
-                                    <div className="col-span-2 rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
-                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Ngày tham gia</p>
-                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
-                                            {new Date(selectedCustomer.createdAt).toLocaleDateString('vi-VN', {
-                                                weekday: 'long',
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric'
-                                            })}
-                                        </p>
-                                    </div>
-                                    {selectedCustomer.bio && (
-                                        <div className="col-span-2 rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
-                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">Giới thiệu bản thân</p>
-                                            <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
-                                                {selectedCustomer.bio}
-                                            </p>
+                                            {selectedCustomer.dateOfBirth && selectedCustomer.region && selectedCustomer.occupation && selectedCustomer.visitPurpose && selectedCustomer.visitPurpose.length > 0 ? (
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/30">
+                                                    HỒ SƠ ĐÃ HOÀN THIỆN
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-bold text-red-700 ring-1 ring-inset ring-red-600/20 dark:bg-red-900/30 dark:text-red-400 dark:ring-red-500/30">
+                                                    HỒ SƠ CHƯA HOÀN THIỆN
+                                                </span>
+                                            )}
                                         </div>
-                                    )}
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-500 dark:text-neutral-400">
+                                            <div className="flex items-center gap-1.5">
+                                                <EnvelopeIcon className="size-4" />
+                                                {selectedCustomer.email}
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <PhoneIcon className="size-4" />
+                                                {selectedCustomer.phone || 'Chưa cập nhật'}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                {/* V2 Member Profile Section */}
-                                <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-4 dark:border-primary-800/50 dark:bg-primary-900/10">
-                                    <div className="mb-3 flex items-center justify-between">
-                                        <h4 className="font-semibold text-neutral-900 dark:text-white">Hồ sơ thành viên</h4>
-                                        {/* Check actual fields instead of just profileCompletedAt */}
-                                        {selectedCustomer.dateOfBirth && selectedCustomer.region && selectedCustomer.occupation && selectedCustomer.visitPurpose && selectedCustomer.visitPurpose.length > 0 ? (
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                                <CheckBadgeIcon className="size-3" />
-                                                Đã hoàn thiện
-                                            </span>
-                                        ) : (
-                                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                                Chưa hoàn thiện
-                                            </span>
-                                        )}
+                                {/* Quick Stats */}
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="rounded-xl border border-neutral-200 bg-white p-3 text-center dark:border-neutral-800 dark:bg-neutral-900">
+                                        <p className="text-xs text-neutral-500">Booking</p>
+                                        <p className="font-semibold text-neutral-900 dark:text-white">{selectedCustomer._count.bookings}</p>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3 text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <MapPinIcon className="size-4 text-neutral-400" />
-                                            <span className="text-neutral-600 dark:text-neutral-400">Khu vực:</span>
-                                            <span className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.region || '-'}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <BriefcaseIcon className="size-4 text-neutral-400" />
-                                            <span className="text-neutral-600 dark:text-neutral-400">Nghề nghiệp:</span>
-                                            <span className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.occupation || '-'}</span>
-                                        </div>
-                                        <div className="col-span-2 flex items-center gap-2">
-                                            <AcademicCapIcon className="size-4 text-neutral-400" />
-                                            <span className="text-neutral-600 dark:text-neutral-400">Trường học:</span>
-                                            <span className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.school || '-'}</span>
-                                        </div>
-                                        {selectedCustomer.visitPurpose && selectedCustomer.visitPurpose.length > 0 && (
-                                            <div className="col-span-2">
-                                                <div className="mb-1 flex items-center gap-2">
-                                                    <SparklesIcon className="size-4 text-neutral-400" />
-                                                    <span className="text-neutral-600 dark:text-neutral-400">Mục đích tới:</span>
+                                    <div className="rounded-xl border border-neutral-200 bg-white p-3 text-center dark:border-neutral-800 dark:bg-neutral-900">
+                                        <p className="text-xs text-neutral-500">Nerd Coin</p>
+                                        <p className="font-semibold text-primary-600">{selectedCustomer.nerdCoinBalance?.toLocaleString() || 0}</p>
+                                    </div>
+                                    <div className="rounded-xl border border-neutral-200 bg-white p-3 text-center dark:border-neutral-800 dark:bg-neutral-900">
+                                        <p className="text-xs text-neutral-500">Ngày tham gia</p>
+                                        <p className="font-semibold text-neutral-900 dark:text-white">{new Date(selectedCustomer.createdAt).toLocaleDateString('vi-VN')}</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                    {/* Personal Info */}
+                                    <div className="flex flex-col gap-3">
+                                        <h4 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-neutral-500">
+                                            <UserIcon className="size-4" /> Thông tin cá nhân
+                                        </h4>
+                                        <div className="flex-1 rounded-xl border border-neutral-200 bg-white p-4 text-sm dark:border-neutral-800 dark:bg-neutral-900">
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between">
+                                                    <span className="text-neutral-500">Họ và tên:</span>
+                                                    <span className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.name}</span>
                                                 </div>
-                                                <div className="ml-6 flex flex-wrap gap-1">
-                                                    {selectedCustomer.visitPurpose.map(p => (
-                                                        <span key={p} className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
-                                                            {p}
-                                                        </span>
-                                                    ))}
+                                                <div className="flex justify-between">
+                                                    <span className="text-neutral-500">Email:</span>
+                                                    <span className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.email}</span>
                                                 </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-neutral-500">Số điện thoại:</span>
+                                                    <span className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.phone || '-'}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-neutral-500">Giới tính:</span>
+                                                    <span className="font-medium text-neutral-900 dark:text-white">
+                                                        {selectedCustomer.gender === 'Male' ? 'Nam' : selectedCustomer.gender === 'Female' ? 'Nữ' : selectedCustomer.gender || '-'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-neutral-500">Ngày sinh:</span>
+                                                    <span className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.dateOfBirth ? new Date(selectedCustomer.dateOfBirth).toLocaleDateString('vi-VN') : '-'}</span>
+                                                </div>
+                                                {selectedCustomer.bio && (
+                                                    <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                                                        <p className="text-neutral-500 mb-1">Giới thiệu:</p>
+                                                        <p className="text-neutral-700 dark:text-neutral-300 italic">"{selectedCustomer.bio}"</p>
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
+                                        </div>
+                                    </div>
+
+                                    {/* Membership Profile */}
+                                    <div className="flex flex-col gap-3">
+                                        <h4 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-neutral-500">
+                                            <CheckBadgeIcon className="size-4" /> Hồ sơ thành viên
+                                        </h4>
+                                        <div className="flex-1 rounded-xl border border-neutral-200 bg-white p-4 text-sm dark:border-neutral-800 dark:bg-neutral-900">
+                                            <div className="space-y-3">
+                                                <div className="flex items-start gap-3">
+                                                    <MapPinIcon className="size-4 shrink-0 text-neutral-400 mt-0.5" />
+                                                    <div>
+                                                        <p className="text-neutral-500 text-xs">Khu vực</p>
+                                                        <p className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.region || '-'}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-start gap-3">
+                                                    <BriefcaseIcon className="size-4 shrink-0 text-neutral-400 mt-0.5" />
+                                                    <div>
+                                                        <p className="text-neutral-500 text-xs">Nghề nghiệp</p>
+                                                        <p className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.occupation || '-'}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-start gap-3">
+                                                    <AcademicCapIcon className="size-4 shrink-0 text-neutral-400 mt-0.5" />
+                                                    <div>
+                                                        <p className="text-neutral-500 text-xs">Trường học</p>
+                                                        <p className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.school || '-'}</p>
+                                                    </div>
+                                                </div>
+                                                {selectedCustomer.visitPurpose && selectedCustomer.visitPurpose.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 pt-1">
+                                                        {selectedCustomer.visitPurpose.map(p => (
+                                                            <span key={p} className="rounded-md bg-neutral-100 px-2 py-1 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                                                                {p}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Booking History */}
-                                <div>
-                                    <h4 className="mb-3 font-semibold text-neutral-900 dark:text-white">
-                                        Lịch sử đặt phòng
+                                <div className="space-y-3">
+                                    <h4 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-neutral-500">
+                                        <CalendarDaysIcon className="size-4" /> Lịch sử đặt phòng
                                     </h4>
                                     {loadingDetail ? (
                                         <div className="space-y-2">
                                             {[1, 2, 3].map(i => (
-                                                <div key={i} className="h-16 animate-pulse rounded-xl bg-neutral-100 dark:bg-neutral-800" />
+                                                <div key={i} className="h-14 animate-pulse rounded-lg bg-neutral-100 dark:bg-neutral-800" />
                                             ))}
                                         </div>
                                     ) : selectedCustomer.bookings && selectedCustomer.bookings.length > 0 ? (
-                                        <div className="max-h-64 space-y-2 overflow-y-auto">
+                                        <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                                             {selectedCustomer.bookings.map(booking => (
-                                                <div
-                                                    key={booking.id}
-                                                    className="flex items-center justify-between rounded-xl border border-neutral-200 p-3 dark:border-neutral-700"
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <CalendarDaysIcon className="size-5 text-neutral-400" />
-                                                        <div>
-                                                            <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                                                                {booking.bookingCode}
-                                                            </p>
-                                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                                {new Date(booking.date).toLocaleDateString('vi-VN')} • {booking.startTime} - {booking.endTime}
-                                                            </p>
-                                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                                {booking.room.name} • {booking.location.name}
-                                                            </p>
+                                                <div key={booking.id} className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3 text-sm hover:border-primary-200 dark:border-neutral-800 dark:bg-neutral-900">
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium text-neutral-900 dark:text-white">{booking.bookingCode}</span>
+                                                            <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] uppercase font-bold ${statusStyles[booking.status]}`}>
+                                                                {statusLabels[booking.status]}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs text-neutral-500 mt-0.5">
+                                                            {new Date(booking.date).toLocaleDateString('vi-VN')} • {booking.startTime}-{booking.endTime}
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[booking.status]}`}>
-                                                            {statusLabels[booking.status]}
-                                                        </span>
-                                                        <p className="mt-1 text-sm font-medium text-neutral-900 dark:text-white">
-                                                            {new Intl.NumberFormat('vi-VN').format(booking.estimatedAmount)}đ
-                                                        </p>
+                                                    <div className="text-right font-medium text-primary-600">
+                                                        {new Intl.NumberFormat('vi-VN').format(booking.estimatedAmount)}đ
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="rounded-xl bg-neutral-50 py-8 text-center dark:bg-neutral-800">
-                                            <CalendarDaysIcon className="mx-auto size-8 text-neutral-300 dark:text-neutral-600" />
-                                            <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-                                                Chưa có booking nào
-                                            </p>
+                                        <div className="rounded-xl border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500 dark:border-neutral-800">
+                                            Chưa có lịch sử đặt phòng
                                         </div>
                                     )}
                                 </div>

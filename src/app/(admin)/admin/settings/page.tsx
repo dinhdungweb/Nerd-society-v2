@@ -37,6 +37,9 @@ interface GeneralSettings {
     smtpFrom: string
     // Admin Notification
     adminNotificationEmail: string
+    // Page Backgrounds
+    recruitmentHeroImage?: string
+    feedbackHeroImage?: string
 }
 
 export default function AdminSettingsPage() {
@@ -50,10 +53,17 @@ export default function AdminSettingsPage() {
     const [showLogoPicker, setShowLogoPicker] = useState(false)
     const [showLogoLightPicker, setShowLogoLightPicker] = useState(false)
     const [showFaviconPicker, setShowFaviconPicker] = useState(false)
+    const [showRecruitmentHeroPicker, setShowRecruitmentHeroPicker] = useState(false)
+    const [showFeedbackHeroPicker, setShowFeedbackHeroPicker] = useState(false)
+
+    const [uploadingRecruitmentHero, setUploadingRecruitmentHero] = useState(false)
+    const [uploadingFeedbackHero, setUploadingFeedbackHero] = useState(false)
 
     const logoInputRef = useRef<HTMLInputElement>(null)
     const logoLightInputRef = useRef<HTMLInputElement>(null)
     const faviconInputRef = useRef<HTMLInputElement>(null)
+    const recruitmentHeroInputRef = useRef<HTMLInputElement>(null)
+    const feedbackHeroInputRef = useRef<HTMLInputElement>(null)
 
     const [settings, setSettings] = useState<GeneralSettings>({
         siteName: 'Nerd Society',
@@ -74,6 +84,8 @@ export default function AdminSettingsPage() {
         smtpPass: '',
         smtpFrom: '',
         adminNotificationEmail: '',
+        recruitmentHeroImage: '',
+        feedbackHeroImage: '',
     })
 
     useEffect(() => {
@@ -639,6 +651,149 @@ export default function AdminSettingsPage() {
                     <FloatingButtonsSettings />
                 </div>
 
+                {/* PAGE SETTINGS CARD */}
+                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-6 flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+                            <PhotoIcon className="size-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Hình nền trang con</h2>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">Cấu hình background cho các trang phụ</p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-8 md:grid-cols-2">
+                        {/* RECRUITMENT HERO IMAGE */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Trang Tuyển dụng (Hero Background)
+                            </label>
+                            <div className="flex flex-col gap-4">
+                                <div className="relative flex h-40 w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800">
+                                    {settings.recruitmentHeroImage ? (
+                                        <div className="relative size-full p-0">
+                                            <Image
+                                                src={settings.recruitmentHeroImage}
+                                                alt="Recruitment Hero"
+                                                fill
+                                                className="object-cover"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => handleChange('recruitmentHeroImage', '')}
+                                                className="absolute right-2 top-2 rounded-full bg-red-500 p-1.5 text-white shadow-lg transition hover:bg-red-600 z-10"
+                                            >
+                                                <TrashIcon className="size-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center text-neutral-400">
+                                            <PhotoIcon className="size-8" />
+                                            <span className="mt-2 text-xs">Chưa có ảnh nền</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <input
+                                        ref={recruitmentHeroInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => handleImageUpload(e, 'recruitmentHeroImage', setUploadingRecruitmentHero)}
+                                        className="hidden"
+                                    />
+                                    <Button
+                                        type="button"
+                                        onClick={() => recruitmentHeroInputRef.current?.click()}
+                                        loading={uploadingRecruitmentHero}
+                                        disabled={uploadingRecruitmentHero}
+                                        className="flex-1 py-1 text-sm"
+                                        outline
+                                    >
+                                        <CloudArrowUpIcon className="mr-2 size-4" />
+                                        Tải lên
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setShowRecruitmentHeroPicker(true)}
+                                        className="py-1 text-sm"
+                                        outline
+                                    >
+                                        <FolderOpenIcon className="size-4" />
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-neutral-500">
+                                    Ảnh nền Hero trang tuyển dụng. Khuyên dùng: 1920x1080px
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* FEEDBACK HERO IMAGE */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Trang Góp ý (Hero Background)
+                            </label>
+                            <div className="flex flex-col gap-4">
+                                <div className="relative flex h-40 w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800">
+                                    {settings.feedbackHeroImage ? (
+                                        <div className="relative size-full p-0">
+                                            <Image
+                                                src={settings.feedbackHeroImage}
+                                                alt="Feedback Hero"
+                                                fill
+                                                className="object-cover"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => handleChange('feedbackHeroImage', '')}
+                                                className="absolute right-2 top-2 rounded-full bg-red-500 p-1.5 text-white shadow-lg transition hover:bg-red-600 z-10"
+                                            >
+                                                <TrashIcon className="size-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center text-neutral-400">
+                                            <PhotoIcon className="size-8" />
+                                            <span className="mt-2 text-xs">Chưa có ảnh nền</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <input
+                                        ref={feedbackHeroInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => handleImageUpload(e, 'feedbackHeroImage', setUploadingFeedbackHero)}
+                                        className="hidden"
+                                    />
+                                    <Button
+                                        type="button"
+                                        onClick={() => feedbackHeroInputRef.current?.click()}
+                                        loading={uploadingFeedbackHero}
+                                        disabled={uploadingFeedbackHero}
+                                        className="flex-1 py-1 text-sm"
+                                        outline
+                                    >
+                                        <CloudArrowUpIcon className="mr-2 size-4" />
+                                        Tải lên
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setShowFeedbackHeroPicker(true)}
+                                        className="py-1 text-sm"
+                                        outline
+                                    >
+                                        <FolderOpenIcon className="size-4" />
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-neutral-500">
+                                    Ảnh nền Hero trang góp ý. Khuyên dùng: 1920x1080px
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Save Button */}
                 <div className="flex justify-end">
                     <Button
@@ -672,6 +827,20 @@ export default function AdminSettingsPage() {
                 onClose={() => setShowFaviconPicker(false)}
                 onSelect={(urls) => {
                     if (urls.length > 0) handleChange('siteFavicon', urls[0])
+                }}
+            />
+            <MediaPickerModal
+                isOpen={showRecruitmentHeroPicker}
+                onClose={() => setShowRecruitmentHeroPicker(false)}
+                onSelect={(urls) => {
+                    if (urls.length > 0) handleChange('recruitmentHeroImage', urls[0])
+                }}
+            />
+            <MediaPickerModal
+                isOpen={showFeedbackHeroPicker}
+                onClose={() => setShowFeedbackHeroPicker(false)}
+                onSelect={(urls) => {
+                    if (urls.length > 0) handleChange('feedbackHeroImage', urls[0])
                 }}
             />
         </div>

@@ -39,6 +39,8 @@ const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
         canViewAuditLog: true,
         canViewEmailTemplates: true,
         canManageEmailTemplates: true,
+        canViewRecruitment: true,
+        canManageRecruitment: true,
     },
     STAFF: {
         canViewDashboard: true,
@@ -72,6 +74,8 @@ const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
         canViewAuditLog: false,
         canViewEmailTemplates: false,
         canManageEmailTemplates: false,
+        canViewRecruitment: false,
+        canManageRecruitment: false,
     },
     CONTENT_EDITOR: {
         canViewDashboard: false,
@@ -105,6 +109,8 @@ const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
         canViewAuditLog: false,
         canViewEmailTemplates: false,
         canManageEmailTemplates: false,
+        canViewRecruitment: false,
+        canManageRecruitment: false,
     },
 }
 
@@ -124,6 +130,7 @@ export type PermissionKey =
     | 'canViewStaff' | 'canManageStaff'
     | 'canViewAuditLog'
     | 'canViewEmailTemplates' | 'canManageEmailTemplates'
+    | 'canViewRecruitment' | 'canManageRecruitment'
 
 /**
  * Get permissions for a specific role from database
@@ -202,7 +209,7 @@ export async function checkApiPermission(requiredPermission: PermissionKey): Pro
 /**
  * Quick check for view permissions (commonly used pattern)
  */
-export async function canView(resource: 'Dashboard' | 'Reports' | 'Bookings' | 'Chat' | 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'NerdCoin' | 'Settings' | 'Staff' | 'AuditLog' | 'EmailTemplates'): Promise<{
+export async function canView(resource: 'Dashboard' | 'Reports' | 'Bookings' | 'Chat' | 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'NerdCoin' | 'Settings' | 'Staff' | 'AuditLog' | 'EmailTemplates' | 'Recruitment'): Promise<{
     session: any | null
     hasAccess: boolean
     role: string | null
@@ -214,7 +221,7 @@ export async function canView(resource: 'Dashboard' | 'Reports' | 'Bookings' | '
 /**
  * Quick check for manage permissions (commonly used pattern)
  */
-export async function canManage(resource: 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'NerdCoin' | 'Staff' | 'EmailTemplates'): Promise<{
+export async function canManage(resource: 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'NerdCoin' | 'Staff' | 'EmailTemplates' | 'Recruitment'): Promise<{
     session: any | null
     hasAccess: boolean
     role: string | null

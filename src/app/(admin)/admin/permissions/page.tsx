@@ -59,6 +59,8 @@ interface Permissions {
     canViewAuditLog: boolean
     canViewEmailTemplates: boolean
     canManageEmailTemplates: boolean
+    canViewRecruitment: boolean
+    canManageRecruitment: boolean
 }
 
 type RoleKey = 'MANAGER' | 'STAFF' | 'CONTENT_EDITOR'
@@ -139,6 +141,10 @@ const permissionLabels: Record<keyof Permissions, { label: string; description: 
     canViewAuditLog: { label: 'Xem Lịch sử', description: 'Xem lịch sử thao tác', group: 'Hệ thống' },
     canViewEmailTemplates: { label: 'Xem Email Templates', description: 'Xem mẫu email', group: 'Hệ thống' },
     canManageEmailTemplates: { label: 'Quản lý Email Templates', description: 'Sửa mẫu email', group: 'Hệ thống' },
+
+    // Recruitment
+    canViewRecruitment: { label: 'Xem Tuyển dụng', description: 'Xem danh sách tin tuyển dụng và ứng viên', group: 'Tuyển dụng' },
+    canManageRecruitment: { label: 'Quản lý Tuyển dụng', description: 'Đăng tin, sửa, xóa tin tuyển dụng và cập nhật trạng thái ứng viên', group: 'Tuyển dụng' },
 }
 
 export default function PermissionsPage() {

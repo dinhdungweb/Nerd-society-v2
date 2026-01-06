@@ -64,7 +64,7 @@ export default function HeaderNerd({ logoUrl, logoLightUrl }: { logoUrl?: string
                 : 'bg-transparent'
                 }`}
         >
-            <nav className="container">
+            <nav className="container mx-auto">
                 <div className="flex h-20 items-center justify-between">
                     {/* Logo */}
                     <Link href="/" className="group flex items-center gap-2.5">

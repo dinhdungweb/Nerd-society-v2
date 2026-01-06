@@ -33,7 +33,10 @@ export async function GET() {
                 // V2 Member Profile fields
                 region: true,
                 occupation: true,
+                school: true,
+                visitPurpose: true,
                 profileCompletedAt: true,
+                dateOfBirth: true,
                 _count: { select: { bookings: true } },
             },
         })
