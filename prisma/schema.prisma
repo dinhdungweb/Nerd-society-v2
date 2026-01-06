@@ -28,6 +28,13 @@ model User {
   nerdCoinTier       String    @default("BRONZE") // BRONZE, SILVER, GOLD
   isLocked           Boolean   @default(false)    // User locked status
   
+  // Profile completion fields (V2 - Member Profile)
+  region             String?           // Khu vực đang sinh sống
+  occupation         String?           // Nghề nghiệp: Học sinh/Sinh viên/Freelancer/Nhân viên văn phòng/Khác
+  school             String?           // Trường đang theo học (nếu có)
+  visitPurpose       String[]          // Mục đích tới: ["Làm việc", "Họp nhóm", "Học tập", ...]
+  profileCompletedAt DateTime?         // Thời điểm hoàn thiện profile
+  
   // Staff assignment (chỉ áp dụng cho STAFF role)
   assignedLocationId String?   // Location mà staff được phân công
   assignedLocation   Location? @relation(fields: [assignedLocationId], references: [id])

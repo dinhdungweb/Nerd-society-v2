@@ -11,7 +11,10 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json()
-        const { name, phone, gender, dateOfBirth, address, bio, avatar } = body
+        const { name, phone, gender, dateOfBirth, address, bio, avatar, region, occupation, school, visitPurpose } = body
+
+        // Check if profile is completed (V2 fields filled + dateOfBirth for birthday benefits)
+        const isProfileComplete = dateOfBirth && region && occupation && visitPurpose && visitPurpose.length > 0
 
         await prisma.user.update({
             where: { id: session.user.id },
@@ -23,6 +26,12 @@ export async function POST(req: Request) {
                 address: address || null,
                 bio: bio || null,
                 avatar: avatar || null,
+                // V2 Member Profile fields
+                region: region || null,
+                occupation: occupation || null,
+                school: school || null,
+                visitPurpose: visitPurpose || [],
+                profileCompletedAt: isProfileComplete ? new Date() : null,
             },
         })
 

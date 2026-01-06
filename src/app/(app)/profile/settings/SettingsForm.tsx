@@ -17,6 +17,12 @@ interface User {
     dateOfBirth: Date | string | null
     address: string | null
     bio: string | null
+    // V2 Member Profile fields
+    region: string | null
+    occupation: string | null
+    school: string | null
+    visitPurpose: string[]
+    profileCompletedAt: Date | string | null
 }
 
 interface SettingsFormProps {
@@ -29,11 +35,41 @@ const genderOptions = [
     { value: 'Other', label: 'Khác' },
 ]
 
+const regionOptions = [
+    { value: 'Hà Nội', label: 'Hà Nội' },
+    { value: 'TP. Hồ Chí Minh', label: 'TP. Hồ Chí Minh' },
+    { value: 'Đà Nẵng', label: 'Đà Nẵng' },
+    { value: 'Hải Phòng', label: 'Hải Phòng' },
+    { value: 'Cần Thơ', label: 'Cần Thơ' },
+    { value: 'Khác', label: 'Tỉnh/Thành khác' },
+]
+
+const occupationOptions = [
+    { value: 'Học sinh', label: 'Học sinh' },
+    { value: 'Sinh viên', label: 'Sinh viên' },
+    { value: 'Freelancer', label: 'Freelancer' },
+    { value: 'Nhân viên văn phòng', label: 'Nhân viên văn phòng' },
+    { value: 'Doanh nhân', label: 'Doanh nhân / Chủ doanh nghiệp' },
+    { value: 'Khác', label: 'Khác' },
+]
+
+const visitPurposeOptions = [
+    { value: 'Làm việc', label: 'Làm việc cá nhân' },
+    { value: 'Họp nhóm', label: 'Họp nhóm / Meeting' },
+    { value: 'Học tập', label: 'Học tập / Ôn thi' },
+    { value: 'Networking', label: 'Networking / Gặp gỡ' },
+    { value: 'Thư giãn', label: 'Thư giãn / Đọc sách' },
+    { value: 'Khác', label: 'Khác' },
+]
+
 export default function SettingsForm({ user }: SettingsFormProps) {
     const { update } = useSession()
     const [isPending, startTransition] = useTransition()
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar)
     const [showGenderDropdown, setShowGenderDropdown] = useState(false)
+    const [showRegionDropdown, setShowRegionDropdown] = useState(false)
+    const [showOccupationDropdown, setShowOccupationDropdown] = useState(false)
+    const [selectedPurposes, setSelectedPurposes] = useState<string[]>(user.visitPurpose || [])
     const [dateOfBirth, setDateOfBirth] = useState<Date | null>(
         user.dateOfBirth ? new Date(user.dateOfBirth) : null
     )
@@ -43,6 +79,10 @@ export default function SettingsForm({ user }: SettingsFormProps) {
         gender: user.gender || 'Male',
         address: user.address || '',
         bio: user.bio || '',
+        // V2 fields
+        region: user.region || '',
+        occupation: user.occupation || '',
+        school: user.school || '',
     })
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -52,6 +92,24 @@ export default function SettingsForm({ user }: SettingsFormProps) {
     const handleGenderSelect = (value: string) => {
         setFormData({ ...formData, gender: value })
         setShowGenderDropdown(false)
+    }
+
+    const handleRegionSelect = (value: string) => {
+        setFormData({ ...formData, region: value })
+        setShowRegionDropdown(false)
+    }
+
+    const handleOccupationSelect = (value: string) => {
+        setFormData({ ...formData, occupation: value })
+        setShowOccupationDropdown(false)
+    }
+
+    const handlePurposeToggle = (value: string) => {
+        setSelectedPurposes(prev =>
+            prev.includes(value)
+                ? prev.filter(p => p !== value)
+                : [...prev, value]
+        )
     }
 
     const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,6 +154,7 @@ export default function SettingsForm({ user }: SettingsFormProps) {
                         ...formData,
                         dateOfBirth: dateOfBirth?.toISOString().split('T')[0] || null,
                         avatar: avatarPreview,
+                        visitPurpose: selectedPurposes,
                     }),
                 })
 
@@ -248,25 +307,120 @@ export default function SettingsForm({ user }: SettingsFormProps) {
                         />
                     </div>
 
-                    {/* Address */}
+                    {/* Region & Occupation */}
+                    <div className="grid gap-6 sm:grid-cols-2">
+                        {/* Region Dropdown */}
+                        <div className="relative">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Khu vực sinh sống
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setShowRegionDropdown(!showRegionDropdown)}
+                                className="flex w-full items-center justify-between rounded-xl border border-neutral-300 bg-white px-4 py-3 text-left text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white"
+                            >
+                                <span>{formData.region || 'Chọn khu vực'}</span>
+                                <ChevronDownIcon className={`size-5 text-neutral-400 transition-transform ${showRegionDropdown ? 'rotate-180' : ''}`} />
+                            </button>
+                            {showRegionDropdown && (
+                                <div className="absolute z-10 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+                                    {regionOptions.map((option) => (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => handleRegionSelect(option.value)}
+                                            className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-700 ${option.value === formData.region
+                                                ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400'
+                                                : 'text-neutral-700 dark:text-neutral-300'
+                                                } first:rounded-t-xl last:rounded-b-xl`}
+                                        >
+                                            <span className="font-medium">{option.label}</span>
+                                            {option.value === formData.region && (
+                                                <CheckIcon className="ml-auto size-5 text-primary-500" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Occupation Dropdown */}
+                        <div className="relative">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Nghề nghiệp
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setShowOccupationDropdown(!showOccupationDropdown)}
+                                className="flex w-full items-center justify-between rounded-xl border border-neutral-300 bg-white px-4 py-3 text-left text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white"
+                            >
+                                <span>{formData.occupation || 'Chọn nghề nghiệp'}</span>
+                                <ChevronDownIcon className={`size-5 text-neutral-400 transition-transform ${showOccupationDropdown ? 'rotate-180' : ''}`} />
+                            </button>
+                            {showOccupationDropdown && (
+                                <div className="absolute z-10 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+                                    {occupationOptions.map((option) => (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => handleOccupationSelect(option.value)}
+                                            className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-700 ${option.value === formData.occupation
+                                                ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400'
+                                                : 'text-neutral-700 dark:text-neutral-300'
+                                                } first:rounded-t-xl last:rounded-b-xl`}
+                                        >
+                                            <span className="font-medium">{option.label}</span>
+                                            {option.value === formData.occupation && (
+                                                <CheckIcon className="ml-auto size-5 text-primary-500" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* School */}
                     <div>
                         <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                            Địa chỉ
+                            Trường đang theo học <span className="text-neutral-400">(nếu có)</span>
                         </label>
                         <input
                             type="text"
-                            name="address"
-                            value={formData.address}
+                            name="school"
+                            value={formData.school}
                             onChange={handleChange}
                             className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white"
-                            placeholder="Nhập địa chỉ"
+                            placeholder="VD: Đại học Bách khoa Hà Nội"
                         />
+                    </div>
+
+                    {/* Visit Purpose - Multi-select */}
+                    <div>
+                        <label className="mb-3 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                            Mục đích tới Nerd
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            {visitPurposeOptions.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => handlePurposeToggle(option.value)}
+                                    className={`rounded-full px-4 py-2 text-sm font-medium transition-all ${selectedPurposes.includes(option.value)
+                                        ? 'bg-primary-500 text-white shadow-md'
+                                        : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-600'
+                                        }`}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Bio */}
                     <div>
                         <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                            Giới thiệu bản thân
+                            Giới thiệu bản thân <span className="text-neutral-400">(tùy chọn)</span>
                         </label>
                         <textarea
                             name="bio"

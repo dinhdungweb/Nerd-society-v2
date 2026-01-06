@@ -30,6 +30,10 @@ export async function GET() {
                 avatar: true,
                 createdAt: true,
                 isLocked: true,
+                // V2 Member Profile fields
+                region: true,
+                occupation: true,
+                profileCompletedAt: true,
                 _count: { select: { bookings: true } },
             },
         })

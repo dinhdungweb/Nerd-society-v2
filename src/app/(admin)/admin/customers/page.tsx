@@ -12,6 +12,13 @@ import {
     ChevronRightIcon,
     FunnelIcon,
     ArrowDownTrayIcon,
+    CheckBadgeIcon,
+    MapPinIcon,
+    BriefcaseIcon,
+    AcademicCapIcon,
+    SparklesIcon,
+    CakeIcon,
+    CurrencyDollarIcon,
 } from '@heroicons/react/24/outline'
 import NcModal from '@/shared/NcModal'
 
@@ -22,6 +29,18 @@ interface Customer {
     phone: string | null
     avatar: string | null
     createdAt: string
+    // V2 fields
+    region: string | null
+    occupation: string | null
+    school?: string | null
+    visitPurpose?: string[]
+    profileCompletedAt: string | null
+    gender?: string | null
+    dateOfBirth?: string | null
+    address?: string | null
+    bio?: string | null
+    nerdCoinBalance?: number
+    nerdCoinTier?: string
     _count: { bookings: number }
     bookings?: Booking[]
 }
@@ -68,6 +87,20 @@ export default function CustomersPage() {
     const [loadingDetail, setLoadingDetail] = useState(false)
     const [sortBy, setSortBy] = useState<'name' | 'createdAt' | 'bookings'>('createdAt')
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+    // V2 Filters
+    const [filterRegion, setFilterRegion] = useState<string>('')
+    const [filterOccupation, setFilterOccupation] = useState<string>('')
+    const [filterProfileCompleted, setFilterProfileCompleted] = useState<'all' | 'completed' | 'incomplete'>('all')
+
+    // V2 Statistics
+    const stats = useMemo(() => {
+        const total = customers.length
+        const completed = customers.filter(c => c.profileCompletedAt).length
+        const incomplete = total - completed
+        const regions = [...new Set(customers.map(c => c.region).filter(Boolean))]
+        const occupations = [...new Set(customers.map(c => c.occupation).filter(Boolean))]
+        return { total, completed, incomplete, regions, occupations }
+    }, [customers])
 
     useEffect(() => {
         fetchCustomers()
@@ -112,11 +145,19 @@ export default function CustomersPage() {
     const filteredCustomers = useMemo(() => {
         let result = customers.filter(customer => {
             const query = searchQuery.toLowerCase()
-            return (
+            const matchesSearch = (
                 customer.name.toLowerCase().includes(query) ||
                 customer.email.toLowerCase().includes(query) ||
                 (customer.phone && customer.phone.includes(query))
             )
+            // V2 Filters
+            const matchesRegion = !filterRegion || customer.region === filterRegion
+            const matchesOccupation = !filterOccupation || customer.occupation === filterOccupation
+            const matchesProfileCompleted = filterProfileCompleted === 'all' ||
+                (filterProfileCompleted === 'completed' && customer.profileCompletedAt) ||
+                (filterProfileCompleted === 'incomplete' && !customer.profileCompletedAt)
+
+            return matchesSearch && matchesRegion && matchesOccupation && matchesProfileCompleted
         })
 
         // Sort
@@ -137,7 +178,7 @@ export default function CustomersPage() {
         })
 
         return result
-    }, [customers, searchQuery, sortBy, sortOrder])
+    }, [customers, searchQuery, sortBy, sortOrder, filterRegion, filterOccupation, filterProfileCompleted])
 
     // Pagination
     const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE)
@@ -175,6 +216,54 @@ export default function CustomersPage() {
 
     return (
         <div className="space-y-6">
+            {/* V2 Stats Cards */}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                            <UserIcon className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.total}</p>
+                            <p className="text-xs text-neutral-500">Tổng khách hàng</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                            <CheckBadgeIcon className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.completed}</p>
+                            <p className="text-xs text-neutral-500">Đã hoàn thiện hồ sơ</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                            <MapPinIcon className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.regions.length}</p>
+                            <p className="text-xs text-neutral-500">Khu vực</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-full bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+                            <BriefcaseIcon className="size-5" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.occupations.length}</p>
+                            <p className="text-xs text-neutral-500">Nghề nghiệp</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Header */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -221,6 +310,45 @@ export default function CustomersPage() {
                         <option value="name-desc">Tên Z-A</option>
                         <option value="bookings-desc">Booking nhiều nhất</option>
                     </select>
+
+                    {/* V2 Filter: Profile Status */}
+                    <select
+                        value={filterProfileCompleted}
+                        onChange={e => setFilterProfileCompleted(e.target.value as any)}
+                        className="rounded-xl border border-neutral-200 bg-white py-2.5 pl-3 pr-8 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                    >
+                        <option value="all">Tất cả hồ sơ</option>
+                        <option value="completed">Đã hoàn thiện</option>
+                        <option value="incomplete">Chưa hoàn thiện</option>
+                    </select>
+
+                    {/* V2 Filter: Region */}
+                    {stats.regions.length > 0 && (
+                        <select
+                            value={filterRegion}
+                            onChange={e => setFilterRegion(e.target.value)}
+                            className="rounded-xl border border-neutral-200 bg-white py-2.5 pl-3 pr-8 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                        >
+                            <option value="">Tất cả khu vực</option>
+                            {stats.regions.map(r => (
+                                <option key={r} value={r!}>{r}</option>
+                            ))}
+                        </select>
+                    )}
+
+                    {/* V2 Filter: Occupation */}
+                    {stats.occupations.length > 0 && (
+                        <select
+                            value={filterOccupation}
+                            onChange={e => setFilterOccupation(e.target.value)}
+                            className="rounded-xl border border-neutral-200 bg-white py-2.5 pl-3 pr-8 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                        >
+                            <option value="">Tất cả nghề nghiệp</option>
+                            {stats.occupations.map(o => (
+                                <option key={o} value={o!}>{o}</option>
+                            ))}
+                        </select>
+                    )}
 
                     {/* Export Button */}
                     <a
@@ -498,6 +626,45 @@ export default function CustomersPage() {
                                             {selectedCustomer._count.bookings} lần
                                         </p>
                                     </div>
+                                    <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Giới tính</p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                            {selectedCustomer.gender || 'Chưa cập nhật'}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
+                                        <div className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                            <CakeIcon className="size-3" />
+                                            <span>Ngày sinh</span>
+                                        </div>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                            {selectedCustomer.dateOfBirth
+                                                ? new Date(selectedCustomer.dateOfBirth).toLocaleDateString('vi-VN')
+                                                : 'Chưa cập nhật'}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
+                                        <div className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                            <CurrencyDollarIcon className="size-3" />
+                                            <span>Nerd Coin</span>
+                                        </div>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                            {selectedCustomer.nerdCoinBalance?.toLocaleString('vi-VN') || 0} coin
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Hạng thành viên</p>
+                                        <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${selectedCustomer.nerdCoinTier === 'GOLD'
+                                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                : selectedCustomer.nerdCoinTier === 'SILVER'
+                                                    ? 'bg-neutral-200 text-neutral-700 dark:bg-neutral-600 dark:text-neutral-300'
+                                                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                                }`}>
+                                                {selectedCustomer.nerdCoinTier || 'BRONZE'}
+                                            </span>
+                                        </p>
+                                    </div>
                                     <div className="col-span-2 rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
                                         <p className="text-xs text-neutral-500 dark:text-neutral-400">Ngày tham gia</p>
                                         <p className="mt-1 font-medium text-neutral-900 dark:text-white">
@@ -508,6 +675,64 @@ export default function CustomersPage() {
                                                 day: 'numeric'
                                             })}
                                         </p>
+                                    </div>
+                                    {selectedCustomer.bio && (
+                                        <div className="col-span-2 rounded-xl bg-neutral-50 p-4 dark:bg-neutral-800">
+                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">Giới thiệu bản thân</p>
+                                            <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
+                                                {selectedCustomer.bio}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* V2 Member Profile Section */}
+                                <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-4 dark:border-primary-800/50 dark:bg-primary-900/10">
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <h4 className="font-semibold text-neutral-900 dark:text-white">Hồ sơ thành viên</h4>
+                                        {/* Check actual fields instead of just profileCompletedAt */}
+                                        {selectedCustomer.dateOfBirth && selectedCustomer.region && selectedCustomer.occupation && selectedCustomer.visitPurpose && selectedCustomer.visitPurpose.length > 0 ? (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                                <CheckBadgeIcon className="size-3" />
+                                                Đã hoàn thiện
+                                            </span>
+                                        ) : (
+                                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                Chưa hoàn thiện
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <MapPinIcon className="size-4 text-neutral-400" />
+                                            <span className="text-neutral-600 dark:text-neutral-400">Khu vực:</span>
+                                            <span className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.region || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <BriefcaseIcon className="size-4 text-neutral-400" />
+                                            <span className="text-neutral-600 dark:text-neutral-400">Nghề nghiệp:</span>
+                                            <span className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.occupation || '-'}</span>
+                                        </div>
+                                        <div className="col-span-2 flex items-center gap-2">
+                                            <AcademicCapIcon className="size-4 text-neutral-400" />
+                                            <span className="text-neutral-600 dark:text-neutral-400">Trường học:</span>
+                                            <span className="font-medium text-neutral-900 dark:text-white">{selectedCustomer.school || '-'}</span>
+                                        </div>
+                                        {selectedCustomer.visitPurpose && selectedCustomer.visitPurpose.length > 0 && (
+                                            <div className="col-span-2">
+                                                <div className="mb-1 flex items-center gap-2">
+                                                    <SparklesIcon className="size-4 text-neutral-400" />
+                                                    <span className="text-neutral-600 dark:text-neutral-400">Mục đích tới:</span>
+                                                </div>
+                                                <div className="ml-6 flex flex-wrap gap-1">
+                                                    {selectedCustomer.visitPurpose.map(p => (
+                                                        <span key={p} className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+                                                            {p}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

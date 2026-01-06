@@ -25,6 +25,12 @@ export default async function SettingsPage() {
             dateOfBirth: true,
             address: true,
             bio: true,
+            // V2 Member Profile fields
+            region: true,
+            occupation: true,
+            school: true,
+            visitPurpose: true,
+            profileCompletedAt: true,
         },
     })
 

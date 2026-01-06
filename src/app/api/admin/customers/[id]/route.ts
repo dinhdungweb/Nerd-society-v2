@@ -28,6 +28,15 @@ export async function GET(req: Request, { params }: RouteParams) {
                 dateOfBirth: true,
                 address: true,
                 createdAt: true,
+                // V2 Member Profile fields
+                region: true,
+                occupation: true,
+                school: true,
+                visitPurpose: true,
+                profileCompletedAt: true,
+                bio: true,
+                nerdCoinBalance: true,
+                nerdCoinTier: true,
                 _count: { select: { bookings: true } },
                 bookings: {
                     orderBy: { createdAt: 'desc' },
