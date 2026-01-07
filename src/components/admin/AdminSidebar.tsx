@@ -21,6 +21,7 @@ import {
     ChatBubbleLeftRightIcon,
     RectangleStackIcon,
     BriefcaseIcon,
+    QrCodeIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -76,6 +77,7 @@ const navigationGroups: NavGroup[] = [
         items: [
             { name: 'Khách hàng', href: '/admin/customers', icon: UsersIcon, permissionKey: 'canViewCustomers' },
             { name: 'Góp ý', href: '/admin/feedback', icon: ChatBubbleLeftRightIcon, permissionKey: 'canViewSettings' },
+            { name: 'Tạo QR Code', href: '/admin/qr-generator', icon: QrCodeIcon, permissionKey: 'canViewSettings' },
             { name: 'Nerd Coin', href: '/admin/nerdcoin', icon: SparklesIcon, permissionKey: 'canViewNerdCoin' },
             { name: 'Email Templates', href: '/admin/email-templates', icon: EnvelopeIcon, permissionKey: 'canViewEmailTemplates' },
             { name: 'Lịch sử', href: '/admin/audit-log', icon: ClipboardDocumentListIcon, permissionKey: 'canViewAuditLog' },
