@@ -4,11 +4,11 @@ import BookingFormV2 from '@/components/booking/BookingFormV2'
 import LocationSelector from '@/components/booking/LocationSelector'
 import RoomSelector from '@/components/booking/RoomSelector'
 import ServiceSelector from '@/components/booking/ServiceSelector'
-import { CheckIcon, MapPinIcon, SparklesIcon, HomeModernIcon, CalendarDaysIcon } from '@heroicons/react/24/outline'
+import { CheckIcon, MapPinIcon, SparklesIcon, HomeModernIcon, CalendarDaysIcon, ExclamationTriangleIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { RoomType, ServiceType } from '@prisma/client'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import toast from 'react-hot-toast'
 
 interface Location {
@@ -71,6 +71,13 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
     const [rooms, setRooms] = useState<Room[]>([])
     const [loadingServices, setLoadingServices] = useState(false)
     const [loadingRooms, setLoadingRooms] = useState(false)
+    const [unavailableServiceTypes, setUnavailableServiceTypes] = useState<string[]>([])
+
+    // Helper: get another location to suggest
+    const alternativeLocation = useMemo(() => {
+        if (!selectedLocation) return null
+        return locations.find(l => l.id !== selectedLocation)
+    }, [locations, selectedLocation])
 
     // Fetch services on mount
     useEffect(() => {
@@ -89,6 +96,33 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
         }
         fetchServices()
     }, [])
+
+    // Check which service types are unavailable at the selected location
+    useEffect(() => {
+        if (!selectedLocation) {
+            setUnavailableServiceTypes([])
+            return
+        }
+
+        const checkAvailability = async () => {
+            const serviceTypesToCheck = ['MEETING', 'POD_MONO', 'POD_MULTI']
+            const unavailable: string[] = []
+
+            for (const type of serviceTypesToCheck) {
+                try {
+                    const res = await fetch(`/api/booking/rooms?locationId=${selectedLocation}&serviceType=${type}`)
+                    const data = await res.json()
+                    if (!data.rooms || data.rooms.length === 0) {
+                        unavailable.push(type)
+                    }
+                } catch {
+                    // If error, assume available
+                }
+            }
+            setUnavailableServiceTypes(unavailable)
+        }
+        checkAvailability()
+    }, [selectedLocation])
 
     // Fetch rooms when location and service change
     useEffect(() => {
@@ -123,6 +157,17 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
     }
 
     const handleServiceSelect = (service: Service) => {
+        // Dynamic Guardrail: Block services unavailable at this location
+        if (unavailableServiceTypes.includes(service.type)) {
+            toast.error(
+                <div className="flex flex-col gap-1">
+                    <span className="font-semibold">Dịch vụ này chưa có tại cơ sở này</span>
+                    <span className="text-sm">Vui lòng chọn cơ sở khác hoặc dịch vụ khác.</span>
+                </div>,
+                { duration: 5000 }
+            )
+            return
+        }
         setSelectedService(service)
         setSelectedRoom(null)
         setCurrentStep(3)
@@ -321,6 +366,34 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
                 {/* Step 2: Service */}
                 {currentStep === 2 && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* Location Service Availability Warning Banner */}
+                        {unavailableServiceTypes.length > 0 && (
+                            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-primary-300 bg-primary-50 p-4 dark:border-primary-700/50 dark:bg-primary-900/20">
+                                <ExclamationTriangleIcon className="size-6 shrink-0 text-primary-500" />
+                                <div className="flex-1">
+                                    <p className="font-semibold text-primary-800 dark:text-primary-300">
+                                        Một số dịch vụ chưa có tại cơ sở này
+                                    </p>
+                                    <p className="mt-1 text-sm text-primary-700 dark:text-primary-400">
+                                        Hiện tại cơ sở này chỉ phục vụ chỗ ngồi chung (walk-in).
+                                    </p>
+                                    {alternativeLocation && (
+                                        <button
+                                            onClick={() => {
+                                                setSelectedLocation(alternativeLocation.id)
+                                                setSelectedService(null)
+                                                setSelectedRoom(null)
+                                                toast.success(`Đã chuyển sang cơ sở ${alternativeLocation.name}`)
+                                            }}
+                                            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+                                        >
+                                            Chuyển sang {alternativeLocation.name}
+                                            <ArrowRightIcon className="size-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                         <div className="mb-6 flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">
                                 Chọn loại dịch vụ
