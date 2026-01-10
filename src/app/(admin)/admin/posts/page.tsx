@@ -362,7 +362,7 @@ export default function PostsPage() {
                                                             >
                                                                 <PencilIcon className="size-4" />
                                                             </Link>
-                                                            <DeletePostButton postId={post.id} postTitle={post.title} />
+                                                            <DeletePostButton postId={post.id} postTitle={post.title} onSuccess={fetchPosts} />
                                                         </>
                                                     )}
                                                 </div>

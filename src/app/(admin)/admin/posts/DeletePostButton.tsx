@@ -7,9 +7,10 @@ import { useState } from 'react'
 interface DeletePostButtonProps {
     postId: string
     postTitle: string
+    onSuccess?: () => void
 }
 
-export default function DeletePostButton({ postId, postTitle }: DeletePostButtonProps) {
+export default function DeletePostButton({ postId, postTitle, onSuccess }: DeletePostButtonProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
 
@@ -25,8 +26,18 @@ export default function DeletePostButton({ postId, postTitle }: DeletePostButton
             })
 
             if (res.ok) {
-                router.refresh()
+                if (onSuccess) {
+                    onSuccess()
+                } else {
+                    router.refresh()
+                }
             } else {
+                const data = await res.json()
+                // Handle 404 gracefully - remove from list if not found
+                if (res.status === 404) {
+                    if (onSuccess) onSuccess()
+                    return
+                }
                 alert('Có lỗi xảy ra khi xóa bài viết')
             }
         } catch (error) {
