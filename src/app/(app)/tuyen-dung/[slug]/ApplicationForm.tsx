@@ -20,10 +20,10 @@ const locationOptions = [
 ]
 
 const shiftOptions = [
-    { value: 'Ca sáng (8h-14h)', label: 'Ca sáng (8h-14h)' },
-    { value: 'Ca chiều (14h-20h)', label: 'Ca chiều (14h-20h)' },
-    { value: 'Ca tối (20h-23h)', label: 'Ca tối (20h-23h)' },
-    { value: 'Linh hoạt', label: 'Linh hoạt, sắp xếp được' },
+    { value: 'Ca 1 (00:00 - 07:00)', label: 'Ca 1: 00:00 – 07:00' },
+    { value: 'Ca 2 (07:00 - 12:00)', label: 'Ca 2: 07:00 – 12:00' },
+    { value: 'Ca 3 (12:00 - 19:00)', label: 'Ca 3: 12:00 – 19:00' },
+    { value: 'Ca 4 (19:00 - 00:00)', label: 'Ca 4: 19:00 – 00:00' },
 ]
 
 interface ApplicationFormProps {
@@ -193,6 +193,9 @@ export default function ApplicationForm({ jobId }: ApplicationFormProps) {
                                         ))}
                                     </select>
                                 </div>
+                                <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+                                    Xoay ca linh hoạt, tối thiểu 4 ca/tuần, trong đó có ít nhất 1 ca đêm.
+                                </p>
                             </div>
 
                             <div>
