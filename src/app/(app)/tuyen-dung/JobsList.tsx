@@ -118,9 +118,6 @@ export default function JobsList() {
                                         <div className="rounded-2xl bg-primary-100 px-4 py-2 font-semibold text-primary-600 dark:bg-primary-900/30 dark:text-primary-400">
                                             {job.title}
                                         </div>
-                                        <span className="flex size-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-400 transition-colors group-hover:border-primary-500 group-hover:bg-primary-500 group-hover:text-white dark:border-neutral-700 dark:bg-neutral-800 dark:group-hover:text-white">
-                                            <ArrowRightIcon className="size-5" />
-                                        </span>
                                     </div>
 
                                     <div className="mb-6 space-y-3">
@@ -139,9 +136,12 @@ export default function JobsList() {
                                     </p>
                                 </div>
 
-                                <div className="mt-8 pt-6 border-t border-neutral-100 dark:border-neutral-800">
+                                <div className="mt-8 flex items-center justify-between border-t border-neutral-100 pt-6 dark:border-neutral-800">
                                     <span className="text-sm font-semibold text-primary-600 group-hover:underline dark:text-primary-400">
                                         Xem chi tiết & Ứng tuyển
+                                    </span>
+                                    <span className="flex size-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-400 transition-colors group-hover:border-primary-500 group-hover:bg-primary-500 group-hover:text-white dark:border-neutral-700 dark:bg-neutral-800 dark:group-hover:text-white">
+                                        <ArrowRightIcon className="size-5" />
                                     </span>
                                 </div>
                             </Link>
