@@ -75,6 +75,13 @@ interface Settings {
     bookingBannerSubtitle: string
     bookingBannerCtaText: string
     bookingBannerCtaLink: string
+    // Popup Banner
+    popupActive: string
+    popupImage: string
+    popupLink: string
+    popupTitle: string
+    popupDelay: string
+    popupPosition: string
 }
 
 // Default features
@@ -154,6 +161,7 @@ export default function AdminContentPage() {
     const [uploadingImage, setUploadingImage] = useState(false)
     const [showMediaPicker, setShowMediaPicker] = useState(false)
     const [showBannerMediaPicker, setShowBannerMediaPicker] = useState(false)
+    const [showPopupMediaPicker, setShowPopupMediaPicker] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [features, setFeatures] = useState<AboutFeature[]>(defaultFeatures)
     const [heroStats, setHeroStats] = useState<HeroStat[]>(defaultHeroStats)
@@ -203,6 +211,13 @@ export default function AdminContentPage() {
         bookingBannerSubtitle: 'Đặt pod từ 2 tiếng - Nhận ngay 50 Nerd Coin!',
         bookingBannerCtaText: 'Đặt ngay',
         bookingBannerCtaLink: '#booking-form',
+        // Popup Banner defaults
+        popupActive: 'false',
+        popupImage: '',
+        popupLink: '',
+        popupTitle: '',
+        popupDelay: '2000',
+        popupPosition: 'center',
     })
 
     useEffect(() => {
@@ -1346,6 +1361,148 @@ export default function AdminContentPage() {
                     )}
                 </div>
 
+                {/* POPUP BANNER CARD */}
+                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-6 flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+                            <NewspaperIcon className="size-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Popup Banner</h2>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">Hiển thị popup quảng cáo khi vào trang</p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-5 lg:grid-cols-2">
+                        {/* Enable Toggle */}
+                        <div className="lg:col-span-2">
+                            <label className="flex items-center gap-3">
+                                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Bật Popup</span>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={settings.popupActive === 'true'}
+                                    onClick={() => handleChange('popupActive', settings.popupActive === 'true' ? 'false' : 'true')}
+                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${settings.popupActive === 'true' ? 'bg-primary-500' : 'bg-neutral-200 dark:bg-neutral-700'
+                                        }`}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${settings.popupActive === 'true' ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                    />
+                                </button>
+                            </label>
+                        </div>
+
+                        {/* Title (Optional) */}
+                        <div className="lg:col-span-2">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Tiêu đề (dùng cho alt text)
+                            </label>
+                            <input
+                                type="text"
+                                value={settings.popupTitle || ''}
+                                onChange={e => handleChange('popupTitle', e.target.value)}
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="Ví dụ: Khuyến mãi tháng 10"
+                            />
+                        </div>
+
+                        {/* Link */}
+                        <div className="lg:col-span-2">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Đường dẫn khi click (tùy chọn)
+                            </label>
+                            <input
+                                type="text"
+                                value={settings.popupLink || ''}
+                                onChange={e => handleChange('popupLink', e.target.value)}
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="https://..."
+                            />
+                        </div>
+
+                        {/* Delay */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Thời gian chờ (mili giây)
+                            </label>
+                            <input
+                                type="number"
+                                value={settings.popupDelay || '2000'}
+                                onChange={e => handleChange('popupDelay', e.target.value)}
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                                placeholder="2000"
+                            />
+                        </div>
+
+                        {/* Position */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Vị trí hiển thị
+                            </label>
+                            <select
+                                value={settings.popupPosition || 'center'}
+                                onChange={e => handleChange('popupPosition', e.target.value)}
+                                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white dark:focus:bg-neutral-800"
+                            >
+                                <option value="center">Chính giữa (Center)</option>
+                                <option value="top-left">Góc trên trái (Top Left)</option>
+                                <option value="top-right">Góc trên phải (Top Right)</option>
+                                <option value="bottom-left">Góc dưới trái (Bottom Left)</option>
+                                <option value="bottom-right">Góc dưới phải (Bottom Right)</option>
+                            </select>
+                        </div>
+
+                        {/* Image Upload */}
+                        <div className="lg:col-span-2">
+                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                Ảnh Popup
+                            </label>
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                                {/* Preview */}
+                                <div className="relative aspect-[4/5] w-full max-w-[200px] overflow-hidden rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800">
+                                    {settings.popupImage ? (
+                                        <>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={settings.popupImage}
+                                                alt="Popup preview"
+                                                className="absolute inset-0 size-full object-cover"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => handleChange('popupImage', '')}
+                                                className="absolute right-2 top-2 rounded-full bg-red-500 p-1.5 text-white shadow-lg transition hover:bg-red-600"
+                                            >
+                                                <TrashIcon className="size-4" />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <div className="flex size-full flex-col items-center justify-center text-neutral-400">
+                                            <PhotoIcon className="size-8" />
+                                            <span className="mt-2 text-xs text-center px-2">Chưa có ảnh</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Upload Controls */}
+                                <div className="flex flex-col gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPopupMediaPicker(true)}
+                                        className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                    >
+                                        <FolderOpenIcon className="size-5" />
+                                        Chọn từ thư viện
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Save Button - Only show if has canManageContent */}
                 {canManage && (
                     <div className="flex justify-end">
@@ -1370,6 +1527,18 @@ export default function AdminContentPage() {
                         handleChange('bookingBannerImage', urls[0])
                     }
                     setShowBannerMediaPicker(false)
+                }}
+            />
+
+            {/* Media Picker Modal for Popup */}
+            <MediaPickerModal
+                isOpen={showPopupMediaPicker}
+                onClose={() => setShowPopupMediaPicker(false)}
+                onSelect={(urls: string[]) => {
+                    if (urls.length > 0) {
+                        handleChange('popupImage', urls[0])
+                    }
+                    setShowPopupMediaPicker(false)
                 }}
             />
 

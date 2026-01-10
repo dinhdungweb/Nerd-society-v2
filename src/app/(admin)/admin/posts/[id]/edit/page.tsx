@@ -27,7 +27,7 @@ export default function EditPostPage() {
     const [fetching, setFetching] = useState(true)
     const [title, setTitle] = useState('')
     const [slug, setSlug] = useState('')
-    const [type, setType] = useState<'NEWS' | 'EVENT'>('NEWS')
+    const [type, setType] = useState<'NEWS' | 'EVENT' | 'PAGE'>('NEWS')
     const [excerpt, setExcerpt] = useState('')
     const [content, setContent] = useState('')
     const [thumbnail, setThumbnail] = useState<string[]>([])
@@ -138,6 +138,7 @@ export default function EditPostPage() {
                             >
                                 <option value="NEWS">Tin tức</option>
                                 <option value="EVENT">Sự kiện</option>
+                                <option value="PAGE">Trang tĩnh</option>
                             </select>
                         </div>
                         <div className="col-span-2 md:col-span-1">

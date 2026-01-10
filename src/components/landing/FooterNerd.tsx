@@ -223,8 +223,8 @@ export default function FooterNerd({ logoUrl }: { logoUrl?: string }) {
                         © 2025 Nerd Society. All rights reserved.
                     </p>
                     <div className="flex items-center gap-6 text-sm text-neutral-500">
-                        <Link href="#" className="transition-colors hover:text-neutral-300">
-                            Điều khoản sử dụng
+                        <Link href="/dieu-khoan-dieu-kien" className="transition-colors hover:text-neutral-300">
+                            Điều khoản điều kiện
                         </Link>
                         <Link href="#" className="transition-colors hover:text-neutral-300">
                             Chính sách bảo mật

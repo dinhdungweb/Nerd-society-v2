@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import {
     CalendarDaysIcon,
@@ -37,6 +38,7 @@ interface Post {
 const typeLabels: Record<string, { label: string; color: string }> = {
     NEWS: { label: 'Tin tức', color: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' },
     EVENT: { label: 'Sự kiện', color: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800' },
+    PAGE: { label: 'Trang tĩnh', color: 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800' },
 }
 
 const statusLabels: Record<string, { label: string; color: string; dot: string }> = {
@@ -48,13 +50,32 @@ const statusLabels: Record<string, { label: string; color: string; dot: string }
 const ITEMS_PER_PAGE = 10
 
 export default function PostsPage() {
+    const searchParams = useSearchParams()
+    const initialType = searchParams.get('type') || 'ALL'
+
     const [posts, setPosts] = useState<Post[]>([])
     const [filteredPosts, setFilteredPosts] = useState<Post[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
-    const [typeFilter, setTypeFilter] = useState('ALL')
+    const [typeFilter, setTypeFilter] = useState(initialType)
     const [statusFilter, setStatusFilter] = useState('ALL')
     const [currentPage, setCurrentPage] = useState(1)
+
+    // Update filter when URL changes
+    useEffect(() => {
+        const type = searchParams.get('type')
+        if (type) {
+            setTypeFilter(type)
+        } else {
+            // Optional: reset to ALL if no param, or keep current. 
+            // Better to let user manually clear or navigate.
+            // But for sidebar navigation consistency:
+            if (initialType === 'ALL' && typeFilter !== 'ALL' && !type) {
+                // checking if we navigated from filtered to non-filtered
+                setTypeFilter('ALL')
+            }
+        }
+    }, [searchParams])
 
     // Permission check
     const { hasPermission } = usePermissions()
@@ -225,6 +246,7 @@ export default function PostsPage() {
                         <option value="ALL">Tất cả loại</option>
                         <option value="NEWS">Tin tức</option>
                         <option value="EVENT">Sự kiện</option>
+                        <option value="PAGE">Trang tĩnh</option>
                     </select>
                     <select
                         value={statusFilter}
@@ -324,7 +346,7 @@ export default function PostsPage() {
                                             <td className="px-6 py-4">
                                                 <div className="flex justify-end gap-2">
                                                     <Link
-                                                        href={`/news/${post.slug}`}
+                                                        href={post.type === 'PAGE' ? `/${post.slug}` : `/news/${post.slug}`}
                                                         target="_blank"
                                                         className="flex size-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
                                                         title="Xem bài viết"

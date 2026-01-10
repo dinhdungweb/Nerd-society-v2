@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import PopupBanner from '@/components/landing/PopupBanner'
 
 export const metadata: Metadata = {
   title: 'Nerd Society | Không gian học tập dành cho Gen Z',
@@ -8,5 +9,10 @@ export const metadata: Metadata = {
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return (
+    <>
+      {children}
+      <PopupBanner />
+    </>
+  )
 }

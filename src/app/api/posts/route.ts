@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
         const where: Record<string, unknown> = {
             status: 'PUBLISHED',
         }
-        if (type) where.type = type
+        if (type && type !== 'ALL') where.type = type
+        else where.type = { not: 'PAGE' }
         if (featured === 'true') where.featured = true
 
         const [posts, total] = await Promise.all([

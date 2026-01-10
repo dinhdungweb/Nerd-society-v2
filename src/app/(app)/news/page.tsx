@@ -23,6 +23,8 @@ async function getPosts(type?: string, page = 1, limit = 9) {
     }
     if (type && type !== 'ALL') {
         where.type = type
+    } else {
+        where.type = { not: 'PAGE' }
     }
 
     const [posts, total] = await Promise.all([

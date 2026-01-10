@@ -234,8 +234,8 @@ export default function SignupForm({ logoUrl, logoLightUrl }: SignupFormProps) {
 
                         <p className="text-center text-xs text-neutral-500 dark:text-neutral-400">
                             Bằng việc đăng ký, bạn đồng ý với{' '}
-                            <Link href="/terms" className="underline hover:text-primary-600">
-                                Điều khoản sử dụng
+                            <Link href="/dieu-khoan-dieu-kien" className="underline hover:text-primary-600">
+                                Điều khoản điều kiện
                             </Link>{' '}
                             và{' '}
                             <Link href="/privacy" className="underline hover:text-primary-600">

@@ -29,6 +29,10 @@ async function getPost(slug: string) {
         },
     })
 
+    if (post && post.type === 'PAGE') {
+        return null
+    }
+
     if (post) {
         // Increment view count
         await prisma.post.update({

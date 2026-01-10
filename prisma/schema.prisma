@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,77 +7,59 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User model - for both customers and admins
 model User {
-  id                 String    @id @default(cuid())
-  email              String    @unique
+  id                 String                @id @default(cuid())
+  email              String                @unique
   password           String
   name               String
   phone              String?
   avatar             String?
-  gender             String?
-  dateOfBirth        DateTime?
-  address            String?
-  bio                String?   @db.Text
-  role               Role      @default(CUSTOMER)
+  role               Role                  @default(CUSTOMER)
   emailVerified      DateTime?
-  nerdCoinBalance    Int       @default(0)  // Tổng Nerd Coin hiện có
-  nerdCoinTier       String    @default("BRONZE") // BRONZE, SILVER, GOLD
-  isLocked           Boolean   @default(false)    // User locked status
-  
-  // Profile completion fields (V2 - Member Profile)
-  region             String?           // Khu vực đang sinh sống
-  occupation         String?           // Nghề nghiệp: Học sinh/Sinh viên/Freelancer/Nhân viên văn phòng/Khác
-  school             String?           // Trường đang theo học (nếu có)
-  visitPurpose       String[]          // Mục đích tới: ["Làm việc", "Họp nhóm", "Học tập", ...]
-  profileCompletedAt DateTime?         // Thời điểm hoàn thiện profile
-  
-  // Staff assignment (chỉ áp dụng cho STAFF role)
-  assignedLocationId String?   // Location mà staff được phân công
-  assignedLocation   Location? @relation(fields: [assignedLocationId], references: [id])
-  
-  bookings           Booking[]
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  address            String?
+  assignedLocationId String?
+  bio                String?
+  dateOfBirth        DateTime?
+  gender             String?
+  nerdCoinBalance    Int                   @default(0)
+  nerdCoinTier       String                @default("BRONZE")
+  isLocked           Boolean               @default(false)
+  occupation         String?
+  profileCompletedAt DateTime?
+  region             String?
+  school             String?
+  visitPurpose       String[]
   accounts           Account[]
-  sessions           Session[]
-  posts              Post[]
+  bookings           Booking[]
   nerdCoinTxns       NerdCoinTransaction[]
-
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  posts              Post[]
+  sessions           Session[]
+  assignedLocation   Location?             @relation(fields: [assignedLocationId], references: [id])
 
   @@index([name])
   @@index([phone])
 }
 
-enum Role {
-  ADMIN
-  MANAGER        // Quản lý cơ sở - quyền cao hơn Staff
-  STAFF
-  CONTENT_EDITOR // Biên tập nội dung - chỉ quản lý tin tức, media
-  CUSTOMER
-}
-
-// NextAuth Account model
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
 
-// NextAuth Session model
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
@@ -89,7 +68,6 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// NextAuth VerificationToken model
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -98,35 +76,22 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// =====================================================
-// ROOM MANAGEMENT
-// =====================================================
-
-enum RoomType {
-  MEETING_LONG    // Meeting Room 1 - Bàn dài
-  MEETING_ROUND   // Meeting Room 2 - Bàn tròn
-  POD_MONO        // Mono Pod (1 người)
-  POD_MULTI       // Multi Pod (2 người)
-}
-
-// Room - Individual bookable spaces
 model Room {
   id          String    @id @default(cuid())
-  name        String    // "Meeting Room 1", "Mono Pod A"...
+  name        String
   type        RoomType
   description String?
-  capacity    Int       // Sức chứa tối đa
-  amenities   String[]  // ["Máy chiếu", "Bảng trắng", ...]
+  capacity    Int
+  amenities   String[]
   image       String?
   isActive    Boolean   @default(true)
-  location    Location  @relation(fields: [locationId], references: [id])
   locationId  String
-  bookings    Booking[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  bookings    Booking[]
+  location    Location  @relation(fields: [locationId], references: [id])
 }
 
-// Location - Nerd Society branches
 model Location {
   id        String    @id @default(cuid())
   name      String
@@ -135,153 +100,86 @@ model Location {
   mapUrl    String?
   image     String?
   isActive  Boolean   @default(true)
-  rooms     Room[]
-  bookings  Booking[]
-  staff     User[]    // Staff được phân công tại cơ sở này
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+  rooms     Room[]
+  staff     User[]
 }
 
-// =====================================================
-// SERVICE & PRICING
-// =====================================================
-
-enum ServiceType {
-  MEETING
-  POD_MONO
-  POD_MULTI
-}
-
-// Service - Service types with pricing (replaces Combo)
 model Service {
-  id              String      @id @default(cuid())
-  name            String      // "Meeting Room", "Mono Pod", "Multi Pod"
-  slug            String      @unique
-  type            ServiceType
-  description     String?
-  
-  // Pricing - Meeting (theo số người)
-  priceSmall      Int?        // < 8 người: 80.000
-  priceLarge      Int?        // 8-20 người: 100.000
-  
-  // Pricing - Pod (giờ đầu + giờ sau)
-  priceFirstHour  Int?        // Giá giờ đầu (19k/29k)
-  pricePerHour    Int?        // Giá từ giờ 2 tính theo phút (15k/25k)
-  
-  // Nerd Coin
-  nerdCoinReward  Int         @default(0)  // Số coin tặng (0, 1, 2)
-  
-  minDuration     Int         @default(60) // Thời gian tối thiểu (phút)
-  timeStep        Int         @default(30) // Bước nhảy (15 cho Pod, 30 cho Meeting)
-  
-  features        String[]
-  icon            String?
-  image           String?   // Ảnh dịch vụ, fallback về icon nếu không có
-  isActive        Boolean     @default(true)
-  sortOrder       Int         @default(0)
-  
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  name           String
+  slug           String      @unique
+  type           ServiceType
+  description    String?
+  priceSmall     Int?
+  priceLarge     Int?
+  priceFirstHour Int?
+  pricePerHour   Int?
+  nerdCoinReward Int         @default(0)
+  minDuration    Int         @default(60)
+  timeStep       Int         @default(30)
+  features       String[]
+  icon           String?
+  isActive       Boolean     @default(true)
+  sortOrder      Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  image          String?
 }
 
-// Keep Combo for backward compatibility (deprecated)
 model Combo {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
-  slug        String    @unique
-  duration    Int       // in minutes
-  price       Int       // in VND
+  slug        String   @unique
+  duration    Int
+  price       Int
   description String?
-  features    String[]  // Array of features
-  icon        String?   // Icon name (fallback)
-  image       String?   // Custom image URL
-  isPopular   Boolean   @default(false)
-  isActive    Boolean   @default(true)
-  sortOrder   Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  features    String[]
+  icon        String?
+  isPopular   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  image       String?
 }
 
-// =====================================================
-// BOOKING SYSTEM
-// =====================================================
-
-enum BookingSource {
-  WEBSITE       // Khách tự book online
-  ONSITE        // Nhân viên book tại quầy
-  PHONE         // Đặt qua điện thoại
-  ZALO          // Đặt qua Zalo
-}
-
-enum DepositStatus {
-  PENDING       // Chưa cọc
-  PAID_ONLINE   // Đã cọc online
-  PAID_CASH     // Đã cọc tiền mặt
-  WAIVED        // Miễn cọc (walk-in tin tưởng)
-}
-
-enum BookingStatus {
-  PENDING       // Chờ cọc
-  CONFIRMED     // Đã cọc, chờ check-in
-  IN_PROGRESS   // Đang sử dụng (sau check-in)
-  COMPLETED     // Hoàn tất (sau check-out + thanh toán)
-  CANCELLED     // Đã hủy
-  NO_SHOW       // Không đến
-}
-
-// Booking - Customer reservations
 model Booking {
-  id              String        @id @default(cuid())
-  bookingCode     String        @unique // e.g., NERD-20241214-001
-  
-  // Customer Info (có thể không cần User account)
-  userId          String?
-  user            User?         @relation(fields: [userId], references: [id])
-  customerName    String
-  customerPhone   String
-  customerEmail   String?
-  
-  // Room & Location
-  room            Room          @relation(fields: [roomId], references: [id])
-  roomId          String
-  location        Location      @relation(fields: [locationId], references: [id])
-  locationId      String
-  
-  // Time - Dự kiến
-  date            DateTime      @db.Date
-  startTime       String        // "08:00" (dự kiến)
-  endTime         String        // "11:00" (dự kiến)
-  guests          Int           @default(1)
-  
-  // Time - Thực tế (ghi nhận khi check-in/out)
-  actualStartTime DateTime?     // Thời điểm check-in
-  actualEndTime   DateTime?     // Thời điểm check-out
-  
-  // Pricing
-  estimatedAmount Int           // Giá dự tính khi book
-  depositAmount   Int           // Tiền cọc (50%)
-  depositStatus   DepositStatus @default(PENDING)
-  depositPaidAt   DateTime?
-  paymentStartedAt DateTime?     // Thời điểm khách chọn phương thức và bắt đầu thanh toán
-  
-  actualAmount    Int?          // Giá thực tế sau check-out
-  remainingAmount Int?          // Số tiền còn lại cần thu
-  
-  // Nerd Coin
-  nerdCoinIssued  Int           @default(0)   // Số coin đã phát
+  id               String        @id @default(cuid())
+  bookingCode      String        @unique
+  userId           String?
+  locationId       String
+  date             DateTime      @db.Date
+  startTime        String
+  endTime          String
+  guests           Int           @default(1)
+  status           BookingStatus @default(PENDING)
+  note             String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  actualAmount     Int?
+  actualEndTime    DateTime?
+  actualStartTime  DateTime?
+  customerEmail    String?
+  customerName     String
+  customerPhone    String
+  depositAmount    Int
+  depositPaidAt    DateTime?
+  depositStatus    DepositStatus @default(PENDING)
+  estimatedAmount  Int
+  nerdCoinIssued   Int           @default(0)
   nerdCoinIssuedAt DateTime?
-  
-  // Booking metadata
-  source          BookingSource @default(WEBSITE)
-  status          BookingStatus @default(PENDING)
-  note            String?
-  isRescheduled   Boolean       @default(false)
-  
-  // Relations
-  payment         Payment?
-  
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  remainingAmount  Int?
+  roomId           String
+  source           BookingSource @default(WEBSITE)
+  paymentStartedAt DateTime?
+  isRescheduled    Boolean       @default(false)
+  location         Location      @relation(fields: [locationId], references: [id])
+  room             Room          @relation(fields: [roomId], references: [id])
+  user             User?         @relation(fields: [userId], references: [id])
+  payment          Payment?
 
   @@index([roomId])
   @@index([locationId])
@@ -292,72 +190,49 @@ model Booking {
   @@index([customerEmail])
 }
 
-// Payment - Payment records
 model Payment {
   id            String        @id @default(cuid())
-  booking       Booking       @relation(fields: [bookingId], references: [id])
   bookingId     String        @unique
   amount        Int
   method        PaymentMethod
-  transactionId String?       // ID từ payment gateway
-  gatewayData   Json?         // Response data từ gateway
+  transactionId String?
+  gatewayData   Json?
   status        PaymentStatus @default(PENDING)
   paidAt        DateTime?
   refundedAt    DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  booking       Booking       @relation(fields: [bookingId], references: [id])
 }
 
-enum PaymentMethod {
-  CASH          // Thanh toán tại quầy
-  VNPAY         // VNPay
-  MOMO          // MoMo
-  ZALOPAY       // ZaloPay
-  BANK_TRANSFER // Chuyển khoản
-}
-
-enum PaymentStatus {
-  PENDING   // Chờ thanh toán
-  COMPLETED // Đã thanh toán
-  FAILED    // Thất bại
-  REFUNDED  // Đã hoàn tiền
-  CANCELLED // Đã hủy
-}
-
-// Settings - System settings
 model Setting {
   id        String   @id @default(cuid())
   key       String   @unique
-  value     String   @db.Text
+  value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// =====================================================
-// CONTENT MANAGEMENT
-// =====================================================
-
-// Post - News and Events
 model Post {
   id            String     @id @default(cuid())
   title         String
   slug          String     @unique
   type          PostType   @default(NEWS)
-  excerpt       String?    // Tóm tắt ngắn
-  content       String     @db.Text // WYSIWYG HTML content
-  thumbnail     String?    // URL ảnh đại diện
-  images        String[]   // Gallery images for carousel
-  author        User       @relation(fields: [authorId], references: [id])
+  excerpt       String?
+  content       String
+  thumbnail     String?
+  images        String[]
   authorId      String
   status        PostStatus @default(DRAFT)
   publishedAt   DateTime?
-  eventDate     DateTime?  // Ngày diễn ra sự kiện (cho type EVENT)
-  eventTime     String?    // Giờ diễn ra "18:00"
-  eventLocation String?    // Địa điểm sự kiện
+  eventDate     DateTime?
+  eventTime     String?
+  eventLocation String?
   featured      Boolean    @default(false)
   viewCount     Int        @default(0)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
+  author        User       @relation(fields: [authorId], references: [id])
 
   @@index([type])
   @@index([status])
@@ -365,85 +240,47 @@ model Post {
   @@index([authorId])
 }
 
-enum PostType {
-  NEWS  // Tin tức
-  EVENT // Sự kiện
-}
-
-enum PostStatus {
-  DRAFT     // Bản nháp
-  PUBLISHED // Đã xuất bản
-  ARCHIVED  // Đã lưu trữ
-}
-
-// =====================================================
-// NERD COIN LOYALTY SYSTEM
-// =====================================================
-
-enum NerdCoinTxnType {
-  EARN          // Nhận coin từ booking
-  REDEEM        // Đổi coin lấy ưu đãi
-  BONUS         // Thưởng đặc biệt
-  EXPIRED       // Coin hết hạn
-  ADJUSTMENT    // Admin điều chỉnh
-}
-
 model NerdCoinTransaction {
   id          String          @id @default(cuid())
-  user        User            @relation(fields: [userId], references: [id])
   userId      String
-  amount      Int             // Số coin (+/-)
+  amount      Int
   type        NerdCoinTxnType
-  description String?         // "Booking #ABC123", "Đổi voucher 50k"
-  bookingId   String?         // Liên kết với booking nếu có
+  description String?
+  bookingId   String?
   createdAt   DateTime        @default(now())
-  
+  user        User            @relation(fields: [userId], references: [id])
+
   @@index([userId])
   @@index([type])
   @@index([createdAt])
 }
 
-// =====================================================
-// NOTIFICATION SYSTEM
-// =====================================================
-
-enum NotificationType {
-  BOOKING_NEW       // Booking mới
-  BOOKING_CONFIRMED // Booking đã xác nhận
-  BOOKING_CANCELLED // Booking đã hủy
-  PAYMENT_RECEIVED  // Thanh toán thành công
-  CHECKIN           // Khách check-in
-  CHECKOUT          // Khách check-out
-  SYSTEM            // Thông báo hệ thống
-}
-
 model Notification {
-  id          String           @id @default(cuid())
-  type        NotificationType
-  title       String
-  message     String
-  link        String?          // Link đến trang liên quan (vd: /admin/bookings/xxx)
-  isRead      Boolean          @default(false)
-  bookingId   String?          // Liên kết với booking nếu có
-  createdAt   DateTime         @default(now())
-  
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false)
+  bookingId String?
+  createdAt DateTime         @default(now())
+
   @@index([isRead])
   @@index([createdAt])
   @@index([type])
 }
 
-// Audit Log - Lịch sử thao tác admin
 model AuditLog {
-  id          String   @id @default(cuid())
-  userId      String   // User thực hiện thao tác
-  userName    String   // Tên user (cache lại để không mất khi user bị xóa)
-  action      String   // CREATE, UPDATE, DELETE, LOGIN, etc.
-  resource    String   // booking, user, post, etc.
-  resourceId  String?  // ID của resource bị tác động
-  details     String?  @db.Text // JSON chứa thông tin chi tiết
-  ipAddress   String?  // IP address của request
-  userAgent   String?  // User agent của request
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  userName   String
+  action     String
+  resource   String
+  resourceId String?
+  details    String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 
   @@index([userId])
   @@index([action])
@@ -451,62 +288,35 @@ model AuditLog {
   @@index([createdAt])
 }
 
-// Email Templates - Mẫu email gửi khách
 model EmailTemplate {
-  id          String   @id @default(cuid())
-  name        String   @unique // booking_confirmation, payment_reminder, etc.
-  subject     String   // Tiêu đề email
-  content     String   @db.Text // Nội dung email (HTML)
-  variables   String?  // JSON array các biến có thể dùng: ["customerName", "bookingCode", etc.]
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String   @unique
+  subject   String
+  content   String
+  variables String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// =====================================================
-// LIVE CHAT SYSTEM
-// =====================================================
-
-enum ChatStatus {
-  OPEN        // Đang mở, chờ nhân viên
-  ASSIGNED    // Đã có nhân viên phụ trách
-  RESOLVED    // Đã giải quyết
-  CLOSED      // Đã đóng
-}
-
-enum SenderType {
-  GUEST       // Khách truy cập (có thể không đăng nhập)
-  STAFF       // Nhân viên
-  SYSTEM      // Tin nhắn hệ thống (auto reply, etc.)
-}
-
-// Chat Conversation - Cuộc trò chuyện
 model ChatConversation {
-  id            String        @id @default(cuid())
-  
-  // Khách hàng (có thể không cần đăng nhập)
-  guestName     String?       // Tên khách nhập khi bắt đầu chat
-  guestEmail    String?
-  guestPhone    String?
-  guestSessionId String?      // Session ID để track khách chưa đăng nhập
-  userId        String?       // Nếu khách đã đăng nhập
-  
-  // Nhân viên phụ trách
-  assignedToId  String?
-  
-  status        ChatStatus    @default(OPEN)
-  source        String?       // "homepage", "booking_page", "contact"
-  subject       String?       // Chủ đề cuộc trò chuyện
-  
-  lastMessageAt DateTime?     // Thời điểm tin nhắn cuối
-  unreadCount   Int           @default(0) // Số tin chưa đọc (cho staff)
-  
-  messages      ChatMessage[]
-  
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  closedAt      DateTime?
-  
+  id             String        @id @default(cuid())
+  guestName      String?
+  guestEmail     String?
+  guestPhone     String?
+  guestSessionId String?
+  userId         String?
+  assignedToId   String?
+  status         ChatStatus    @default(OPEN)
+  source         String?
+  subject        String?
+  lastMessageAt  DateTime?
+  unreadCount    Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  closedAt       DateTime?
+  messages       ChatMessage[]
+
   @@index([status])
   @@index([assignedToId])
   @@index([userId])
@@ -514,54 +324,185 @@ model ChatConversation {
   @@index([lastMessageAt])
 }
 
-// Chat Message - Tin nhắn
 model ChatMessage {
   id             String           @id @default(cuid())
-  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String
-  
-  content        String           @db.Text
-  attachments    String[]         // URLs của ảnh/file đính kèm
-  senderType     SenderType       // GUEST | STAFF | SYSTEM
-  senderId       String?          // staffId nếu là STAFF
-  senderName     String?          // Tên người gửi (hiển thị)
-  
+  content        String
+  attachments    String[]
+  senderType     SenderType
+  senderId       String?
+  senderName     String?
   isRead         Boolean          @default(false)
-  
   createdAt      DateTime         @default(now())
-  
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
   @@index([conversationId])
   @@index([createdAt])
   @@index([senderType])
 }
 
-// ============================================
-// Module 6: Tuyển dụng (Recruitment)
-// ============================================
-
-// Vị trí tuyển dụng
 model Job {
-  id            String   @id @default(cuid())
-  title         String   // "Barista", "Quản lý"
-  slug          String   @unique // URL-friendly slug
-  description   String   @db.Text  // Mô tả chi tiết
-  location      String   // "Tây Sơn", "Hồ Tùng Mậu", "Cả hai"
-  workShift     String   // Ca làm: "Sáng", "Chiều", "Tối", "Linh hoạt"
-  requirements  String   @db.Text  // Yêu cầu
-  benefits      String   @db.Text  // Quyền lợi
-  isActive      Boolean  @default(true)
-  sortOrder     Int      @default(0)
-  
-  applications  Application[]
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String        @id @default(cuid())
+  title        String
+  slug         String        @unique
+  description  String
+  location     String
+  workShift    String
+  requirements String
+  benefits     String
+  isActive     Boolean       @default(true)
+  sortOrder    Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  applications Application[]
 
   @@index([isActive])
   @@index([sortOrder])
 }
 
-// Trạng thái đơn ứng tuyển
+model Application {
+  id                String            @id @default(cuid())
+  jobId             String
+  name              String
+  phone             String
+  email             String?
+  preferredLocation String
+  cvUrl             String?
+  availability      String?
+  status            ApplicationStatus @default(NEW)
+  notes             String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  job               Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Feedback {
+  id        String         @id @default(cuid())
+  userId    String?
+  name      String
+  email     String?
+  phone     String?
+  type      FeedbackType   @default(OTHER)
+  subject   String?
+  content   String
+  images    String[]
+  status    FeedbackStatus @default(PENDING)
+  adminNote String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  CUSTOMER
+  MANAGER
+  CONTENT_EDITOR
+}
+
+enum RoomType {
+  MEETING_LONG
+  MEETING_ROUND
+  POD_MONO
+  POD_MULTI
+}
+
+enum ServiceType {
+  MEETING
+  POD_MONO
+  POD_MULTI
+}
+
+enum BookingSource {
+  WEBSITE
+  ONSITE
+  PHONE
+  ZALO
+}
+
+enum DepositStatus {
+  PENDING
+  PAID_ONLINE
+  PAID_CASH
+  WAIVED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentMethod {
+  CASH
+  VNPAY
+  MOMO
+  ZALOPAY
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PostType {
+  NEWS
+  EVENT
+  PAGE
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum NerdCoinTxnType {
+  EARN
+  REDEEM
+  BONUS
+  EXPIRED
+  ADJUSTMENT
+}
+
+enum NotificationType {
+  BOOKING_NEW
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  PAYMENT_RECEIVED
+  CHECKIN
+  CHECKOUT
+  SYSTEM
+}
+
+enum ChatStatus {
+  OPEN
+  ASSIGNED
+  RESOLVED
+  CLOSED
+}
+
+enum SenderType {
+  GUEST
+  STAFF
+  SYSTEM
+}
+
 enum ApplicationStatus {
   NEW
   REVIEWING
@@ -570,73 +511,17 @@ enum ApplicationStatus {
   REJECTED
 }
 
-// Đơn ứng tuyển
-model Application {
-  id            String   @id @default(cuid())
-  jobId         String
-  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  
-  name          String   // Họ tên
-  phone         String   // SĐT (bắt buộc)
-  email         String?  // Email (optional)
-  preferredLocation String // Cơ sở mong muốn làm việc
-  cvUrl         String?  // Link/File CV
-  availability  String?  // Có thể đi làm ca nào
-  
-  status        ApplicationStatus @default(NEW)
-  notes         String?  @db.Text  // Ghi chú admin
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([jobId])
-  @@index([status])
-  @@index([createdAt])
-}
-
-// ============================================
-// Module 5: Hòm thư góp ý (Feedback)
-// ============================================
-
 enum FeedbackStatus {
-  PENDING   // Chờ xử lý
-  REVIEWED  // Đã xem
-  RESOLVED  // Đã giải quyết  
-  IGNORED   // Bỏ qua
+  PENDING
+  REVIEWED
+  RESOLVED
+  IGNORED
 }
 
 enum FeedbackType {
-  SERVICE_QUALITY   // Chất lượng dịch vụ
-  FACILITIES        // Cơ sở vật chất
-  STAFF_ATTITUDE    // Thái độ nhân viên
-  SUGGESTION        // Đề xuất
-  OTHER             // Khác
+  SERVICE_QUALITY
+  FACILITIES
+  STAFF_ATTITUDE
+  SUGGESTION
+  OTHER
 }
-
-model Feedback {
-  id          String         @id @default(cuid())
-  
-  // Người gửi (có thể không đăng nhập)
-  userId      String?
-  name        String         // Tên người gửi
-  email       String?
-  phone       String?
-  
-  // Nội dung  
-  type        FeedbackType   @default(OTHER)
-  subject     String?        // Tiêu đề/chủ đề
-  content     String         @db.Text
-  images      String[]       // URLs ảnh đính kèm
-  
-  // Trạng thái
-  status      FeedbackStatus @default(PENDING)
-  adminNote   String?        @db.Text  // Ghi chú nội bộ
-  
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  @@index([status])
-  @@index([type])
-  @@index([createdAt])
-}
-

@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
-import { canManage } from '@/lib/apiPermissions'
+import { canView } from '@/lib/apiPermissions'
 
 interface RouteParams {
     params: Promise<{ id: string }>
@@ -9,7 +9,7 @@ interface RouteParams {
 // GET - Get single feedback detail
 export async function GET(req: Request, { params }: RouteParams) {
     try {
-        const { session, hasAccess } = await canManage('Settings')
+        const { session, hasAccess } = await canView('Settings')
         if (!session || !hasAccess) {
             return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 403 })
         }
@@ -34,7 +34,7 @@ export async function GET(req: Request, { params }: RouteParams) {
 // PATCH - Update feedback status/notes
 export async function PATCH(req: Request, { params }: RouteParams) {
     try {
-        const { session, hasAccess } = await canManage('Settings')
+        const { session, hasAccess } = await canView('Settings')
         if (!session || !hasAccess) {
             return NextResponse.json({ error: 'Không có quyền chỉnh sửa' }, { status: 403 })
         }
@@ -61,7 +61,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 // DELETE - Remove feedback
 export async function DELETE(req: Request, { params }: RouteParams) {
     try {
-        const { session, hasAccess } = await canManage('Settings')
+        const { session, hasAccess } = await canView('Settings')
         if (!session || !hasAccess) {
             return NextResponse.json({ error: 'Không có quyền xóa' }, { status: 403 })
         }
