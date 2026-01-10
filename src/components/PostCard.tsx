@@ -25,7 +25,7 @@ export default function PostCard({ post }: { post: Post }) {
         <Link href={`/news/${post.slug}`} className="group block h-full w-full">
             <article className="bg-white dark:bg-neutral-800 rounded-2xl overflow-hidden border border-neutral-200 dark:border-neutral-700 hover:shadow-xl transition-all duration-300 h-full flex flex-col">
                 {/* Thumbnail */}
-                <div className="relative aspect-[16/10] overflow-hidden">
+                <div className="relative aspect-[4/5] overflow-hidden">
                     {post.thumbnail ? (
                         <Image
                             src={post.thumbnail}
