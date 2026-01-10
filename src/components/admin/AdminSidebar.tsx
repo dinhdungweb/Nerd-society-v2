@@ -69,8 +69,8 @@ const navigationGroups: NavGroup[] = [
             { name: 'Gallery', href: '/admin/gallery', icon: PhotoIcon, permissionKey: 'canViewGallery' },
             { name: 'Media', href: '/admin/media', icon: FolderIcon, permissionKey: 'canViewGallery' },
             { name: 'Content', href: '/admin/content', icon: PencilSquareIcon, permissionKey: 'canViewContent' },
-            { name: 'Tuyển dụng', href: '/admin/jobs', icon: BriefcaseIcon, permissionKey: 'canViewSettings' },
-            { name: 'Ứng viên', href: '/admin/applications', icon: UserGroupIcon, permissionKey: 'canViewSettings' },
+            { name: 'Tuyển dụng', href: '/admin/jobs', icon: BriefcaseIcon, permissionKey: 'canViewRecruitment' },
+            { name: 'Ứng viên', href: '/admin/applications', icon: UserGroupIcon, permissionKey: 'canViewRecruitment' },
         ]
     },
     {
