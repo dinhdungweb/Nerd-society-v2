@@ -61,6 +61,8 @@ interface Permissions {
     canManageEmailTemplates: boolean
     canViewRecruitment: boolean
     canManageRecruitment: boolean
+    canViewQrGenerator: boolean
+    canViewFeedback: boolean
 }
 
 type RoleKey = 'MANAGER' | 'STAFF' | 'CONTENT_EDITOR'
@@ -145,6 +147,10 @@ const permissionLabels: Record<keyof Permissions, { label: string; description: 
     // Recruitment
     canViewRecruitment: { label: 'Xem Tuyển dụng', description: 'Xem danh sách tin tuyển dụng và ứng viên', group: 'Tuyển dụng' },
     canManageRecruitment: { label: 'Quản lý Tuyển dụng', description: 'Đăng tin, sửa, xóa tin tuyển dụng và cập nhật trạng thái ứng viên', group: 'Tuyển dụng' },
+
+    // Others
+    canViewQrGenerator: { label: 'Xem QR Code', description: 'Truy cập công cụ tạo mã QR', group: 'Hệ thống' },
+    canViewFeedback: { label: 'Xem Góp ý', description: 'Xem danh sách góp ý từ khách hàng', group: 'Hệ thống' },
 }
 
 export default function PermissionsPage() {

@@ -41,6 +41,8 @@ const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
         canManageEmailTemplates: true,
         canViewRecruitment: true,
         canManageRecruitment: true,
+        canViewQrGenerator: true,
+        canViewFeedback: true,
     },
     STAFF: {
         canViewDashboard: true,
@@ -76,6 +78,8 @@ const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
         canManageEmailTemplates: false,
         canViewRecruitment: false,
         canManageRecruitment: false,
+        canViewQrGenerator: false,
+        canViewFeedback: false,
     },
     CONTENT_EDITOR: {
         canViewDashboard: false,
@@ -111,6 +115,8 @@ const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
         canManageEmailTemplates: false,
         canViewRecruitment: false,
         canManageRecruitment: false,
+        canViewQrGenerator: false,
+        canViewFeedback: false,
     },
 }
 
@@ -131,6 +137,8 @@ export type PermissionKey =
     | 'canViewAuditLog'
     | 'canViewEmailTemplates' | 'canManageEmailTemplates'
     | 'canViewRecruitment' | 'canManageRecruitment'
+    | 'canViewQrGenerator'
+    | 'canViewFeedback'
 
 /**
  * Get permissions for a specific role from database

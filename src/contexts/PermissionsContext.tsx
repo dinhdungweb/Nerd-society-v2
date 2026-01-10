@@ -60,6 +60,8 @@ export interface StaffPermissions {
     canManageEmailTemplates: boolean
     canViewRecruitment: boolean
     canManageRecruitment: boolean
+    canViewQrGenerator: boolean
+    canViewFeedback: boolean
 }
 
 const DEFAULT_PERMISSIONS: StaffPermissions = {
@@ -119,6 +121,8 @@ const DEFAULT_PERMISSIONS: StaffPermissions = {
     canManageEmailTemplates: false,
     canViewRecruitment: false,
     canManageRecruitment: false,
+    canViewQrGenerator: false,
+    canViewFeedback: false,
 }
 
 // Full permissions for ADMIN
@@ -156,6 +160,8 @@ const ADMIN_PERMISSIONS: StaffPermissions = {
     canManageEmailTemplates: true,
     canViewRecruitment: true,
     canManageRecruitment: true,
+    canViewQrGenerator: true,
+    canViewFeedback: true,
 }
 
 // Limited permissions for CONTENT_EDITOR - only content management
@@ -193,6 +199,8 @@ const CONTENT_EDITOR_PERMISSIONS: StaffPermissions = {
     canManageEmailTemplates: false,
     canViewRecruitment: false,
     canManageRecruitment: false,
+    canViewQrGenerator: false,
+    canViewFeedback: false,
 }
 
 interface PermissionsContextType {

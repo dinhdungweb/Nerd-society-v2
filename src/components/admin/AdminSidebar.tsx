@@ -77,8 +77,8 @@ const navigationGroups: NavGroup[] = [
         name: 'Hệ thống',
         items: [
             { name: 'Khách hàng', href: '/admin/customers', icon: UsersIcon, permissionKey: 'canViewCustomers' },
-            { name: 'Góp ý', href: '/admin/feedback', icon: ChatBubbleLeftRightIcon, permissionKey: 'canViewSettings' },
-            { name: 'Tạo QR Code', href: '/admin/qr-generator', icon: QrCodeIcon, permissionKey: 'canViewSettings' },
+            { name: 'Góp ý', href: '/admin/feedback', icon: ChatBubbleLeftRightIcon, permissionKey: 'canViewFeedback' },
+            { name: 'Tạo QR Code', href: '/admin/qr-generator', icon: QrCodeIcon, permissionKey: 'canViewQrGenerator' },
             { name: 'Nerd Coin', href: '/admin/nerdcoin', icon: SparklesIcon, permissionKey: 'canViewNerdCoin' },
             { name: 'Email Templates', href: '/admin/email-templates', icon: EnvelopeIcon, permissionKey: 'canViewEmailTemplates' },
             { name: 'Lịch sử', href: '/admin/audit-log', icon: ClipboardDocumentListIcon, permissionKey: 'canViewAuditLog' },
