@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 // GET - List all feedbacks (Admin only)
 export async function GET(req: Request) {
     try {
-        const { session, hasAccess } = await canView('Settings')
+        const { session, hasAccess } = await canView('Feedback')
         if (!session || !hasAccess) {
             return NextResponse.json({ error: 'Không có quyền truy cập' }, { status: 403 })
         }

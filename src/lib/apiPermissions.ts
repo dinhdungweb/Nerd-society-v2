@@ -217,7 +217,7 @@ export async function checkApiPermission(requiredPermission: PermissionKey): Pro
 /**
  * Quick check for view permissions (commonly used pattern)
  */
-export async function canView(resource: 'Dashboard' | 'Reports' | 'Bookings' | 'Chat' | 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'NerdCoin' | 'Settings' | 'Staff' | 'AuditLog' | 'EmailTemplates' | 'Recruitment'): Promise<{
+export async function canView(resource: 'Dashboard' | 'Reports' | 'Bookings' | 'Chat' | 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'NerdCoin' | 'Settings' | 'Staff' | 'AuditLog' | 'EmailTemplates' | 'Recruitment' | 'QrGenerator' | 'Feedback'): Promise<{
     session: any | null
     hasAccess: boolean
     role: string | null
