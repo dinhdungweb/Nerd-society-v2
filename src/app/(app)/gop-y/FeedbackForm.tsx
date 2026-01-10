@@ -74,7 +74,8 @@ export default function FeedbackForm() {
                     Cảm ơn bạn!
                 </h2>
                 <p className="mb-6 max-w-md text-neutral-600 dark:text-neutral-400">
-                    Góp ý của bạn đã được ghi nhận. Chúng tôi sẽ xem xét và phản hồi trong thời gian sớm nhất.
+                    Nerd đã nhận được góp ý của bạn. <br />
+                    Chúng mình sẽ xem kỹ và phản hồi sớm nhất có thể.
                 </p>
                 <button
                     onClick={() => {

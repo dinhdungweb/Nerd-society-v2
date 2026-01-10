@@ -72,7 +72,7 @@ export default async function GopYPage() {
                     <div className="lg:col-span-2">
                         <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900 sm:p-8">
                             <h2 className="mb-6 text-xl font-bold text-neutral-900 dark:text-white">
-                                Gửi góp ý cho chúng tôi
+                                Gửi góp ý cho Nerd
                             </h2>
                             <FeedbackForm />
                         </div>
