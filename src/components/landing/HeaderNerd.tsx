@@ -20,12 +20,11 @@ import Link from 'next/link'
 import { Fragment, useContext, useEffect, useState } from 'react'
 
 const navigation = [
+    { name: 'Trang chủ', href: '/' },
     { name: 'Giới thiệu', href: '/#about' },
-    { name: 'Không gian', href: '/#gallery' },
-    { name: 'Bảng giá', href: '/#combos' },
-    { name: 'Địa điểm', href: '/#locations' },
-    { name: 'Tin tức', href: '/#news' },
-    { name: 'Liên hệ', href: '/#contact' },
+    { name: 'Đặt lịch', href: '/booking' },
+    { name: 'Tuyển dụng', href: '/tuyen-dung' },
+    { name: 'Góp ý', href: '/gop-y' },
 ]
 
 // Coffee cup icon for logo

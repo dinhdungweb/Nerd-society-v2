@@ -12,12 +12,11 @@ const CoffeeIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 const navigation = {
     main: [
+        { name: 'Trang chủ', href: '/' },
         { name: 'Giới thiệu', href: '/#about' },
-        { name: 'Bảng giá', href: '/#combos' },
-        { name: 'Địa điểm', href: '/#locations' },
+        { name: 'Đặt lịch', href: '/booking' },
         { name: 'Tuyển dụng', href: '/tuyen-dung' },
         { name: 'Góp ý', href: '/gop-y' },
-        { name: 'Liên hệ', href: '/#contact' },
     ],
     locations: [
         {
