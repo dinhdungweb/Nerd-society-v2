@@ -194,7 +194,7 @@ export default function BookingDetailModal({ open, setOpen, booking, onRefresh }
                                             </span>
                                         </Dialog.Title>
                                         <p className="text-sm text-neutral-500 mt-1 dark:text-neutral-400">
-                                            {format(new Date(booking.date), 'dd/MM/yyyy')} • {booking.startTime} - {booking.endTime}
+                                            {format(new Date(booking.date), 'dd/MM/yyyy')} • {booking.startTime} - {booking.endTime}{booking.endTime <= booking.startTime ? ' (+1 ngày)' : ''}
                                         </p>
                                     </div>
 

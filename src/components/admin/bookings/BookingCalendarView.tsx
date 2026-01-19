@@ -433,7 +433,7 @@ export default function BookingCalendarView({
                                                                     </p>
                                                                     {(duration * HOUR_HEIGHT) > 20 && (
                                                                         <p className={`text-[10px] ${colors?.text} opacity-75 leading-tight mt-0.5`}>
-                                                                            {booking.startTime} - {booking.endTime}
+                                                                            {booking.startTime} - {booking.endTime}{booking.endTime <= booking.startTime ? ' (+1)' : ''}
                                                                         </p>
                                                                     )}
                                                                 </div>

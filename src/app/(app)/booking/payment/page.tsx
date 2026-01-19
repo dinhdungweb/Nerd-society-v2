@@ -497,7 +497,7 @@ const CheckoutContent = () => {
                                                 })}
                                             </p>
                                             <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                                                {bookingInfo.startTime} - {bookingInfo.endTime}
+                                                {bookingInfo.startTime} - {bookingInfo.endTime}{bookingInfo.endTime <= bookingInfo.startTime ? ' (+1 ngày)' : ''}
                                             </p>
                                         </div>
                                     </div>

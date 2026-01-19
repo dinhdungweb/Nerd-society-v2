@@ -522,7 +522,7 @@ function BookingsContent() {
                                                     <td className="whitespace-nowrap px-6 py-4 text-neutral-600 dark:text-neutral-300">
                                                         <div>
                                                             <p>{new Date(booking.date).toLocaleDateString('vi-VN')}</p>
-                                                            <p className="text-neutral-500 dark:text-neutral-400">{booking.startTime} - {booking.endTime}</p>
+                                                            <p className="text-neutral-500 dark:text-neutral-400">{booking.startTime} - {booking.endTime}{booking.endTime <= booking.startTime ? ' (+1 ngày)' : ''}</p>
                                                         </div>
                                                     </td>
                                                     <td className="whitespace-nowrap px-6 py-4 font-semibold text-neutral-900 dark:text-white">

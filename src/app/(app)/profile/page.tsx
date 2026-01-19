@@ -86,7 +86,7 @@ export default async function ProfilePage() {
                                         {new Intl.NumberFormat('vi-VN').format(booking.estimatedAmount)}đ
                                     </span>
                                     <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                                        {booking.startTime} - {booking.endTime}
+                                        {booking.startTime} - {booking.endTime}{booking.endTime <= booking.startTime ? ' (+1 ngày)' : ''}
                                     </span>
                                 </div>
                             </div>

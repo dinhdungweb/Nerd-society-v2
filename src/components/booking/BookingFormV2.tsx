@@ -224,11 +224,13 @@ export default function BookingFormV2({
     }, [date])
 
     // Filter end time options - bao gồm cả slot ngày hôm sau
-    const sameDayEndOptions = timeSlots.filter(t => t > startTime)
+    // Bỏ 24:00 vì trùng với 00:00 (+1 ngày)
+    const sameDayEndOptions = timeSlots.filter(t => t > startTime && t !== '24:00')
     // Next day slots: 00:00 đến 08:00 (hoặc startTime nếu nhỏ hơn)
+    // Dùng allTimeSlots vì nextDay không bị filter bởi "isToday"
     const nextDayLimit = startTime < '08:00' ? startTime : '08:00'
     const nextDayEndOptions = startTime
-        ? timeSlots.filter(t => t !== '24:00' && t <= nextDayLimit).map(t => ({
+        ? allTimeSlots.filter(t => t !== '24:00' && t <= nextDayLimit).map(t => ({
             value: t,
             label: `${t} (+1 ngày)`,
             isNextDay: true
@@ -239,6 +241,9 @@ export default function BookingFormV2({
         ...sameDayEndOptions.map(t => ({ value: t, label: t, isNextDay: false })),
         ...nextDayEndOptions
     ]
+
+    // Kiểm tra endTime có phải là next-day slot không
+    const isEndTimeNextDay = endTime && !sameDayEndOptions.includes(endTime) && nextDayEndOptions.some(o => o.value === endTime)
 
     const handleSubmit = () => {
         if (!date || !startTime || !endTime || !customerName || !customerPhone || !customerEmail) return

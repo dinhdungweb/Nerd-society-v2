@@ -88,7 +88,7 @@ export default async function BookingSuccessPage({
                                 {new Date(booking.date).toLocaleDateString('vi-VN')}
                             </p>
                             <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                                {booking.startTime} - {booking.endTime} ({booking.room.name})
+                                {booking.startTime} - {booking.endTime}{booking.endTime <= booking.startTime ? ' (+1 ngày)' : ''} ({booking.room.name})
                             </p>
                         </div>
                     </div>
