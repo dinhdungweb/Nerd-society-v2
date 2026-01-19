@@ -1,5 +1,6 @@
 import { prisma } from './prisma'
 import { format } from 'date-fns'
+import { BookingStatus } from '@prisma/client'
 
 /**
  * Generate mã booking: NERD-YYYYMMDD-XXX
@@ -41,15 +42,22 @@ export function addMinutesToTime(time: string, minutesToAdd: number): string {
 
 /**
  * Tính duration giữa 2 time strings (phút)
+ * Hỗ trợ cross-day: nếu endTime < startTime thì coi endTime là ngày hôm sau
  */
 export function calculateDuration(startTime: string, endTime: string): number {
     const startMinutes = parseTimeToMinutes(startTime)
-    const endMinutes = parseTimeToMinutes(endTime)
+    let endMinutes = parseTimeToMinutes(endTime)
+
+    // Cross-day: endTime thuộc ngày hôm sau
+    if (endMinutes <= startMinutes) {
+        endMinutes += 24 * 60 // Cộng 24 giờ
+    }
+
     return endMinutes - startMinutes
 }
 
 /**
- * Kiểm tra slot có trống không
+ * Kiểm tra slot có trống không (hỗ trợ cross-day booking)
  * @returns true nếu slot available
  */
 export async function isSlotAvailable(
@@ -59,68 +67,91 @@ export async function isSlotAvailable(
     endTime: string
 ): Promise<boolean> {
     // Normalize date to UTC midnight to match DB storage format
-    // DB stores dates as UTC midnight (e.g., "2025-12-15T00:00:00.000Z")
-    const dateStr = date.toISOString().split('T')[0] // Get YYYY-MM-DD
-    const bookingDate = new Date(`${dateStr}T00:00:00.000Z`) // Create UTC midnight
+    const dateStr = date.toISOString().split('T')[0]
+    const bookingDate = new Date(`${dateStr}T00:00:00.000Z`)
 
-    // Threshold: Ignore PENDING bookings older than 5 minutes (they will be auto-cancelled)
+    // Tính ngày hôm trước và hôm sau
+    const prevDate = new Date(bookingDate)
+    prevDate.setDate(prevDate.getDate() - 1)
+    const nextDate = new Date(bookingDate)
+    nextDate.setDate(nextDate.getDate() + 1)
+
+    // Threshold: Ignore PENDING bookings older than 5 minutes
     const pendingTimeout = new Date()
     pendingTimeout.setMinutes(pendingTimeout.getMinutes() - 5)
 
-    // Tìm booking trùng thời gian
-    const conflictingBooking = await prisma.booking.findFirst({
+    const activeStatuses: BookingStatus[] = ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED']
+    const statusCondition = {
+        OR: [
+            { status: { in: activeStatuses } },
+            { status: 'PENDING' as BookingStatus, createdAt: { gt: pendingTimeout } },
+        ],
+    }
+
+    const isCrossDay = parseTimeToMinutes(endTime) <= parseTimeToMinutes(startTime)
+
+    // --- CHECK 1: Conflict với booking cùng ngày ---
+    const sameDayConflict = await prisma.booking.findFirst({
         where: {
             roomId,
             date: bookingDate,
-            // Only consider:
-            // - CONFIRMED/IN_PROGRESS/COMPLETED bookings
-            // - PENDING bookings created within last 5 minutes
+            ...statusCondition,
+            // Overlap: A.start < B.end AND A.end > B.start
+            // Cần xử lý cả trường hợp existing booking là cross-day
             OR: [
+                // Trường hợp booking cùng ngày (endTime > startTime)
                 {
-                    status: {
-                        in: ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'],
-                    },
-                },
-                {
-                    status: 'PENDING',
-                    createdAt: {
-                        gt: pendingTimeout, // Only fresh PENDING bookings
-                    },
-                },
-            ],
-            // Overlap check: slot mới không được overlap với slot đã book
-            // A overlaps B if: A.start < B.end AND A.end > B.start
-            AND: [
-                {
-                    OR: [
-                        {
-                            // Slot mới bắt đầu trong khoảng slot cũ
-                            AND: [
-                                { startTime: { lte: startTime } },
-                                { endTime: { gt: startTime } },
-                            ],
-                        },
-                        {
-                            // Slot mới kết thúc trong khoảng slot cũ
-                            AND: [
-                                { startTime: { lt: endTime } },
-                                { endTime: { gte: endTime } },
-                            ],
-                        },
-                        {
-                            // Slot mới bao trùm slot cũ
-                            AND: [
-                                { startTime: { gte: startTime } },
-                                { endTime: { lte: endTime } },
-                            ],
-                        },
+                    AND: [
+                        { startTime: { lt: isCrossDay ? '24:00' : endTime } },
+                        { endTime: { gt: startTime } },
                     ],
                 },
             ],
         },
     })
+    if (sameDayConflict) return false
 
-    return !conflictingBooking
+    // --- CHECK 2: Conflict với booking từ ngày hôm TRƯỚC tràn sang ---
+    // Query tất cả booking hôm trước và check thủ công xem có cross-day không
+    const prevDayBookings = await prisma.booking.findMany({
+        where: {
+            roomId,
+            date: prevDate,
+            ...statusCondition,
+        },
+        select: { startTime: true, endTime: true },
+    })
+    for (const booking of prevDayBookings) {
+        const existingIsCrossDay = parseTimeToMinutes(booking.endTime) <= parseTimeToMinutes(booking.startTime)
+        if (existingIsCrossDay) {
+            // Booking hôm trước tràn sang, endTime của nó overlap với phần đầu ngày hôm nay
+            // Conflict nếu: target.startTime < existing.endTime (phần tràn sang)
+            if (parseTimeToMinutes(startTime) < parseTimeToMinutes(booking.endTime)) {
+                return false
+            }
+        }
+    }
+
+    // --- CHECK 3: Nếu target là cross-day, check conflict với booking NGÀY HÔM SAU ---
+    if (isCrossDay) {
+        const nextDayBookings = await prisma.booking.findMany({
+            where: {
+                roomId,
+                date: nextDate,
+                ...statusCondition,
+            },
+            select: { startTime: true, endTime: true },
+        })
+        for (const booking of nextDayBookings) {
+            // Target tràn sang ngày mai từ 00:00 đến endTime
+            // Conflict nếu: existing.startTime < target.endTime
+            if (parseTimeToMinutes(booking.startTime) < parseTimeToMinutes(endTime)) {
+                return false
+            }
+        }
+    }
+
+    return true
 }
 
 /**

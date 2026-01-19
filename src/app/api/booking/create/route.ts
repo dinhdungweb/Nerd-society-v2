@@ -139,27 +139,11 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Validate: Operating hours (08:00 - 22:00)
-        const startMinutes = parseTimeToMinutes(startTime)
-        const endMinutes = parseTimeToMinutes(endTime)
-        const openMinutes = parseTimeToMinutes(OPERATING_HOURS.open)
-        const closeMinutes = parseTimeToMinutes(OPERATING_HOURS.close)
-
-        if (startMinutes < openMinutes || endMinutes > closeMinutes) {
-            return NextResponse.json(
-                { error: `Giờ hoạt động từ ${OPERATING_HOURS.open} đến ${OPERATING_HOURS.close}` },
-                { status: 400 }
-            )
-        }
+        // Lưu ý: Operating hours 24/7 đã được xử lý, không cần check giới hạn giờ
 
         // Validate: Minimum duration (60 minutes)
+        // calculateDuration đã hỗ trợ cross-day (endTime < startTime = ngày hôm sau)
         const durationMinutes = calculateDuration(startTime, endTime)
-        if (durationMinutes <= 0) {
-            return NextResponse.json(
-                { error: 'Giờ kết thúc phải sau giờ bắt đầu' },
-                { status: 400 }
-            )
-        }
         if (durationMinutes < 60) {
             return NextResponse.json(
                 { error: 'Thời lượng tối thiểu là 60 phút' },

@@ -87,11 +87,19 @@ function isRangeOverlapping(startTime: string, endTime: string, bookedSlots: Boo
     return false
 }
 
-// Calculate duration in minutes
+// Calculate duration in minutes (hỗ trợ cross-day)
 function calculateDuration(startTime: string, endTime: string): number {
     const [startH, startM] = startTime.split(':').map(Number)
     const [endH, endM] = endTime.split(':').map(Number)
-    return (endH * 60 + endM) - (startH * 60 + startM)
+    let endMinutes = endH * 60 + endM
+    const startMinutes = startH * 60 + startM
+
+    // Cross-day: endTime thuộc ngày hôm sau
+    if (endMinutes <= startMinutes) {
+        endMinutes += 24 * 60
+    }
+
+    return endMinutes - startMinutes
 }
 
 export default function BookingFormV2({
@@ -215,8 +223,22 @@ export default function BookingFormV2({
         setPriceInfo(null)
     }, [date])
 
-    // Filter end time options
-    const endTimeOptions = timeSlots.filter(t => t > startTime)
+    // Filter end time options - bao gồm cả slot ngày hôm sau
+    const sameDayEndOptions = timeSlots.filter(t => t > startTime)
+    // Next day slots: 00:00 đến 08:00 (hoặc startTime nếu nhỏ hơn)
+    const nextDayLimit = startTime < '08:00' ? startTime : '08:00'
+    const nextDayEndOptions = startTime
+        ? timeSlots.filter(t => t !== '24:00' && t <= nextDayLimit).map(t => ({
+            value: t,
+            label: `${t} (+1 ngày)`,
+            isNextDay: true
+        }))
+        : []
+
+    const endTimeOptions = [
+        ...sameDayEndOptions.map(t => ({ value: t, label: t, isNextDay: false })),
+        ...nextDayEndOptions
+    ]
 
     const handleSubmit = () => {
         if (!date || !startTime || !endTime || !customerName || !customerPhone || !customerEmail) return
@@ -332,10 +354,10 @@ export default function BookingFormV2({
                         <TimeSelect
                             value={endTime}
                             onChange={setEndTime}
-                            options={endTimeOptions.map(time => ({
-                                value: time,
-                                label: time,
-                                disabled: isTimeSlotBooked(time, bookedSlots)
+                            options={endTimeOptions.map(opt => ({
+                                value: opt.value,
+                                label: opt.label,
+                                disabled: !opt.isNextDay && isTimeSlotBooked(opt.value, bookedSlots)
                             }))}
                             placeholder="Chọn giờ kết thúc"
                             disabled={!startTime}
