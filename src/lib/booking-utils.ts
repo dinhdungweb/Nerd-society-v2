@@ -88,7 +88,10 @@ export async function isSlotAvailable(
     const activeStatuses: BookingStatus[] = ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED']
 
     // Get bookings that could potentially overlap
-    // We need to check a date range from (startDate - 1 day) to (endDate + 1 day) to catch all possible overlaps
+    // For multi-day bookings, we need to catch bookings that:
+    // 1. Start within our date range (startDate-1 to endDate+1)
+    // 2. OR end within our date range (for bookings that started much earlier)
+    // 3. OR completely span our date range (started before AND ends after)
     const startDateStr = startDate.toISOString().split('T')[0]
     const searchStartDate = new Date(`${startDateStr}T00:00:00.000Z`)
     searchStartDate.setDate(searchStartDate.getDate() - 1)
@@ -100,13 +103,32 @@ export async function isSlotAvailable(
     const existingBookings = await prisma.booking.findMany({
         where: {
             roomId,
-            date: {
-                gte: searchStartDate,
-                lte: searchEndDate,
-            },
             OR: [
-                { status: { in: activeStatuses } },
-                { status: 'PENDING' as BookingStatus, createdAt: { gt: pendingTimeout } },
+                // Case 1: Booking starts within our search range
+                {
+                    date: {
+                        gte: searchStartDate,
+                        lte: searchEndDate,
+                    },
+                },
+                // Case 2: Booking ends within or after our target start (for long multi-day bookings)
+                // This catches bookings that started long ago but are still ongoing
+                {
+                    endDate: {
+                        gte: searchStartDate,
+                    },
+                    date: {
+                        lte: searchEndDate,
+                    },
+                },
+            ],
+            AND: [
+                {
+                    OR: [
+                        { status: { in: activeStatuses } },
+                        { status: 'PENDING' as BookingStatus, createdAt: { gt: pendingTimeout } },
+                    ],
+                },
             ],
         },
         select: {
