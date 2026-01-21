@@ -44,6 +44,7 @@ interface Booking {
     id: string
     bookingCode: string
     date: string
+    endDate: string | null
     startTime: string
     endTime: string
     estimatedAmount: number

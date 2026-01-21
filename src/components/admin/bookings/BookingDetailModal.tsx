@@ -14,6 +14,7 @@ interface Booking {
     startTime: string
     endTime: string
     date: string | Date
+    endDate: string | Date | null
     guests: number
     estimatedAmount: number
     depositAmount: number
@@ -194,7 +195,10 @@ export default function BookingDetailModal({ open, setOpen, booking, onRefresh }
                                             </span>
                                         </Dialog.Title>
                                         <p className="text-sm text-neutral-500 mt-1 dark:text-neutral-400">
-                                            {format(new Date(booking.date), 'dd/MM/yyyy')} • {booking.startTime} - {booking.endTime}{booking.endTime <= booking.startTime ? ' (+1 ngày)' : ''}
+                                            {format(new Date(booking.date), 'dd/MM/yyyy')} • {booking.startTime} - {booking.endTime}
+                                            {booking.endDate && new Date(booking.endDate).toDateString() !== new Date(booking.date).toDateString()
+                                                ? ` (${format(new Date(booking.endDate), 'dd/MM')})`
+                                                : booking.endTime <= booking.startTime ? ` (${format(new Date(new Date(booking.date).getTime() + 86400000), 'dd/MM')})` : ''}
                                         </p>
                                     </div>
 
