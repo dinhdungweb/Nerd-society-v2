@@ -28,6 +28,7 @@ registerLocale('vi', vi)
 interface BookedSlot {
     startTime: string
     endTime: string
+    isSpillover?: boolean
 }
 
 interface PriceBreakdown {
@@ -96,55 +97,89 @@ function isTimeSlotBooked(time: string, bookedSlots: BookedSlot[]): boolean {
     return false
 }
 
-// Check if the entire booking range overlaps with any booked slot (handles cross-day)
-function isRangeOverlapping(startTime: string, endTime: string, bookedSlots: BookedSlot[]): boolean {
+// Check if a time range overlaps with booked slots using absolute timestamps
+function isRangeOverlapping(
+    sDate: Date,
+    sTime: string,
+    eDate: Date,
+    eTime: string,
+    startDaySlots: BookedSlot[],
+    endDaySlots: BookedSlot[] = []
+): boolean {
+    if (!sDate || !sTime || !eDate || !eTime) return false
+
+    // Target range in absolute time
+    const newStart = getBookingDateTime(sDate, sTime).getTime()
+    const newEnd = getBookingDateTime(eDate, eTime).getTime()
+
+    // Helper to check slots for a specific day
+    const checkSlots = (slots: BookedSlot[], targetDay: Date) => {
+        for (const slot of slots) {
+            let slotStartMs: number
+            let slotEndMs: number
+
+            const baseDate = new Date(targetDay)
+            baseDate.setUTCHours(0, 0, 0, 0)
+
+            if (slot.isSpillover) {
+                // Spillover: started day before, ends today [00:00, endTime]
+                slotStartMs = getBookingDateTime(baseDate, '00:00').getTime()
+                slotEndMs = getBookingDateTime(baseDate, slot.endTime).getTime()
+            } else {
+                // Normal or Cross-day: starts today
+                slotStartMs = getBookingDateTime(baseDate, slot.startTime).getTime()
+                const slotEnd = getBookingDateTime(baseDate, slot.endTime)
+                if (timeToMinutes(slot.endTime) <= timeToMinutes(slot.startTime)) {
+                    slotEnd.setUTCDate(slotEnd.getUTCDate() + 1)
+                }
+                slotEndMs = slotEnd.getTime()
+            }
+
+            if (newStart < slotEndMs && newEnd > slotStartMs) return true
+        }
+        return false
+    }
+
+    if (checkSlots(startDaySlots, sDate)) return true
+    if (isMultiDayDate(sDate, eDate) && endDaySlots.length > 0) {
+        if (checkSlots(endDaySlots, eDate)) return true
+    }
+
+    return false
+}
+
+// Helper: Check if two dates are different (ignoring time)
+function isMultiDayDate(d1: Date, d2: Date): boolean {
+    return format(d1, 'yyyy-MM-dd') !== format(d2, 'yyyy-MM-dd')
+}
+
+// Helper: Combine Date and Time into UTC Date
+function getBookingDateTime(date: Date, time: string): Date {
+    const dt = new Date(date)
+    const [h, m] = time.split(':').map(Number)
+    dt.setUTCHours(h, m, 0, 0)
+    return dt
+}
+
+// Helper: Check if a single day segment overlaps with slots on that day
+function checkSegmentOverlap(startTime: string, endTime: string, slots: BookedSlot[]): boolean {
     if (!startTime || !endTime) return false
+    const sMin = timeToMinutes(startTime)
+    const eMin = timeToMinutes(endTime)
 
-    const newStartMin = timeToMinutes(startTime)
-    const newEndMin = timeToMinutes(endTime)
-    const newIsCrossDay = newEndMin <= newStartMin
-
-    for (const slot of bookedSlots) {
-        const slotStartMin = timeToMinutes(slot.startTime)
-        const slotEndMin = timeToMinutes(slot.endTime)
-        const slotIsCrossDay = slotEndMin <= slotStartMin
+    for (const slot of slots) {
+        const slotStart = timeToMinutes(slot.startTime)
+        const slotEnd = timeToMinutes(slot.endTime)
+        const slotIsCrossDay = slotEnd <= slotStart
 
         // Helper: check if two ranges [a1, a2) and [b1, b2) overlap
-        const rangesOverlap = (a1: number, a2: number, b1: number, b2: number) => {
-            return a1 < b2 && a2 > b1
-        }
+        const overlaps = (a1: number, a2: number, b1: number, b2: number) => a1 < b2 && a2 > b1
 
-        if (!newIsCrossDay && !slotIsCrossDay) {
-            // Both same-day: simple overlap check
-            if (rangesOverlap(newStartMin, newEndMin, slotStartMin, slotEndMin)) {
-                return true
-            }
-        } else if (!newIsCrossDay && slotIsCrossDay) {
-            // New is same-day, slot is cross-day
-            // Slot occupies [slotStart, 1440) today and [0, slotEnd) tomorrow
-            // New occupies [newStart, newEnd) today
-            // Check if new overlaps with slot's today portion [slotStart, 1440)
-            if (rangesOverlap(newStartMin, newEndMin, slotStartMin, 1440)) {
-                return true
-            }
-        } else if (newIsCrossDay && !slotIsCrossDay) {
-            // New is cross-day, slot is same-day
-            // New occupies [newStart, 1440) today and [0, newEnd) tomorrow
-            // Slot occupies [slotStart, slotEnd) today
-            // Check if new's today portion [newStart, 1440) overlaps with slot
-            if (rangesOverlap(newStartMin, 1440, slotStartMin, slotEndMin)) {
-                return true
-            }
+        if (!slotIsCrossDay) {
+            if (overlaps(sMin, eMin, slotStart, slotEnd)) return true
         } else {
-            // Both cross-day
-            // Both occupy late night to early morning
-            // They definitely overlap since both span midnight
-            // Check: new [newStart, 1440) overlaps slot [slotStart, 1440)?
-            // And: new [0, newEnd) overlaps slot [0, slotEnd)?
-            if (rangesOverlap(newStartMin, 1440, slotStartMin, 1440) ||
-                rangesOverlap(0, newEndMin, 0, slotEndMin)) {
-                return true
-            }
+            // Slot spans midnight: [slotStart, 1440) and [0, slotEnd)
+            if (overlaps(sMin, eMin, slotStart, 1440) || overlaps(sMin, eMin, 0, slotEnd)) return true
         }
     }
     return false
@@ -152,16 +187,19 @@ function isRangeOverlapping(startTime: string, endTime: string, bookedSlots: Boo
 
 // Calculate duration in minutes (hỗ trợ multi-day)
 function calculateDuration(startDate: Date, endDate: Date, startTime: string, endTime: string): number {
-    const startMinutes = timeToMinutes(startTime)
-    const endMinutes = timeToMinutes(endTime)
+    if (!startDate || !endDate || !startTime || !endTime) return 0
+    const startMin = timeToMinutes(startTime)
+    const endMin = timeToMinutes(endTime)
 
-    // Calculate number of days between dates (using UTC to be consistent with how dates are stored)
-    const startDateOnly = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()))
-    const endDateOnly = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate()))
-    const daysDiff = Math.round((endDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24))
+    // Calculate number of days between dates
+    const s = new Date(startDate)
+    s.setHours(0, 0, 0, 0)
+    const e = new Date(endDate)
+    e.setHours(0, 0, 0, 0)
 
-    // Total minutes = (days * 24 * 60) + endMinutes - startMinutes
-    return (daysDiff * 24 * 60) + endMinutes - startMinutes
+    const daysDiff = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24))
+
+    return (daysDiff * 24 * 60) + endMin - startMin
 }
 
 export default function BookingFormV2({
@@ -227,22 +265,38 @@ export default function BookingFormV2({
         ? allTimeSlots.filter(t => t >= currentTimeWithBuffer)
         : allTimeSlots
 
-    // 1. Fetch booked slots
+    // 1. Fetch booked slots for both start and end days
     const dateStr = date ? format(date, 'yyyy-MM-dd') : null
+    const endDateStr = (endDate && date && format(endDate, 'yyyy-MM-dd') !== dateStr) ? format(endDate, 'yyyy-MM-dd') : null
+
     const { data: availabilityData, isLoading: loadingSlots, error: availabilityErrorSWR, isValidating: isRefreshingSlots } = useSWR(
         dateStr && roomId ? `/api/booking/availability?roomId=${roomId}&date=${dateStr}` : null,
         fetcher,
         {
-            refreshInterval: 30000, // Tự động làm mới mỗi 30s
+            refreshInterval: 30000,
             revalidateOnFocus: true,
             dedupingInterval: 2000
         }
     )
 
+    const { data: endDateAvailabilityData, isLoading: loadingEndSlots } = useSWR(
+        endDateStr && roomId ? `/api/booking/availability?roomId=${roomId}&date=${endDateStr}` : null,
+        fetcher,
+        {
+            refreshInterval: 30000,
+            revalidateOnFocus: true,
+            dedupingInterval: 2000
+        }
+    )
+
+    const isAnySlotsLoading = loadingSlots || (!!endDateStr && loadingEndSlots)
+
     useEffect(() => {
         if (availabilityData) setBookedSlots(availabilityData.bookedSlots || [])
         else setBookedSlots([])
     }, [availabilityData])
+
+    const endDayBookedSlots = endDateAvailabilityData?.bookedSlots || []
 
     // 2. Calculate price
     const duration = (date && endDate && startTime && endTime) ? calculateDuration(date, endDate, startTime, endTime) : 0
@@ -261,7 +315,7 @@ export default function BookingFormV2({
     }, [priceData])
 
     // 3. Real-time Availability Check
-    const shouldCheckRealtime = dateStr && startTime && endTime && roomId && !isRangeOverlapping(startTime, endTime, bookedSlots)
+    const shouldCheckRealtime = dateStr && startTime && endTime && roomId && !isRangeOverlapping(date!, startTime, endDate!, endTime, bookedSlots, endDayBookedSlots)
     const { data: checkData, isLoading: isCheckingAvailability, error: checkErrorSWR } = useSWR(
         shouldCheckRealtime ? [`/api/booking/check-slot`, dateStr, startTime, endTime, roomId] : null,
         ([url]) => fetch(url, {
@@ -325,7 +379,7 @@ export default function BookingFormV2({
     }
 
     // Check if selected range overlaps with booked slots
-    const hasOverlap = isRangeOverlapping(startTime, endTime, bookedSlots)
+    const hasOverlap = isRangeOverlapping(date!, startTime, endDate!, endTime, bookedSlots, endDayBookedSlots)
 
     const isValid = date && endDate && startTime && endTime && customerName && customerPhone && customerEmail && isEmailValid && priceInfo && !hasOverlap && !availabilityError && !isCheckingAvailability
 
@@ -463,10 +517,12 @@ export default function BookingFormV2({
                                 value: opt.value,
                                 label: opt.label,
                                 // Check if the ENTIRE range from startTime to this endTime overlaps with any booked slot
-                                disabled: startTime ? isRangeOverlapping(startTime, opt.value, bookedSlots) : false
+                                disabled: (startTime && !isAnySlotsLoading)
+                                    ? isRangeOverlapping(date!, startTime, endDate!, opt.value, bookedSlots, endDayBookedSlots)
+                                    : false
                             }))}
-                            placeholder="Chọn giờ kết thúc"
-                            disabled={!startTime}
+                            placeholder={isAnySlotsLoading ? "Đang tải trống..." : "Chọn giờ kết thúc"}
+                            disabled={!startTime || isAnySlotsLoading}
                         />
                     </div>
                 </div>

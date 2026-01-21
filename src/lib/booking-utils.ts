@@ -158,15 +158,26 @@ export async function getBookedSlots(roomId: string, dateStr: string) {
     targetDateEnd.setDate(targetDateEnd.getDate() + 1)
 
     // Find all active bookings that overlap with this entire 24h period
+    // Use a range that covers potential cross-day and multi-day overlaps
+    const startOfTarget = new Date(`${dateStr}T00:00:00.000Z`)
+    const startOfPrevious = new Date(startOfTarget)
+    startOfPrevious.setDate(startOfPrevious.getDate() - 1)
+
     const activeBookings = await prisma.booking.findMany({
         where: {
             roomId,
             status: {
                 notIn: ['CANCELLED', 'NO_SHOW'],
             },
+            // Started before midnight tomorrow
             date: {
                 lt: targetDateEnd,
             },
+            // Ended after midnight today (or could have ended today if legacy cross-day)
+            OR: [
+                { endDate: { gte: startOfTarget } },
+                { endDate: null, date: { gte: startOfPrevious } }
+            ]
         },
         select: {
             date: true,
