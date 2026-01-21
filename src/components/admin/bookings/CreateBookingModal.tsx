@@ -2,6 +2,8 @@ import React, { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon, UserIcon, PhoneIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
+import TimeSelect from '../../booking/TimeSelect'
+import { isRangeOverlapping, parseTimeToMinutes, calculateDurationMultiDay } from '@/lib/booking-utils'
 
 interface CreateBookingModalProps {
     open: boolean
@@ -23,6 +25,42 @@ interface Service {
     priceLarge: number | null
     priceFirstHour: number | null
     pricePerHour: number | null
+}
+
+// Helper: Generate time slots
+function generateTimeSlots(step: number = 30): string[] {
+    const slots: string[] = []
+    for (let hour = 0; hour < 24; hour++) {
+        for (let minute = 0; minute < 60; minute += step) {
+            slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`)
+        }
+    }
+    slots.push('24:00')
+    return slots
+}
+
+// Helper: Check if a time slot overlaps with booked slots
+function isTimeSlotBooked(time: string, bookedSlots: any[]): boolean {
+    const timeMin = parseTimeToMinutes(time)
+
+    for (const slot of bookedSlots) {
+        const startMin = parseTimeToMinutes(slot.startTime)
+        const endMin = parseTimeToMinutes(slot.endTime)
+
+        // Cross-day slot: endTime <= startTime
+        if (endMin <= startMin) {
+            // Slot spans midnight: booked from startTime to 24:00 AND 00:00 to endTime
+            if (timeMin >= startMin || timeMin < endMin) {
+                return true
+            }
+        } else {
+            // Normal same-day slot
+            if (timeMin >= startMin && timeMin < endMin) {
+                return true
+            }
+        }
+    }
+    return false
 }
 
 export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateBookingModalProps) {
@@ -49,6 +87,12 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
 
     const [bookedSlots, setBookedSlots] = useState<any[]>([])
     const [endDayBookedSlots, setEndDayBookedSlots] = useState<any[]>([])
+
+    // Derived state for time slots
+    const selectedRoom = rooms.find(r => r.id === formData.roomId)
+    const serviceType = selectedRoom?.type.startsWith('MEETING') ? 'MEETING' : 'POD'
+    const timeStep = serviceType === 'MEETING' ? 30 : 15
+    const allTimeSlots = generateTimeSlots(timeStep)
 
     useEffect(() => {
         if (open) {
@@ -132,28 +176,37 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
             formData.endTime
         )
 
-        const hours = durationMinutes / 60
+        // Simple client-side estimation (server validation is final)
         let price = 0
-
         if (serviceType === 'MEETING') {
-            // Meeting room: price by group size
-            const pricePerHour = formData.guests < 8
-                ? (service.priceSmall || 0)
-                : (service.priceLarge || 0)
-            price = pricePerHour * hours
+            const pricePerHour = (formData.guests >= 8 ? service.priceLarge : service.priceSmall) || 0
+            price = (durationMinutes / 60) * pricePerHour
         } else {
-            // Pod: first hour + extra hours
-            const firstHour = service.priceFirstHour || 0
-            const extraHours = Math.max(0, hours - 1)
-            price = firstHour + extraHours * (service.pricePerHour || 0)
+            // Pod reasoning (simplified, server handles complex blocks)
+            const pricePerHour = service.pricePerHour || 0
+            price = (durationMinutes / 60) * pricePerHour
         }
 
         setEstimatedPrice(Math.round(price))
-    }, [formData.roomId, formData.date, formData.endDate, formData.startTime, formData.endTime, formData.guests, rooms, services])
+
+    }, [formData, services, rooms])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
+
+        if (isRangeOverlapping(
+            new Date(formData.date),
+            formData.startTime,
+            new Date(formData.endDate),
+            formData.endTime,
+            bookedSlots,
+            endDayBookedSlots
+        )) {
+            toast.error('Khung giờ bị trùng lịch!')
+            setLoading(false)
+            return
+        }
 
         try {
             const res = await fetch('/api/admin/bookings', {
@@ -162,15 +215,13 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                 body: JSON.stringify(formData)
             })
 
+            const data = await res.json()
+
             if (!res.ok) {
-                const error = await res.json()
-                throw new Error(error.error || 'Có lỗi xảy ra')
+                throw new Error(data.error)
             }
 
-            toast.success('Tạo booking thành công')
-            onSuccess()
-            setOpen(false)
-            // Reset form
+            toast.success('Tạo booking thành công!')
             setFormData({
                 customerName: '',
                 customerPhone: '',
@@ -185,6 +236,8 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                 depositStatus: 'PAID_CASH',
                 note: ''
             })
+            onSuccess()
+            setOpen(false)
         } catch (error: any) {
             toast.error(error.message)
         } finally {
@@ -219,60 +272,66 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                             leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                         >
                             <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg dark:bg-neutral-900 border dark:border-neutral-800">
-                                <div className="absolute right-4 top-4">
-                                    <button
-                                        type="button"
-                                        className="rounded-lg p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-500 dark:hover:bg-neutral-800"
-                                        onClick={() => setOpen(false)}
-                                    >
-                                        <XMarkIcon className="size-5" />
-                                    </button>
-                                </div>
+                                <form onSubmit={handleSubmit}>
+                                    <div className="flex justify-between items-center px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
+                                        <Dialog.Title as="h3" className="text-lg font-bold text-neutral-900 dark:text-white">
+                                            Tạo Booking Mới (Walk-in)
+                                        </Dialog.Title>
+                                        <button
+                                            type="button"
+                                            className="text-neutral-400 hover:text-neutral-500"
+                                            onClick={() => setOpen(false)}
+                                        >
+                                            <XMarkIcon className="size-5" />
+                                        </button>
+                                    </div>
 
-                                <form onSubmit={handleSubmit} className="p-6">
-                                    <Dialog.Title as="h3" className="text-lg font-bold leading-6 text-neutral-900 dark:text-white mb-6">
-                                        Tạo Booking Mới (Walk-in)
-                                    </Dialog.Title>
-
-                                    <div className="space-y-4">
+                                    <div className="p-6 space-y-4">
                                         {/* Customer Info */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div className="sm:col-span-2">
+                                        <div className="space-y-4">
+                                            <div>
                                                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Tên khách</label>
-                                                <input
-                                                    type="text"
-                                                    required
-                                                    className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
-                                                    value={formData.customerName}
-                                                    onChange={e => setFormData({ ...formData, customerName: e.target.value })}
-                                                />
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        className="w-full rounded-lg pl-10 border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
+                                                        value={formData.customerName}
+                                                        onChange={e => setFormData({ ...formData, customerName: e.target.value })}
+                                                    />
+                                                    <UserIcon className="absolute left-3 top-2.5 size-4 text-neutral-400" />
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">SĐT</label>
-                                                <input
-                                                    type="tel"
-                                                    required
-                                                    className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
-                                                    value={formData.customerPhone}
-                                                    onChange={e => setFormData({ ...formData, customerPhone: e.target.value })}
-                                                />
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">SĐT</label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="tel"
+                                                            required
+                                                            className="w-full rounded-lg pl-10 border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
+                                                            value={formData.customerPhone}
+                                                            onChange={e => setFormData({ ...formData, customerPhone: e.target.value })}
+                                                        />
+                                                        <PhoneIcon className="absolute left-3 top-2.5 size-4 text-neutral-400" />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Email</label>
+                                                    <input
+                                                        type="email"
+                                                        className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
+                                                        value={formData.customerEmail}
+                                                        onChange={e => setFormData({ ...formData, customerEmail: e.target.value })}
+                                                    />
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Email</label>
-                                                <input
-                                                    type="email"
-                                                    className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
-                                                    value={formData.customerEmail}
-                                                    onChange={e => setFormData({ ...formData, customerEmail: e.target.value })}
-                                                />
-                                            </div>
-
                                         </div>
 
-                                        {/* Room & Time */}
-                                        <div>
+                                        <div className="pt-4 border-t border-neutral-200 dark:border-neutral-700">
                                             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Chọn phòng</label>
                                             <select
+                                                required
                                                 className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
                                                 value={formData.roomId}
                                                 onChange={e => setFormData({ ...formData, roomId: e.target.value })}
@@ -303,13 +362,18 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                                             }))
                                                         }}
                                                     />
-                                                    <input
-                                                        type="time"
-                                                        required
-                                                        className="col-span-2 w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
-                                                        value={formData.startTime}
-                                                        onChange={e => setFormData({ ...formData, startTime: e.target.value })}
-                                                    />
+                                                    <div className="col-span-2">
+                                                        <TimeSelect
+                                                            value={formData.startTime}
+                                                            onChange={val => setFormData({ ...formData, startTime: val })}
+                                                            options={allTimeSlots.map(time => ({
+                                                                value: time,
+                                                                label: time,
+                                                                disabled: isTimeSlotBooked(time, bookedSlots)
+                                                            }))}
+                                                            placeholder="Giờ vào"
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div>
@@ -323,30 +387,42 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                                         value={formData.endDate}
                                                         onChange={e => setFormData({ ...formData, endDate: e.target.value })}
                                                     />
-                                                    <input
-                                                        type="time"
-                                                        required
-                                                        className="col-span-2 w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
-                                                        value={formData.endTime}
-                                                        onChange={e => setFormData({ ...formData, endTime: e.target.value })}
-                                                    />
+                                                    <div className="col-span-2">
+                                                        <TimeSelect
+                                                            value={formData.endTime}
+                                                            onChange={val => setFormData({ ...formData, endTime: val })}
+                                                            options={allTimeSlots.map(time => ({
+                                                                value: time,
+                                                                label: time,
+                                                                disabled: isRangeOverlapping(
+                                                                    new Date(formData.date),
+                                                                    formData.startTime,
+                                                                    new Date(formData.endDate),
+                                                                    time,
+                                                                    bookedSlots,
+                                                                    endDayBookedSlots
+                                                                )
+                                                            }))}
+                                                            placeholder="Giờ ra"
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Số khách</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                required
-                                                className="w-24 rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
-                                                value={formData.guests}
-                                                onChange={e => setFormData({ ...formData, guests: parseInt(e.target.value) })}
-                                            />
-                                        </div>
-
-                                        {/* Payment */}
+                                        {selectedRoom?.type.startsWith('MEETING') && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Số khách</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    required
+                                                    className="w-24 rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
+                                                    value={formData.guests}
+                                                    onChange={e => setFormData({ ...formData, guests: parseInt(e.target.value) || 1 })}
+                                                />
+                                            </div>
+                                        )}  {/* Payment */}
                                         <div className="pt-4 border-t border-neutral-200 dark:border-neutral-700">
                                             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">Trạng thái cọc</label>
                                             <div className="flex gap-4">
