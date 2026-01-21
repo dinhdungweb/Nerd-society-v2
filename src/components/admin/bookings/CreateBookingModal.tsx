@@ -285,21 +285,20 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                             </select>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Bắt đầu</label>
-                                                <div className="flex gap-2">
+                                                <div className="grid grid-cols-5 gap-2">
                                                     <input
                                                         type="date"
                                                         required
-                                                        className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
+                                                        className="col-span-3 w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
                                                         value={formData.date}
                                                         onChange={e => {
                                                             const newDate = e.target.value
                                                             setFormData(prev => ({
                                                                 ...prev,
                                                                 date: newDate,
-                                                                // If endDate was same as old date, update it too
                                                                 endDate: prev.endDate === prev.date ? newDate : prev.endDate
                                                             }))
                                                         }}
@@ -307,7 +306,7 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                                     <input
                                                         type="time"
                                                         required
-                                                        className="w-24 rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
+                                                        className="col-span-2 w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
                                                         value={formData.startTime}
                                                         onChange={e => setFormData({ ...formData, startTime: e.target.value })}
                                                     />
@@ -315,19 +314,19 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Kết thúc</label>
-                                                <div className="flex gap-2">
+                                                <div className="grid grid-cols-5 gap-2">
                                                     <input
                                                         type="date"
                                                         required
                                                         min={formData.date}
-                                                        className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
+                                                        className="col-span-3 w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
                                                         value={formData.endDate}
                                                         onChange={e => setFormData({ ...formData, endDate: e.target.value })}
                                                     />
                                                     <input
                                                         type="time"
                                                         required
-                                                        className="w-24 rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
+                                                        className="col-span-2 w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
                                                         value={formData.endTime}
                                                         onChange={e => setFormData({ ...formData, endTime: e.target.value })}
                                                     />
