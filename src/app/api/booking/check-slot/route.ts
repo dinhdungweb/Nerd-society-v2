@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 interface CheckSlotRequest {
     roomId: string
-    date: string // ISO date string
+    date: string // ISO date string (start date)
+    endDate?: string // ISO date string (end date, defaults to date)
     startTime: string // "HH:MM"
     endTime: string // "HH:MM"
 }
@@ -15,7 +16,7 @@ interface CheckSlotRequest {
 export async function POST(request: NextRequest) {
     try {
         const body: CheckSlotRequest = await request.json()
-        const { roomId, date, startTime, endTime } = body
+        const { roomId, date, endDate: endDateStr, startTime, endTime } = body
 
         // Validate required fields
         if (!roomId || !date || !startTime || !endTime) {
@@ -33,14 +34,23 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Parse endDate (default to bookingDate if not provided)
+        const bookingEndDate = endDateStr ? new Date(endDateStr) : bookingDate
+        if (isNaN(bookingEndDate.getTime())) {
+            return NextResponse.json(
+                { error: 'Invalid end date format' },
+                { status: 400 }
+            )
+        }
+
         // Check availability using shared logic
-        const available = await isSlotAvailable(roomId, bookingDate, startTime, endTime)
+        const available = await isSlotAvailable(roomId, bookingDate, bookingEndDate, startTime, endTime)
 
         if (!available) {
             return NextResponse.json(
-                { 
+                {
                     available: false,
-                    error: 'Khung giờ này đã có người đặt' 
+                    error: 'Khung giờ này đã có người đặt'
                 },
                 { status: 200 } // Return 200 with available: false to handle gracefully in frontend
             )

@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Check slot availability
-        const available = await isSlotAvailable(roomId, bookingDate, startTime, endTime)
+        const available = await isSlotAvailable(roomId, bookingDate, bookingEndDate, startTime, endTime)
         if (!available) {
             return NextResponse.json(
                 { error: 'Khung giờ này vừa có người đặt trước. Vui lòng chọn khung giờ khác.' },

@@ -57,97 +57,81 @@ export function calculateDuration(startTime: string, endTime: string): number {
 }
 
 /**
- * Kiểm tra slot có trống không (hỗ trợ cross-day booking)
+ * Kiểm tra slot có trống không (hỗ trợ multi-day booking với endDate)
  * @returns true nếu slot available
  */
 export async function isSlotAvailable(
     roomId: string,
-    date: Date,
+    startDate: Date,
+    endDate: Date,
     startTime: string,
     endTime: string
 ): Promise<boolean> {
-    // Normalize date to UTC midnight to match DB storage format
-    const dateStr = date.toISOString().split('T')[0]
-    const bookingDate = new Date(`${dateStr}T00:00:00.000Z`)
-
-    // Tính ngày hôm trước và hôm sau
-    const prevDate = new Date(bookingDate)
-    prevDate.setDate(prevDate.getDate() - 1)
-    const nextDate = new Date(bookingDate)
-    nextDate.setDate(nextDate.getDate() + 1)
+    // Convert target booking to absolute timestamps (milliseconds)
+    const targetStartMs = getBookingDateTime(startDate, startTime).getTime()
+    const targetEndMs = getBookingDateTime(endDate, endTime).getTime()
 
     // Threshold: Ignore PENDING bookings older than 5 minutes
     const pendingTimeout = new Date()
     pendingTimeout.setMinutes(pendingTimeout.getMinutes() - 5)
 
     const activeStatuses: BookingStatus[] = ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED']
-    const statusCondition = {
-        OR: [
-            { status: { in: activeStatuses } },
-            { status: 'PENDING' as BookingStatus, createdAt: { gt: pendingTimeout } },
-        ],
-    }
 
-    const isCrossDay = parseTimeToMinutes(endTime) <= parseTimeToMinutes(startTime)
+    // Get bookings that could potentially overlap
+    // We need to check a date range from (startDate - 1 day) to (endDate + 1 day) to catch all possible overlaps
+    const startDateStr = startDate.toISOString().split('T')[0]
+    const searchStartDate = new Date(`${startDateStr}T00:00:00.000Z`)
+    searchStartDate.setDate(searchStartDate.getDate() - 1)
 
-    // --- CHECK 1: Conflict với booking cùng ngày ---
-    const sameDayConflict = await prisma.booking.findFirst({
+    const endDateStr = endDate.toISOString().split('T')[0]
+    const searchEndDate = new Date(`${endDateStr}T00:00:00.000Z`)
+    searchEndDate.setDate(searchEndDate.getDate() + 1)
+
+    const existingBookings = await prisma.booking.findMany({
         where: {
             roomId,
-            date: bookingDate,
-            ...statusCondition,
-            // Overlap: A.start < B.end AND A.end > B.start
-            // Cần xử lý cả trường hợp existing booking là cross-day
+            date: {
+                gte: searchStartDate,
+                lte: searchEndDate,
+            },
             OR: [
-                // Trường hợp booking cùng ngày (endTime > startTime)
-                {
-                    AND: [
-                        { startTime: { lt: isCrossDay ? '24:00' : endTime } },
-                        { endTime: { gt: startTime } },
-                    ],
-                },
+                { status: { in: activeStatuses } },
+                { status: 'PENDING' as BookingStatus, createdAt: { gt: pendingTimeout } },
             ],
         },
-    })
-    if (sameDayConflict) return false
-
-    // --- CHECK 2: Conflict với booking từ ngày hôm TRƯỚC tràn sang ---
-    // Query tất cả booking hôm trước và check thủ công xem có cross-day không
-    const prevDayBookings = await prisma.booking.findMany({
-        where: {
-            roomId,
-            date: prevDate,
-            ...statusCondition,
+        select: {
+            date: true,
+            endDate: true,
+            startTime: true,
+            endTime: true,
         },
-        select: { startTime: true, endTime: true },
     })
-    for (const booking of prevDayBookings) {
-        const existingIsCrossDay = parseTimeToMinutes(booking.endTime) <= parseTimeToMinutes(booking.startTime)
-        if (existingIsCrossDay) {
-            // Booking hôm trước tràn sang, endTime của nó overlap với phần đầu ngày hôm nay
-            // Conflict nếu: target.startTime < existing.endTime (phần tràn sang)
-            if (parseTimeToMinutes(startTime) < parseTimeToMinutes(booking.endTime)) {
-                return false
+
+    // Check each existing booking for overlap
+    for (const booking of existingBookings) {
+        // Calculate existing booking's start and end timestamps
+        const existingStartDate = new Date(booking.date)
+        // If endDate is null, determine it:
+        // - If endTime <= startTime, it's cross-day (next day)
+        // - Otherwise, same day
+        let existingEndDate: Date
+        if (booking.endDate) {
+            existingEndDate = new Date(booking.endDate)
+        } else {
+            // Legacy: no endDate field
+            const isCrossDay = parseTimeToMinutes(booking.endTime) <= parseTimeToMinutes(booking.startTime)
+            existingEndDate = new Date(existingStartDate)
+            if (isCrossDay) {
+                existingEndDate.setDate(existingEndDate.getDate() + 1)
             }
         }
-    }
 
-    // --- CHECK 3: Nếu target là cross-day, check conflict với booking NGÀY HÔM SAU ---
-    if (isCrossDay) {
-        const nextDayBookings = await prisma.booking.findMany({
-            where: {
-                roomId,
-                date: nextDate,
-                ...statusCondition,
-            },
-            select: { startTime: true, endTime: true },
-        })
-        for (const booking of nextDayBookings) {
-            // Target tràn sang ngày mai từ 00:00 đến endTime
-            // Conflict nếu: existing.startTime < target.endTime
-            if (parseTimeToMinutes(booking.startTime) < parseTimeToMinutes(endTime)) {
-                return false
-            }
+        const existingStartMs = getBookingDateTime(existingStartDate, booking.startTime).getTime()
+        const existingEndMs = getBookingDateTime(existingEndDate, booking.endTime).getTime()
+
+        // Simple range overlap check: A.start < B.end AND A.end > B.start
+        if (targetStartMs < existingEndMs && targetEndMs > existingStartMs) {
+            return false // Overlap found!
         }
     }
 
