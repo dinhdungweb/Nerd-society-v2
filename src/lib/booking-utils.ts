@@ -57,6 +57,16 @@ export function calculateDuration(startTime: string, endTime: string): number {
 }
 
 /**
+ * Combine Date and Time string (HH:mm) into Date object
+ */
+export function getBookingDateTime(date: Date | string, time: string): Date {
+    const dateTime = new Date(date)
+    const [hours, minutes] = time.split(':').map(Number)
+    dateTime.setHours(hours, minutes, 0, 0)
+    return dateTime
+}
+
+/**
  * Kiểm tra slot có trống không (hỗ trợ multi-day booking với endDate)
  * @returns true nếu slot available
  */
@@ -111,9 +121,6 @@ export async function isSlotAvailable(
     for (const booking of existingBookings) {
         // Calculate existing booking's start and end timestamps
         const existingStartDate = new Date(booking.date)
-        // If endDate is null, determine it:
-        // - If endTime <= startTime, it's cross-day (next day)
-        // - Otherwise, same day
         let existingEndDate: Date
         if (booking.endDate) {
             existingEndDate = new Date(booking.endDate)
@@ -140,69 +147,81 @@ export async function isSlotAvailable(
 
 /**
  * Lấy danh sách slot đã book trong ngày
- * Bao gồm cả slot từ booking ngày hôm trước tràn sang (cross-day)
+ * Bao gồm cả slot từ booking nhiều ngày (multi-day)
  * @param roomId - ID của phòng
- * @param dateStr - Ngày theo format YYYY-MM-DD (sẽ được parse như UTC midnight)
+ * @param dateStr - Ngày theo format YYYY-MM-DD
  */
 export async function getBookedSlots(roomId: string, dateStr: string) {
-    // Parse dateStr as UTC midnight to match how dates are stored in DB
+    // Parse dateStr as UTC midnight
     const targetDate = new Date(`${dateStr}T00:00:00.000Z`)
+    const targetDateEnd = new Date(targetDate)
+    targetDateEnd.setDate(targetDateEnd.getDate() + 1)
 
-    // Tính ngày hôm trước
-    const prevDate = new Date(targetDate)
-    prevDate.setDate(prevDate.getDate() - 1)
-
-    // Lấy booking ngày hiện tại
-    const sameDayBookings = await prisma.booking.findMany({
+    // Find all active bookings that overlap with this entire 24h period
+    const activeBookings = await prisma.booking.findMany({
         where: {
             roomId,
-            date: targetDate,
             status: {
                 notIn: ['CANCELLED', 'NO_SHOW'],
             },
-        },
-        select: {
-            startTime: true,
-            endTime: true,
-        },
-        orderBy: {
-            startTime: 'asc',
-        },
-    })
-
-    // Lấy booking ngày hôm trước (để check cross-day)
-    const prevDayBookings = await prisma.booking.findMany({
-        where: {
-            roomId,
-            date: prevDate,
-            status: {
-                notIn: ['CANCELLED', 'NO_SHOW'],
+            date: {
+                lt: targetDateEnd,
             },
         },
         select: {
+            date: true,
+            endDate: true,
             startTime: true,
             endTime: true,
         },
     })
 
-    // Kết quả: bao gồm cả booking cùng ngày và phần tràn từ hôm trước
     const result: { startTime: string; endTime: string; isSpillover?: boolean }[] = []
 
-    // Thêm booking cùng ngày
-    sameDayBookings.forEach(b => {
-        result.push({ startTime: b.startTime, endTime: b.endTime })
-    })
+    activeBookings.forEach(booking => {
+        const bStart = new Date(booking.date)
+        let bEnd: Date
+        if (booking.endDate) {
+            bEnd = new Date(booking.endDate)
+        } else {
+            // Legacy cross-day check
+            const isCrossDay = parseTimeToMinutes(booking.endTime) <= parseTimeToMinutes(booking.startTime)
+            bEnd = new Date(bStart)
+            if (isCrossDay) bEnd.setDate(bEnd.getDate() + 1)
+        }
 
-    // Thêm phần tràn từ booking hôm trước (cross-day)
-    prevDayBookings.forEach(b => {
-        const isCrossDay = parseTimeToMinutes(b.endTime) <= parseTimeToMinutes(b.startTime)
-        if (isCrossDay) {
-            // Booking hôm trước tràn sang: chiếm từ 00:00 đến endTime của nó
-            result.push({ startTime: '00:00', endTime: b.endTime, isSpillover: true })
+        const bStartFull = getBookingDateTime(bStart, booking.startTime)
+        const bEndFull = getBookingDateTime(bEnd, booking.endTime)
+
+        // Check if this booking overlaps with our target 24h window [targetDate, targetDateEnd)
+        if (bStartFull < targetDateEnd && bEndFull > targetDate) {
+            // It overlaps! Now calculate the portion within this day
+            let displayStart = '00:00'
+            let displayEnd = '24:00'
+            let isSpillover = false
+
+            // If it starts today
+            if (bStartFull >= targetDate) {
+                displayStart = booking.startTime
+            } else {
+                isSpillover = true
+            }
+
+            // If it ends today
+            if (bEndFull <= targetDateEnd) {
+                displayEnd = booking.endTime
+            }
+
+            result.push({
+                startTime: displayStart,
+                endTime: displayEnd,
+                isSpillover
+            })
         }
     })
 
-    return result
+    // Sort by startTime
+    return result.sort((a, b) => a.startTime.localeCompare(b.startTime))
 }
 
 /**
@@ -212,13 +231,3 @@ export const OPERATING_HOURS = {
     open: '00:00',
     close: '24:00',
 } as const
-
-/**
- * Combine Date and Time string (HH:mm) into Date object
- */
-export function getBookingDateTime(date: Date | string, time: string): Date {
-    const dateTime = new Date(date)
-    const [hours, minutes] = time.split(':').map(Number)
-    dateTime.setHours(hours, minutes, 0, 0)
-    return dateTime
-}
