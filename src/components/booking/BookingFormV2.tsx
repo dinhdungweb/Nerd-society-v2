@@ -291,10 +291,15 @@ export default function BookingFormV2({
     // Next day slots: 00:00 đến 08:00 (hoặc startTime nếu nhỏ hơn)
     // Dùng allTimeSlots vì nextDay không bị filter bởi "isToday"
     const nextDayLimit = startTime < '08:00' ? startTime : '08:00'
+    // Tính ngày hôm sau để hiển thị
+    const nextDayDate = date ? new Date(date) : null
+    if (nextDayDate) nextDayDate.setDate(nextDayDate.getDate() + 1)
+    const nextDayLabel = nextDayDate ? `${nextDayDate.getDate().toString().padStart(2, '0')}/${(nextDayDate.getMonth() + 1).toString().padStart(2, '0')}` : '+1 ngày'
+
     const nextDayEndOptions = startTime
         ? allTimeSlots.filter(t => t !== '24:00' && t <= nextDayLimit).map(t => ({
             value: t,
-            label: `${t} (+1 ngày)`,
+            label: `${t} (${nextDayLabel})`,
             isNextDay: true
         }))
         : []
