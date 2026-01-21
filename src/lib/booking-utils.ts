@@ -264,3 +264,69 @@ export const OPERATING_HOURS = {
     open: '00:00',
     close: '24:00',
 } as const
+
+
+/**
+ * Helper: Tính duration (multi-day) returning minutes
+ */
+export function calculateDurationMultiDay(startDate: Date, endDate: Date, startTime: string, endTime: string): number {
+    if (!startDate || !endDate || !startTime || !endTime) return 0
+    const startMin = parseTimeToMinutes(startTime)
+    const endMin = parseTimeToMinutes(endTime)
+
+    const s = new Date(startDate); s.setHours(0, 0, 0, 0)
+    const e = new Date(endDate); e.setHours(0, 0, 0, 0)
+    const daysDiff = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24))
+
+    return (daysDiff * 24 * 60) + endMin - startMin
+}
+
+/**
+ * Helper: Check overlap Logic (Client/Server Shared Helper)
+ * Checks if range [sDate+sTime, eDate+eTime] overlaps with any slot in startDaySlots/endDaySlots
+ */
+export function isRangeOverlapping(
+    sDate: Date,
+    sTime: string,
+    eDate: Date,
+    eTime: string,
+    startDaySlots: any[],
+    endDaySlots: any[] = []
+): boolean {
+    if (!sDate || !sTime || !eDate || !eTime) return false
+
+    const newStart = getBookingDateTime(sDate, sTime).getTime()
+    const newEnd = getBookingDateTime(eDate, eTime).getTime()
+
+    const checkSlots = (slots: any[], targetDay: Date) => {
+        for (const slot of slots) {
+            let slotStartMs: number
+            let slotEndMs: number
+            const baseDate = new Date(targetDay); baseDate.setUTCHours(0, 0, 0, 0)
+
+            if (slot.isSpillover) {
+                slotStartMs = getBookingDateTime(baseDate, '00:00').getTime()
+                slotEndMs = getBookingDateTime(baseDate, slot.endTime).getTime()
+            } else {
+                slotStartMs = getBookingDateTime(baseDate, slot.startTime).getTime()
+                const slotEnd = getBookingDateTime(baseDate, slot.endTime)
+                if (parseTimeToMinutes(slot.endTime) <= parseTimeToMinutes(slot.startTime)) {
+                    slotEnd.setUTCDate(slotEnd.getUTCDate() + 1)
+                }
+                slotEndMs = slotEnd.getTime()
+            }
+            // Check intersection: StartA < EndB && EndA > StartB
+            if (newStart < slotEndMs && newEnd > slotStartMs) return true
+        }
+        return false
+    }
+
+    if (checkSlots(startDaySlots, sDate)) return true
+
+    // If multi-day booking, check end date slots too
+    if (sDate.toISOString().split('T')[0] !== eDate.toISOString().split('T')[0] && endDaySlots.length > 0) {
+        if (checkSlots(endDaySlots, eDate)) return true
+    }
+
+    return false
+}

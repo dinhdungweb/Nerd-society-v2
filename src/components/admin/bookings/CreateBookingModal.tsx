@@ -507,10 +507,10 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                             )}
                                     </div>
 
-                                    <div className="mt-8 flex justify-end gap-3">
+                                    <div className="flex justify-end gap-3 px-6 py-4 border-t border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/50 rounded-b-xl">
                                         <button
                                             type="button"
-                                            className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 rounded-lg dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                            className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200 rounded-lg dark:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
                                             onClick={() => setOpen(false)}
                                         >
                                             Hủy
@@ -525,7 +525,7 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                                 bookedSlots,
                                                 endDayBookedSlots
                                             )}
-                                            className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                                         >
                                             {loading ? 'Đang tạo...' : 'Tạo Booking'}
                                         </button>
@@ -540,70 +540,4 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
     )
 }
 
-// --- Helpers copied from BookingFormV2 for consistency ---
-function timeToMinutes(time: string): number {
-    const [h, m] = time.split(':').map(Number)
-    return h * 60 + m
-}
 
-function getBookingDateTime(date: Date, time: string): Date {
-    const dt = new Date(date)
-    const [h, m] = time.split(':').map(Number)
-    dt.setUTCHours(h, m, 0, 0)
-    return dt
-}
-
-function calculateDurationMultiDay(startDate: Date, endDate: Date, startTime: string, endTime: string): number {
-    if (!startDate || !endDate || !startTime || !endTime) return 0
-    const startMin = timeToMinutes(startTime)
-    const endMin = timeToMinutes(endTime)
-
-    const s = new Date(startDate); s.setHours(0, 0, 0, 0)
-    const e = new Date(endDate); e.setHours(0, 0, 0, 0)
-    const daysDiff = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24))
-
-    return (daysDiff * 24 * 60) + endMin - startMin
-}
-
-function isRangeOverlapping(
-    sDate: Date,
-    sTime: string,
-    eDate: Date,
-    eTime: string,
-    startDaySlots: any[],
-    endDaySlots: any[] = []
-): boolean {
-    if (!sDate || !sTime || !eDate || !eTime) return false
-
-    const newStart = getBookingDateTime(sDate, sTime).getTime()
-    const newEnd = getBookingDateTime(eDate, eTime).getTime()
-
-    const checkSlots = (slots: any[], targetDay: Date) => {
-        for (const slot of slots) {
-            let slotStartMs: number
-            let slotEndMs: number
-            const baseDate = new Date(targetDay); baseDate.setUTCHours(0, 0, 0, 0)
-
-            if (slot.isSpillover) {
-                slotStartMs = getBookingDateTime(baseDate, '00:00').getTime()
-                slotEndMs = getBookingDateTime(baseDate, slot.endTime).getTime()
-            } else {
-                slotStartMs = getBookingDateTime(baseDate, slot.startTime).getTime()
-                const slotEnd = getBookingDateTime(baseDate, slot.endTime)
-                if (timeToMinutes(slot.endTime) <= timeToMinutes(slot.startTime)) {
-                    slotEnd.setUTCDate(slotEnd.getUTCDate() + 1)
-                }
-                slotEndMs = slotEnd.getTime()
-            }
-            if (newStart < slotEndMs && newEnd > slotStartMs) return true
-        }
-        return false
-    }
-
-    if (checkSlots(startDaySlots, sDate)) return true
-    if (sDate.toISOString().split('T')[0] !== eDate.toISOString().split('T')[0] && endDaySlots.length > 0) {
-        if (checkSlots(endDaySlots, eDate)) return true
-    }
-
-    return false
-}
