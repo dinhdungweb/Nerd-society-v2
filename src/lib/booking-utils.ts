@@ -62,7 +62,7 @@ export function calculateDuration(startTime: string, endTime: string): number {
 export function getBookingDateTime(date: Date | string, time: string): Date {
     const dateTime = new Date(date)
     const [hours, minutes] = time.split(':').map(Number)
-    dateTime.setHours(hours, minutes, 0, 0)
+    dateTime.setUTCHours(hours, minutes, 0, 0)
     return dateTime
 }
 
@@ -129,7 +129,7 @@ export async function isSlotAvailable(
             const isCrossDay = parseTimeToMinutes(booking.endTime) <= parseTimeToMinutes(booking.startTime)
             existingEndDate = new Date(existingStartDate)
             if (isCrossDay) {
-                existingEndDate.setDate(existingEndDate.getDate() + 1)
+                existingEndDate.setUTCDate(existingEndDate.getUTCDate() + 1)
             }
         }
 
@@ -187,7 +187,7 @@ export async function getBookedSlots(roomId: string, dateStr: string) {
             // Legacy cross-day check
             const isCrossDay = parseTimeToMinutes(booking.endTime) <= parseTimeToMinutes(booking.startTime)
             bEnd = new Date(bStart)
-            if (isCrossDay) bEnd.setDate(bEnd.getDate() + 1)
+            if (isCrossDay) bEnd.setUTCDate(bEnd.getUTCDate() + 1)
         }
 
         const bStartFull = getBookingDateTime(bStart, booking.startTime)

@@ -9,6 +9,7 @@ interface Booking {
     id: string
     bookingCode: string
     date: string
+    endDate: string | null
     startTime: string
     endTime: string
     status: string
@@ -95,27 +96,54 @@ export default function BookingCalendarView({
     }, [selectedDate])
 
     // Filter bookings for selected date (exclude CANCELLED)
-    // Also include cross-day bookings from previous day that spill over
+    // Also include cross-day/multi-day bookings that overlap with selected date
     const dayBookings = useMemo(() => {
         const dateStr = format(selectedDate, 'yyyy-MM-dd')
-        const prevDate = new Date(selectedDate)
-        prevDate.setDate(prevDate.getDate() - 1)
-        const prevDateStr = format(prevDate, 'yyyy-MM-dd')
+        const selectedDateStart = new Date(`${dateStr}T00:00:00.000Z`)
+        const selectedDateEnd = new Date(selectedDateStart)
+        selectedDateEnd.setUTCDate(selectedDateEnd.getUTCDate() + 1)
 
-        const result: (Booking & { isSpillover?: boolean })[] = []
+        const result: (Booking & { isSpillover?: boolean; displayStartTime?: string; displayEndTime?: string })[] = []
 
         bookings.forEach(b => {
             if (b.status === 'CANCELLED') return
-            const bookingDate = new Date(b.date)
-            const bookingDateStr = format(bookingDate, 'yyyy-MM-dd')
 
-            // Same day bookings
-            if (bookingDateStr === dateStr) {
-                result.push(b)
+            const bookingStartDate = new Date(b.date)
+            let bookingEndDate: Date
+
+            if (b.endDate) {
+                bookingEndDate = new Date(b.endDate)
+            } else {
+                // Legacy cross-day check
+                const isCrossDay = timeToMinutes(b.endTime) <= timeToMinutes(b.startTime)
+                bookingEndDate = new Date(bookingStartDate)
+                if (isCrossDay) bookingEndDate.setUTCDate(bookingEndDate.getUTCDate() + 1)
             }
-            // Cross-day bookings from previous day (endTime <= startTime)
-            else if (bookingDateStr === prevDateStr && b.endTime <= b.startTime) {
-                result.push({ ...b, isSpillover: true })
+
+            // Calculate full datetime for start and end
+            const bStartFull = new Date(bookingStartDate)
+            bStartFull.setUTCHours(...b.startTime.split(':').map(Number) as [number, number], 0, 0)
+            const bEndFull = new Date(bookingEndDate)
+            bEndFull.setUTCHours(...b.endTime.split(':').map(Number) as [number, number], 0, 0)
+
+            // Check if this booking overlaps with selectedDate [selectedDateStart, selectedDateEnd)
+            if (bStartFull < selectedDateEnd && bEndFull > selectedDateStart) {
+                // It overlaps! Determine the portion to display
+                let displayStartTime = b.startTime
+                let displayEndTime = b.endTime
+                let isSpillover = false
+
+                // If booking started before today
+                if (bStartFull < selectedDateStart) {
+                    displayStartTime = '00:00'
+                    isSpillover = true
+                }
+                // If booking ends after today
+                if (bEndFull >= selectedDateEnd) {
+                    displayEndTime = '24:00'
+                }
+
+                result.push({ ...b, isSpillover, displayStartTime, displayEndTime })
             }
         })
 
@@ -123,25 +151,48 @@ export default function BookingCalendarView({
     }, [bookings, selectedDate])
 
     // Get bookings for a specific date (for week view)
-    // Also include cross-day bookings from previous day
+    // Also include cross-day/multi-day bookings that overlap
     const getBookingsForDate = (date: Date) => {
         const dateStr = format(date, 'yyyy-MM-dd')
-        const prevDate = new Date(date)
-        prevDate.setDate(prevDate.getDate() - 1)
-        const prevDateStr = format(prevDate, 'yyyy-MM-dd')
+        const selectedDateStart = new Date(`${dateStr}T00:00:00.000Z`)
+        const selectedDateEnd = new Date(selectedDateStart)
+        selectedDateEnd.setUTCDate(selectedDateEnd.getUTCDate() + 1)
 
-        const result: (Booking & { isSpillover?: boolean })[] = []
+        const result: (Booking & { isSpillover?: boolean; displayStartTime?: string; displayEndTime?: string })[] = []
 
         bookings.forEach(b => {
             if (b.status === 'CANCELLED') return
-            const bookingDate = new Date(b.date)
-            const bookingDateStr = format(bookingDate, 'yyyy-MM-dd')
 
-            if (bookingDateStr === dateStr) {
-                result.push(b)
+            const bookingStartDate = new Date(b.date)
+            let bookingEndDate: Date
+
+            if (b.endDate) {
+                bookingEndDate = new Date(b.endDate)
+            } else {
+                const isCrossDay = timeToMinutes(b.endTime) <= timeToMinutes(b.startTime)
+                bookingEndDate = new Date(bookingStartDate)
+                if (isCrossDay) bookingEndDate.setUTCDate(bookingEndDate.getUTCDate() + 1)
             }
-            else if (bookingDateStr === prevDateStr && b.endTime <= b.startTime) {
-                result.push({ ...b, isSpillover: true })
+
+            const bStartFull = new Date(bookingStartDate)
+            bStartFull.setUTCHours(...b.startTime.split(':').map(Number) as [number, number], 0, 0)
+            const bEndFull = new Date(bookingEndDate)
+            bEndFull.setUTCHours(...b.endTime.split(':').map(Number) as [number, number], 0, 0)
+
+            if (bStartFull < selectedDateEnd && bEndFull > selectedDateStart) {
+                let displayStartTime = b.startTime
+                let displayEndTime = b.endTime
+                let isSpillover = false
+
+                if (bStartFull < selectedDateStart) {
+                    displayStartTime = '00:00'
+                    isSpillover = true
+                }
+                if (bEndFull >= selectedDateEnd) {
+                    displayEndTime = '24:00'
+                }
+
+                result.push({ ...b, isSpillover, displayStartTime, displayEndTime })
             }
         })
 
@@ -149,31 +200,26 @@ export default function BookingCalendarView({
     }
 
     // Get booking duration in hours (for display in calendar)
-    // Handles both: cross-day bookings on start day AND spillover on next day
-    const getBookingDuration = (booking: Booking & { isSpillover?: boolean }): number => {
-        const startMinutes = timeToMinutes(booking.startTime)
-        const endMinutes = timeToMinutes(booking.endTime)
+    // Uses displayStartTime and displayEndTime for accurate multi-day display
+    const getBookingDuration = (booking: Booking & { isSpillover?: boolean; displayStartTime?: string; displayEndTime?: string }): number => {
+        const displayStart = booking.displayStartTime || booking.startTime
+        const displayEnd = booking.displayEndTime || booking.endTime
 
-        // Spillover booking from previous day: show 00:00 to endTime
-        if (booking.isSpillover) {
-            return endMinutes / 60
-        }
+        const startMinutes = timeToMinutes(displayStart)
+        const endMinutes = timeToMinutes(displayEnd)
 
-        // Cross-day booking on start day: show startTime to 24:00
-        if (endMinutes <= startMinutes) {
+        // If displayEnd is 24:00, it means the booking continues to next day
+        if (displayEnd === '24:00') {
             return (1440 - startMinutes) / 60
         }
 
-        // Normal same-day booking
+        // Normal case
         return (endMinutes - startMinutes) / 60
     }
 
-    // Get display start time for a booking (accounts for spillover)
-    const getBookingDisplayStartTime = (booking: Booking & { isSpillover?: boolean }): string => {
-        if (booking.isSpillover) {
-            return '00:00'
-        }
-        return booking.startTime
+    // Get display start time for a booking
+    const getBookingDisplayStartTime = (booking: Booking & { isSpillover?: boolean; displayStartTime?: string }): string => {
+        return booking.displayStartTime || booking.startTime
     }
 
     // Navigate dates
@@ -434,83 +480,81 @@ export default function BookingCalendarView({
                                 ))}
                             </div>
 
-                            {/* Time Slots */}
-                            {timeSlots.map((timeSlot) => {
-                                const slotStartMinutes = timeToMinutes(timeSlot)
-                                const HOUR_HEIGHT = 80
-
-                                return (
-                                    <div
-                                        key={timeSlot}
-                                        className="grid border-b border-neutral-100 dark:border-neutral-800 last:border-0"
-                                        style={{ gridTemplateColumns: `80px repeat(${rooms.length}, 1fr)` }}
-                                    >
-                                        {/* Time Label */}
-                                        <div className="p-2 text-xs font-medium text-neutral-500 dark:text-neutral-400 flex items-start justify-center">
+                            {/* Grid Container */}
+                            <div className="relative" style={{ display: 'grid', gridTemplateColumns: `80px repeat(${rooms.length}, 1fr)` }}>
+                                {/* Time Labels Column (Background) */}
+                                <div className="flex flex-col">
+                                    {timeSlots.map((timeSlot) => (
+                                        <div
+                                            key={timeSlot}
+                                            className="border-b border-neutral-100 dark:border-neutral-800 text-xs font-medium text-neutral-500 dark:text-neutral-400 flex items-start justify-center"
+                                            style={{ height: '80px', padding: '8px' }}
+                                        >
                                             {timeSlot}
                                         </div>
+                                    ))}
+                                </div>
 
-                                        {/* Room Cells */}
-                                        {rooms.map(room => {
-                                            const slotEndMinutes = slotStartMinutes + 60
+                                {/* Room Columns */}
+                                {rooms.map(room => (
+                                    <div key={room.id} className="relative border-l border-neutral-200 dark:border-neutral-700">
+                                        {/* Hour Grid Lines */}
+                                        {timeSlots.map((timeSlot) => (
+                                            <div
+                                                key={timeSlot}
+                                                className="border-b border-neutral-100 dark:border-neutral-800"
+                                                style={{ height: '80px' }}
+                                            />
+                                        ))}
 
-                                            const booking = dayBookings.find(b => {
-                                                if (b.room?.name !== room.name) return false
-                                                const displayStartTime = getBookingDisplayStartTime(b)
-                                                const start = timeToMinutes(displayStartTime)
-                                                return start >= slotStartMinutes && start < slotEndMinutes
-                                            })
+                                        {/* Bookings for this room */}
+                                        {dayBookings
+                                            .filter(b => b.room?.name === room.name)
+                                            .map(booking => {
+                                                const HOUR_HEIGHT = 80
+                                                const displayStartTime = getBookingDisplayStartTime(booking)
+                                                const startMinutes = timeToMinutes(displayStartTime)
+                                                const duration = getBookingDuration(booking)
+                                                const colors = statusColors[booking.status] || statusColors.PENDING
+                                                const topOffset = (startMinutes / 60) * HOUR_HEIGHT
 
-                                            const duration = booking ? getBookingDuration(booking) : 0
-                                            const colors = booking ? statusColors[booking.status] || statusColors.PENDING : null
-                                            const displayStartTime = booking ? getBookingDisplayStartTime(booking) : '00:00'
-                                            const startMinutes = timeToMinutes(displayStartTime)
-                                            const topOffset = ((startMinutes - slotStartMinutes) / 60) * HOUR_HEIGHT
-
-                                            return (
-                                                <div
-                                                    key={room.id}
-                                                    className="relative border-l border-neutral-100 dark:border-neutral-800"
-                                                    style={{ minHeight: `${HOUR_HEIGHT}px` }}
-                                                >
-                                                    {booking && (
-                                                        <button
-                                                            onClick={() => onBookingClick(booking)}
-                                                            className={`absolute inset-x-1 rounded shadow-sm text-left transition-all hover:shadow-md hover:scale-[1.02] z-10 overflow-hidden group flex flex-col ${colors?.bg} border border-transparent`}
-                                                            style={{
-                                                                height: `calc(${duration * HOUR_HEIGHT}px - 2px)`,
-                                                                top: `${topOffset + 1}px`
-                                                            }}
-                                                        >
-                                                            <div className={`absolute left-0 inset-y-0 w-1 ${colors?.accent}`} />
-                                                            <div className="pl-3 pr-2 py-1.5 flex flex-col h-full justify-between">
-                                                                <div>
-                                                                    <p className={`text-xs font-semibold truncate leading-tight ${colors?.text}`}>
-                                                                        {booking.customerName}
-                                                                    </p>
-                                                                    {(duration * HOUR_HEIGHT) > 20 && (
-                                                                        <p className={`text-[10px] ${colors?.text} opacity-75 leading-tight mt-0.5`}>
-                                                                            {(booking as any).isSpillover
-                                                                                ? `00:00 - ${booking.endTime} (từ hôm trước)`
-                                                                                : `${booking.startTime} - ${booking.endTime}${booking.endTime <= booking.startTime ? ' (+1)' : ''}`
-                                                                            }
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-                                                                {(duration * HOUR_HEIGHT) > 40 && (
-                                                                    <p className={`text-[10px] font-medium ${colors?.text} opacity-90 truncate mt-1`}>
-                                                                        {statusLabels[booking.status]}
+                                                return (
+                                                    <button
+                                                        key={booking.id}
+                                                        onClick={() => onBookingClick(booking)}
+                                                        className={`absolute inset-x-1 rounded shadow-sm text-left transition-all hover:shadow-md hover:scale-[1.02] z-10 overflow-hidden group flex flex-col ${colors?.bg} border border-transparent`}
+                                                        style={{
+                                                            height: `calc(${duration * HOUR_HEIGHT}px - 2px)`,
+                                                            top: `${topOffset + 1}px`
+                                                        }}
+                                                    >
+                                                        <div className={`absolute left-0 inset-y-0 w-1 ${colors?.accent}`} />
+                                                        <div className="pl-3 pr-2 py-1.5 flex flex-col h-full justify-between">
+                                                            <div>
+                                                                <p className={`text-xs font-semibold truncate leading-tight ${colors?.text}`}>
+                                                                    {booking.customerName}
+                                                                </p>
+                                                                {(duration * HOUR_HEIGHT) > 20 && (
+                                                                    <p className={`text-[10px] ${colors?.text} opacity-75 leading-tight mt-0.5`}>
+                                                                        {booking.isSpillover
+                                                                            ? `00:00 - ${booking.endTime} (từ hôm trước)`
+                                                                            : `${booking.startTime} - ${booking.endTime}${booking.endTime <= booking.startTime ? ' (+1)' : ''}`
+                                                                        }
                                                                     </p>
                                                                 )}
                                                             </div>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            )
-                                        })}
+                                                            {(duration * HOUR_HEIGHT) > 40 && (
+                                                                <p className={`text-[10px] font-medium ${colors?.text} opacity-90 truncate mt-1`}>
+                                                                    {statusLabels[booking.status]}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                )
+                                            })}
                                     </div>
-                                )
-                            })}
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>

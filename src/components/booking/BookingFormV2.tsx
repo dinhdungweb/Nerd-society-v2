@@ -155,9 +155,9 @@ function calculateDuration(startDate: Date, endDate: Date, startTime: string, en
     const startMinutes = timeToMinutes(startTime)
     const endMinutes = timeToMinutes(endTime)
 
-    // Calculate number of days between dates
-    const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-    const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+    // Calculate number of days between dates (using UTC to be consistent with how dates are stored)
+    const startDateOnly = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()))
+    const endDateOnly = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate()))
     const daysDiff = Math.round((endDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24))
 
     // Total minutes = (days * 24 * 60) + endMinutes - startMinutes
