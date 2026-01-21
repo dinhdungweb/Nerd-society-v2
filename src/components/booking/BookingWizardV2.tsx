@@ -180,6 +180,7 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
 
     const handleBookingSubmit = async (data: {
         date: Date
+        endDate: Date
         startTime: string
         endTime: string
         guests: number
@@ -200,6 +201,7 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
                     locationId: selectedLocation,
                     serviceType: selectedService.type,
                     date: format(data.date, 'yyyy-MM-dd'),
+                    endDate: format(data.endDate, 'yyyy-MM-dd'),
                     startTime: data.startTime,
                     endTime: data.endTime,
                     guests: data.guests,

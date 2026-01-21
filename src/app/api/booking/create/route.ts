@@ -22,7 +22,8 @@ interface CreateBookingRequest {
     roomId: string
     locationId: string
     serviceType: ServiceType
-    date: string // ISO date string
+    date: string // ISO date string (start date)
+    endDate?: string // ISO date string (end date, defaults to date)
     startTime: string // "HH:MM"
     endTime: string // "HH:MM"
     guests: number
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
             roomId,
             locationId,
             date,
+            endDate: endDateStr,
             startTime,
             endTime,
             guests,
@@ -96,6 +98,23 @@ export async function POST(request: NextRequest) {
         if (isNaN(bookingDate.getTime())) {
             return NextResponse.json(
                 { error: 'Invalid date format' },
+                { status: 400 }
+            )
+        }
+
+        // Parse endDate (default to bookingDate if not provided)
+        const bookingEndDate = endDateStr ? new Date(endDateStr) : bookingDate
+        if (isNaN(bookingEndDate.getTime())) {
+            return NextResponse.json(
+                { error: 'Invalid end date format' },
+                { status: 400 }
+            )
+        }
+
+        // Validate: endDate >= date
+        if (bookingEndDate < bookingDate) {
+            return NextResponse.json(
+                { error: 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu' },
                 { status: 400 }
             )
         }
@@ -142,8 +161,12 @@ export async function POST(request: NextRequest) {
         // Lưu ý: Operating hours 24/7 đã được xử lý, không cần check giới hạn giờ
 
         // Validate: Minimum duration (60 minutes)
-        // calculateDuration đã hỗ trợ cross-day (endTime < startTime = ngày hôm sau)
-        const durationMinutes = calculateDuration(startTime, endTime)
+        // Calculate duration for multi-day bookings
+        const daysDiff = Math.round((bookingEndDate.getTime() - bookingDate.getTime()) / (1000 * 60 * 60 * 24))
+        const startMinutes = parseTimeToMinutes(startTime)
+        const endMinutes = parseTimeToMinutes(endTime)
+        const durationMinutes = (daysDiff * 24 * 60) + endMinutes - startMinutes
+
         if (durationMinutes < 60) {
             return NextResponse.json(
                 { error: 'Thời lượng tối thiểu là 60 phút' },
@@ -191,6 +214,7 @@ export async function POST(request: NextRequest) {
                 customerPhone,
                 customerEmail,
                 date: bookingDate,
+                endDate: bookingEndDate,
                 startTime,
                 endTime,
                 guests,

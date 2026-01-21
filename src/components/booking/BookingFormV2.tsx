@@ -42,6 +42,7 @@ interface BookingFormV2Props {
     serviceType: ServiceType
     onSubmit: (data: {
         date: Date
+        endDate: Date
         startTime: string
         endTime: string
         guests: number
@@ -149,19 +150,18 @@ function isRangeOverlapping(startTime: string, endTime: string, bookedSlots: Boo
     return false
 }
 
-// Calculate duration in minutes (hỗ trợ cross-day)
-function calculateDuration(startTime: string, endTime: string): number {
-    const [startH, startM] = startTime.split(':').map(Number)
-    const [endH, endM] = endTime.split(':').map(Number)
-    let endMinutes = endH * 60 + endM
-    const startMinutes = startH * 60 + startM
+// Calculate duration in minutes (hỗ trợ multi-day)
+function calculateDuration(startDate: Date, endDate: Date, startTime: string, endTime: string): number {
+    const startMinutes = timeToMinutes(startTime)
+    const endMinutes = timeToMinutes(endTime)
 
-    // Cross-day: endTime thuộc ngày hôm sau
-    if (endMinutes <= startMinutes) {
-        endMinutes += 24 * 60
-    }
+    // Calculate number of days between dates
+    const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+    const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+    const daysDiff = Math.round((endDateOnly.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24))
 
-    return endMinutes - startMinutes
+    // Total minutes = (days * 24 * 60) + endMinutes - startMinutes
+    return (daysDiff * 24 * 60) + endMinutes - startMinutes
 }
 
 export default function BookingFormV2({
@@ -173,6 +173,7 @@ export default function BookingFormV2({
     const { data: session } = useSession()
 
     const [date, setDate] = useState<Date | null>(null)
+    const [endDate, setEndDate] = useState<Date | null>(null)
     const [startTime, setStartTime] = useState('')
     const [endTime, setEndTime] = useState('')
     const [guests, setGuests] = useState(1)
@@ -244,7 +245,7 @@ export default function BookingFormV2({
     }, [availabilityData])
 
     // 2. Calculate price
-    const duration = (startTime && endTime) ? calculateDuration(startTime, endTime) : 0
+    const duration = (date && endDate && startTime && endTime) ? calculateDuration(date, endDate, startTime, endTime) : 0
     const shouldFetchPrice = duration > 0 && guests > 0
     const { data: priceData, isLoading: loadingPrice } = useSWR(
         shouldFetchPrice ? [`/api/booking/calculate`, serviceType, duration, guests] : null,
@@ -283,40 +284,36 @@ export default function BookingFormV2({
         setStartTime('')
         setEndTime('')
         setPriceInfo(null)
+        // Set endDate = date by default
+        setEndDate(date)
     }, [date])
 
-    // Filter end time options - bao gồm cả slot ngày hôm sau
-    // Bỏ 24:00 vì trùng với 00:00 (+1 ngày)
-    const sameDayEndOptions = timeSlots.filter(t => t > startTime && t !== '24:00')
-    // Next day slots: 00:00 đến 08:00 (hoặc startTime nếu nhỏ hơn)
-    // Dùng allTimeSlots vì nextDay không bị filter bởi "isToday"
-    const nextDayLimit = startTime < '08:00' ? startTime : '08:00'
-    // Tính ngày hôm sau để hiển thị
-    const nextDayDate = date ? new Date(date) : null
-    if (nextDayDate) nextDayDate.setDate(nextDayDate.getDate() + 1)
-    const nextDayLabel = nextDayDate ? `${nextDayDate.getDate().toString().padStart(2, '0')}/${(nextDayDate.getMonth() + 1).toString().padStart(2, '0')}` : '+1 ngày'
+    // Khi endDate thay đổi, reset endTime
+    useEffect(() => {
+        setEndTime('')
+        setPriceInfo(null)
+    }, [endDate])
 
-    const nextDayEndOptions = startTime
-        ? allTimeSlots.filter(t => t !== '24:00' && t <= nextDayLimit).map(t => ({
-            value: t,
-            label: `${t} (${nextDayLabel})`,
-            isNextDay: true
-        }))
-        : []
+    // Determine if same day booking
+    const isSameDay = date && endDate && date.toDateString() === endDate.toDateString()
 
-    const endTimeOptions = [
-        ...sameDayEndOptions.map(t => ({ value: t, label: t, isNextDay: false })),
-        ...nextDayEndOptions
-    ]
-
-    // Kiểm tra endTime có phải là next-day slot không
-    const isEndTimeNextDay = endTime && !sameDayEndOptions.includes(endTime) && nextDayEndOptions.some(o => o.value === endTime)
+    // End time options: nếu cùng ngày thì phải > startTime, khác ngày thì tất cả các giờ
+    const endTimeOptions = useMemo(() => {
+        const filtered = allTimeSlots.filter(t => t !== '24:00')
+        if (isSameDay && startTime) {
+            // Cùng ngày: end time phải sau start time
+            return filtered.filter(t => t > startTime).map(t => ({ value: t, label: t }))
+        }
+        // Khác ngày: có thể chọn bất kỳ giờ nào
+        return filtered.map(t => ({ value: t, label: t }))
+    }, [allTimeSlots, isSameDay, startTime])
 
     const handleSubmit = () => {
-        if (!date || !startTime || !endTime || !customerName || !customerPhone || !customerEmail) return
+        if (!date || !endDate || !startTime || !endTime || !customerName || !customerPhone || !customerEmail) return
 
         onSubmit({
             date,
+            endDate,
             startTime,
             endTime,
             guests,
@@ -330,7 +327,7 @@ export default function BookingFormV2({
     // Check if selected range overlaps with booked slots
     const hasOverlap = isRangeOverlapping(startTime, endTime, bookedSlots)
 
-    const isValid = date && startTime && endTime && customerName && customerPhone && customerEmail && isEmailValid && priceInfo && !hasOverlap && !availabilityError && !isCheckingAvailability
+    const isValid = date && endDate && startTime && endTime && customerName && customerPhone && customerEmail && isEmailValid && priceInfo && !hasOverlap && !availabilityError && !isCheckingAvailability
 
     return (
         <div className="space-y-5 rounded-2xl bg-white p-6 shadow-sm dark:bg-neutral-900 relative">
@@ -350,37 +347,73 @@ export default function BookingFormV2({
                 </div>
             )}
 
-            {/* Date Selection */}
-            <div>
-                <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Chọn ngày
-                </label>
-                <div className="relative">
-                    <DatePicker
-                        selected={date}
-                        onChange={(d) => setDate(d)}
-                        dateFormat="dd/MM/yyyy"
-                        minDate={new Date()}
-                        formatWeekDay={(day) => {
-                            const dayMap: Record<string, string> = {
-                                'Monday': 'T2',
-                                'Tuesday': 'T3',
-                                'Wednesday': 'T4',
-                                'Thursday': 'T5',
-                                'Friday': 'T6',
-                                'Saturday': 'T7',
-                                'Sunday': 'CN'
-                            }
-                            return dayMap[day] || day
-                        }}
-                        className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 pl-11 text-neutral-900 focus:border-primary-500 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                        placeholderText="Chọn ngày"
-                        wrapperClassName="w-full"
-                        calendarClassName="!border !border-neutral-200 !rounded-xl !shadow-xl !p-4 !bg-white dark:!bg-neutral-900 dark:!border-neutral-700 font-sans"
-                        renderCustomHeader={(props) => <DatePickerCustomHeaderSingleMonth {...props} />}
-                        renderDayContents={(day, date) => <DatePickerCustomDay dayOfMonth={day} date={date} />}
-                    />
-                    <CalendarDaysIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400" />
+            {/* Date Selection - Start & End Date */}
+            <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                    <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                        Ngày bắt đầu
+                    </label>
+                    <div className="relative">
+                        <DatePicker
+                            selected={date}
+                            onChange={(d) => setDate(d)}
+                            dateFormat="dd/MM/yyyy"
+                            minDate={new Date()}
+                            formatWeekDay={(day) => {
+                                const dayMap: Record<string, string> = {
+                                    'Monday': 'T2',
+                                    'Tuesday': 'T3',
+                                    'Wednesday': 'T4',
+                                    'Thursday': 'T5',
+                                    'Friday': 'T6',
+                                    'Saturday': 'T7',
+                                    'Sunday': 'CN'
+                                }
+                                return dayMap[day] || day
+                            }}
+                            className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 pl-11 text-neutral-900 focus:border-primary-500 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                            placeholderText="Chọn ngày"
+                            wrapperClassName="w-full"
+                            calendarClassName="!border !border-neutral-200 !rounded-xl !shadow-xl !p-4 !bg-white dark:!bg-neutral-900 dark:!border-neutral-700 font-sans"
+                            renderCustomHeader={(props) => <DatePickerCustomHeaderSingleMonth {...props} />}
+                            renderDayContents={(day, date) => <DatePickerCustomDay dayOfMonth={day} date={date} />}
+                        />
+                        <CalendarDaysIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400" />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                        Ngày kết thúc
+                    </label>
+                    <div className="relative">
+                        <DatePicker
+                            selected={endDate}
+                            onChange={(d) => setEndDate(d)}
+                            dateFormat="dd/MM/yyyy"
+                            minDate={date || new Date()}
+                            disabled={!date}
+                            formatWeekDay={(day) => {
+                                const dayMap: Record<string, string> = {
+                                    'Monday': 'T2',
+                                    'Tuesday': 'T3',
+                                    'Wednesday': 'T4',
+                                    'Thursday': 'T5',
+                                    'Friday': 'T6',
+                                    'Saturday': 'T7',
+                                    'Sunday': 'CN'
+                                }
+                                return dayMap[day] || day
+                            }}
+                            className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 pl-11 text-neutral-900 focus:border-primary-500 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                            placeholderText="Chọn ngày"
+                            wrapperClassName="w-full"
+                            calendarClassName="!border !border-neutral-200 !rounded-xl !shadow-xl !p-4 !bg-white dark:!bg-neutral-900 dark:!border-neutral-700 font-sans"
+                            renderCustomHeader={(props) => <DatePickerCustomHeaderSingleMonth {...props} />}
+                            renderDayContents={(day, date) => <DatePickerCustomDay dayOfMonth={day} date={date} />}
+                        />
+                        <CalendarDaysIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400" />
+                    </div>
                 </div>
             </div>
 
@@ -571,7 +604,7 @@ export default function BookingFormV2({
                                 <div className="text-right">
                                     <span className="font-medium text-neutral-900 dark:text-white">
                                         {(() => {
-                                            const duration = calculateDuration(startTime, endTime)
+                                            const duration = date && endDate ? calculateDuration(date, endDate, startTime, endTime) : 0
                                             const hours = Math.floor(duration / 60)
                                             const minutes = duration % 60
                                             if (hours === 0) return `${minutes} phút`

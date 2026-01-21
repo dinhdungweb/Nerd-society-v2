@@ -152,6 +152,7 @@ model Booking {
   userId           String?
   locationId       String
   date             DateTime      @db.Date
+  endDate          DateTime?     @db.Date // Ngày kết thúc (mặc định = date nếu cùng ngày)
   startTime        String
   endTime          String
   guests           Int           @default(1)
