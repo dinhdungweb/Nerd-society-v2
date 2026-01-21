@@ -65,23 +65,85 @@ function generateTimeSlots(step: number = 30): string[] {
     return slots
 }
 
-// Check if a time slot overlaps with booked slots
+// Parse time to minutes
+function timeToMinutes(time: string): number {
+    const [h, m] = time.split(':').map(Number)
+    return h * 60 + m
+}
+
+// Check if a time slot overlaps with booked slots (handles cross-day)
 function isTimeSlotBooked(time: string, bookedSlots: BookedSlot[]): boolean {
+    const timeMin = timeToMinutes(time)
+
     for (const slot of bookedSlots) {
-        if (time >= slot.startTime && time < slot.endTime) {
-            return true
+        const startMin = timeToMinutes(slot.startTime)
+        const endMin = timeToMinutes(slot.endTime)
+
+        // Cross-day slot: endTime <= startTime
+        if (endMin <= startMin) {
+            // Slot spans midnight: booked from startTime to 24:00 AND 00:00 to endTime
+            if (timeMin >= startMin || timeMin < endMin) {
+                return true
+            }
+        } else {
+            // Normal same-day slot
+            if (timeMin >= startMin && timeMin < endMin) {
+                return true
+            }
         }
     }
     return false
 }
 
-// Check if the entire booking range overlaps with any booked slot
+// Check if the entire booking range overlaps with any booked slot (handles cross-day)
 function isRangeOverlapping(startTime: string, endTime: string, bookedSlots: BookedSlot[]): boolean {
     if (!startTime || !endTime) return false
+
+    const newStartMin = timeToMinutes(startTime)
+    const newEndMin = timeToMinutes(endTime)
+    const newIsCrossDay = newEndMin <= newStartMin
+
     for (const slot of bookedSlots) {
-        // Overlap condition: A.start < B.end AND A.end > B.start
-        if (startTime < slot.endTime && endTime > slot.startTime) {
-            return true
+        const slotStartMin = timeToMinutes(slot.startTime)
+        const slotEndMin = timeToMinutes(slot.endTime)
+        const slotIsCrossDay = slotEndMin <= slotStartMin
+
+        // Helper: check if two ranges [a1, a2) and [b1, b2) overlap
+        const rangesOverlap = (a1: number, a2: number, b1: number, b2: number) => {
+            return a1 < b2 && a2 > b1
+        }
+
+        if (!newIsCrossDay && !slotIsCrossDay) {
+            // Both same-day: simple overlap check
+            if (rangesOverlap(newStartMin, newEndMin, slotStartMin, slotEndMin)) {
+                return true
+            }
+        } else if (!newIsCrossDay && slotIsCrossDay) {
+            // New is same-day, slot is cross-day
+            // Slot occupies [slotStart, 1440) today and [0, slotEnd) tomorrow
+            // New occupies [newStart, newEnd) today
+            // Check if new overlaps with slot's today portion [slotStart, 1440)
+            if (rangesOverlap(newStartMin, newEndMin, slotStartMin, 1440)) {
+                return true
+            }
+        } else if (newIsCrossDay && !slotIsCrossDay) {
+            // New is cross-day, slot is same-day
+            // New occupies [newStart, 1440) today and [0, newEnd) tomorrow
+            // Slot occupies [slotStart, slotEnd) today
+            // Check if new's today portion [newStart, 1440) overlaps with slot
+            if (rangesOverlap(newStartMin, 1440, slotStartMin, slotEndMin)) {
+                return true
+            }
+        } else {
+            // Both cross-day
+            // Both occupy late night to early morning
+            // They definitely overlap since both span midnight
+            // Check: new [newStart, 1440) overlaps slot [slotStart, 1440)?
+            // And: new [0, newEnd) overlaps slot [0, slotEnd)?
+            if (rangesOverlap(newStartMin, 1440, slotStartMin, 1440) ||
+                rangesOverlap(0, newEndMin, 0, slotEndMin)) {
+                return true
+            }
         }
     }
     return false
@@ -362,7 +424,8 @@ export default function BookingFormV2({
                             options={endTimeOptions.map(opt => ({
                                 value: opt.value,
                                 label: opt.label,
-                                disabled: !opt.isNextDay && isTimeSlotBooked(opt.value, bookedSlots)
+                                // Check if the ENTIRE range from startTime to this endTime overlaps with any booked slot
+                                disabled: startTime ? isRangeOverlapping(startTime, opt.value, bookedSlots) : false
                             }))}
                             placeholder="Chọn giờ kết thúc"
                             disabled={!startTime}

@@ -101,7 +101,7 @@ export default function TimeSelect({
                             )}
                             {option.disabled && (
                                 <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-400">
-                                    <span className="text-xs">Đã đặt</span>
+                                    <span className="text-xs">Không khả dụng</span>
                                 </span>
                             )}
                         </div>

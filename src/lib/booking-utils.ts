@@ -156,19 +156,23 @@ export async function isSlotAvailable(
 
 /**
  * Lấy danh sách slot đã book trong ngày
+ * Bao gồm cả slot từ booking ngày hôm trước tràn sang (cross-day)
  * @param roomId - ID của phòng
  * @param dateStr - Ngày theo format YYYY-MM-DD (sẽ được parse như UTC midnight)
  */
 export async function getBookedSlots(roomId: string, dateStr: string) {
     // Parse dateStr as UTC midnight to match how dates are stored in DB
-    // DB stores dates as UTC midnight (e.g., "2025-12-15T00:00:00.000Z")
-    // So we need to query with exact UTC midnight
     const targetDate = new Date(`${dateStr}T00:00:00.000Z`)
 
-    const bookings = await prisma.booking.findMany({
+    // Tính ngày hôm trước
+    const prevDate = new Date(targetDate)
+    prevDate.setDate(prevDate.getDate() - 1)
+
+    // Lấy booking ngày hiện tại
+    const sameDayBookings = await prisma.booking.findMany({
         where: {
             roomId,
-            date: targetDate, // Exact match with UTC midnight
+            date: targetDate,
             status: {
                 notIn: ['CANCELLED', 'NO_SHOW'],
             },
@@ -182,7 +186,39 @@ export async function getBookedSlots(roomId: string, dateStr: string) {
         },
     })
 
-    return bookings
+    // Lấy booking ngày hôm trước (để check cross-day)
+    const prevDayBookings = await prisma.booking.findMany({
+        where: {
+            roomId,
+            date: prevDate,
+            status: {
+                notIn: ['CANCELLED', 'NO_SHOW'],
+            },
+        },
+        select: {
+            startTime: true,
+            endTime: true,
+        },
+    })
+
+    // Kết quả: bao gồm cả booking cùng ngày và phần tràn từ hôm trước
+    const result: { startTime: string; endTime: string; isSpillover?: boolean }[] = []
+
+    // Thêm booking cùng ngày
+    sameDayBookings.forEach(b => {
+        result.push({ startTime: b.startTime, endTime: b.endTime })
+    })
+
+    // Thêm phần tràn từ booking hôm trước (cross-day)
+    prevDayBookings.forEach(b => {
+        const isCrossDay = parseTimeToMinutes(b.endTime) <= parseTimeToMinutes(b.startTime)
+        if (isCrossDay) {
+            // Booking hôm trước tràn sang: chiếm từ 00:00 đến endTime của nó
+            result.push({ startTime: '00:00', endTime: b.endTime, isSpillover: true })
+        }
+    })
+
+    return result
 }
 
 /**

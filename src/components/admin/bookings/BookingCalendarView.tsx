@@ -95,30 +95,85 @@ export default function BookingCalendarView({
     }, [selectedDate])
 
     // Filter bookings for selected date (exclude CANCELLED)
+    // Also include cross-day bookings from previous day that spill over
     const dayBookings = useMemo(() => {
         const dateStr = format(selectedDate, 'yyyy-MM-dd')
-        return bookings.filter(b => {
-            if (b.status === 'CANCELLED') return false
+        const prevDate = new Date(selectedDate)
+        prevDate.setDate(prevDate.getDate() - 1)
+        const prevDateStr = format(prevDate, 'yyyy-MM-dd')
+
+        const result: (Booking & { isSpillover?: boolean })[] = []
+
+        bookings.forEach(b => {
+            if (b.status === 'CANCELLED') return
             const bookingDate = new Date(b.date)
-            return format(bookingDate, 'yyyy-MM-dd') === dateStr
+            const bookingDateStr = format(bookingDate, 'yyyy-MM-dd')
+
+            // Same day bookings
+            if (bookingDateStr === dateStr) {
+                result.push(b)
+            }
+            // Cross-day bookings from previous day (endTime <= startTime)
+            else if (bookingDateStr === prevDateStr && b.endTime <= b.startTime) {
+                result.push({ ...b, isSpillover: true })
+            }
         })
+
+        return result
     }, [bookings, selectedDate])
 
     // Get bookings for a specific date (for week view)
+    // Also include cross-day bookings from previous day
     const getBookingsForDate = (date: Date) => {
         const dateStr = format(date, 'yyyy-MM-dd')
-        return bookings.filter(b => {
-            if (b.status === 'CANCELLED') return false
+        const prevDate = new Date(date)
+        prevDate.setDate(prevDate.getDate() - 1)
+        const prevDateStr = format(prevDate, 'yyyy-MM-dd')
+
+        const result: (Booking & { isSpillover?: boolean })[] = []
+
+        bookings.forEach(b => {
+            if (b.status === 'CANCELLED') return
             const bookingDate = new Date(b.date)
-            return format(bookingDate, 'yyyy-MM-dd') === dateStr
+            const bookingDateStr = format(bookingDate, 'yyyy-MM-dd')
+
+            if (bookingDateStr === dateStr) {
+                result.push(b)
+            }
+            else if (bookingDateStr === prevDateStr && b.endTime <= b.startTime) {
+                result.push({ ...b, isSpillover: true })
+            }
         })
+
+        return result
     }
 
-    // Get booking duration in slots
-    const getBookingDuration = (booking: Booking): number => {
+    // Get booking duration in hours (for display in calendar)
+    // Handles both: cross-day bookings on start day AND spillover on next day
+    const getBookingDuration = (booking: Booking & { isSpillover?: boolean }): number => {
         const startMinutes = timeToMinutes(booking.startTime)
         const endMinutes = timeToMinutes(booking.endTime)
+
+        // Spillover booking from previous day: show 00:00 to endTime
+        if (booking.isSpillover) {
+            return endMinutes / 60
+        }
+
+        // Cross-day booking on start day: show startTime to 24:00
+        if (endMinutes <= startMinutes) {
+            return (1440 - startMinutes) / 60
+        }
+
+        // Normal same-day booking
         return (endMinutes - startMinutes) / 60
+    }
+
+    // Get display start time for a booking (accounts for spillover)
+    const getBookingDisplayStartTime = (booking: Booking & { isSpillover?: boolean }): string => {
+        if (booking.isSpillover) {
+            return '00:00'
+        }
+        return booking.startTime
     }
 
     // Navigate dates
@@ -401,13 +456,15 @@ export default function BookingCalendarView({
 
                                             const booking = dayBookings.find(b => {
                                                 if (b.room?.name !== room.name) return false
-                                                const start = timeToMinutes(b.startTime)
+                                                const displayStartTime = getBookingDisplayStartTime(b)
+                                                const start = timeToMinutes(displayStartTime)
                                                 return start >= slotStartMinutes && start < slotEndMinutes
                                             })
 
                                             const duration = booking ? getBookingDuration(booking) : 0
                                             const colors = booking ? statusColors[booking.status] || statusColors.PENDING : null
-                                            const startMinutes = booking ? timeToMinutes(booking.startTime) : 0
+                                            const displayStartTime = booking ? getBookingDisplayStartTime(booking) : '00:00'
+                                            const startMinutes = timeToMinutes(displayStartTime)
                                             const topOffset = ((startMinutes - slotStartMinutes) / 60) * HOUR_HEIGHT
 
                                             return (
@@ -433,7 +490,10 @@ export default function BookingCalendarView({
                                                                     </p>
                                                                     {(duration * HOUR_HEIGHT) > 20 && (
                                                                         <p className={`text-[10px] ${colors?.text} opacity-75 leading-tight mt-0.5`}>
-                                                                            {booking.startTime} - {booking.endTime}{booking.endTime <= booking.startTime ? ' (+1)' : ''}
+                                                                            {(booking as any).isSpillover
+                                                                                ? `00:00 - ${booking.endTime} (từ hôm trước)`
+                                                                                : `${booking.startTime} - ${booking.endTime}${booking.endTime <= booking.startTime ? ' (+1)' : ''}`
+                                                                            }
                                                                         </p>
                                                                     )}
                                                                 </div>
