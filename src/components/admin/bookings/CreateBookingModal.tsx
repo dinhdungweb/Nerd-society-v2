@@ -38,13 +38,17 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
         customerEmail: '',
         roomId: '',
         date: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
         startTime: '09:00',
-        durationMinutes: 60,
+        endTime: '10:00',
         guests: 1,
         source: 'ONSITE',
         depositStatus: 'PAID_CASH', // Default for Walk-in is usually Paid Cash immediately
         note: ''
     })
+
+    const [bookedSlots, setBookedSlots] = useState<any[]>([])
+    const [endDayBookedSlots, setEndDayBookedSlots] = useState<any[]>([])
 
     useEffect(() => {
         if (open) {
@@ -52,6 +56,33 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
             fetchServices()
         }
     }, [open])
+
+    // Fetch availability when date or room changes
+    useEffect(() => {
+        if (open && formData.roomId && formData.date) {
+            fetchAvailability(formData.date, setBookedSlots)
+        }
+    }, [open, formData.roomId, formData.date])
+
+    useEffect(() => {
+        if (open && formData.roomId && formData.endDate && formData.endDate !== formData.date) {
+            fetchAvailability(formData.endDate, setEndDayBookedSlots)
+        } else {
+            setEndDayBookedSlots([])
+        }
+    }, [open, formData.roomId, formData.endDate, formData.date])
+
+    const fetchAvailability = async (dateStr: string, setter: (data: any[]) => void) => {
+        try {
+            const res = await fetch(`/api/booking/availability?roomId=${formData.roomId}&date=${dateStr}`)
+            if (res.ok) {
+                const data = await res.json()
+                setter(data.bookedSlots || [])
+            }
+        } catch (error) {
+            console.error(error)
+        }
+    }
 
     const fetchRooms = async () => {
         try {
@@ -82,7 +113,7 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
 
     // Calculate price when room or duration changes
     useEffect(() => {
-        if (!formData.roomId || !services.length || !rooms.length) return
+        if (!formData.roomId || !services.length || !rooms.length || !formData.date || !formData.endDate || !formData.startTime || !formData.endTime) return
 
         const room = rooms.find(r => r.id === formData.roomId)
         if (!room) return
@@ -94,7 +125,14 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
         const service = services.find(s => s.type === serviceType)
         if (!service) return
 
-        const hours = formData.durationMinutes / 60
+        const durationMinutes = calculateDurationMultiDay(
+            new Date(formData.date),
+            new Date(formData.endDate),
+            formData.startTime,
+            formData.endTime
+        )
+
+        const hours = durationMinutes / 60
         let price = 0
 
         if (serviceType === 'MEETING') {
@@ -111,7 +149,7 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
         }
 
         setEstimatedPrice(Math.round(price))
-    }, [formData.roomId, formData.durationMinutes, formData.guests, rooms, services])
+    }, [formData.roomId, formData.date, formData.endDate, formData.startTime, formData.endTime, formData.guests, rooms, services])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -139,8 +177,9 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                 customerEmail: '',
                 roomId: rooms[0]?.id || '',
                 date: new Date().toISOString().split('T')[0],
+                endDate: new Date().toISOString().split('T')[0],
                 startTime: '09:00',
-                durationMinutes: 60,
+                endTime: '10:00',
                 guests: 1,
                 source: 'ONSITE',
                 depositStatus: 'PAID_CASH',
@@ -246,17 +285,24 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                             </select>
                                         </div>
 
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div className="col-span-2">
-                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Ngày giờ</label>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Bắt đầu</label>
                                                 <div className="flex gap-2">
                                                     <input
                                                         type="date"
                                                         required
-                                                        min={new Date().toISOString().split('T')[0]}
                                                         className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
                                                         value={formData.date}
-                                                        onChange={e => setFormData({ ...formData, date: e.target.value })}
+                                                        onChange={e => {
+                                                            const newDate = e.target.value
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                date: newDate,
+                                                                // If endDate was same as old date, update it too
+                                                                endDate: prev.endDate === prev.date ? newDate : prev.endDate
+                                                            }))
+                                                        }}
                                                     />
                                                     <input
                                                         type="time"
@@ -268,16 +314,24 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Phút</label>
-                                                <input
-                                                    type="number"
-                                                    min="30"
-                                                    step="15"
-                                                    required
-                                                    className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
-                                                    value={formData.durationMinutes}
-                                                    onChange={e => setFormData({ ...formData, durationMinutes: parseInt(e.target.value) })}
-                                                />
+                                                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Kết thúc</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="date"
+                                                        required
+                                                        min={formData.date}
+                                                        className="w-full rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
+                                                        value={formData.endDate}
+                                                        onChange={e => setFormData({ ...formData, endDate: e.target.value })}
+                                                    />
+                                                    <input
+                                                        type="time"
+                                                        required
+                                                        className="w-24 rounded-lg border-neutral-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-neutral-800 dark:border-neutral-700"
+                                                        value={formData.endTime}
+                                                        onChange={e => setFormData({ ...formData, endTime: e.target.value })}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
 
@@ -331,7 +385,19 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                                         {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(estimatedPrice)}
                                                     </span>
                                                 </div>
-                                                <p className="text-xs text-neutral-500 mt-1">({formData.durationMinutes} phút)</p>
+                                                <p className="text-xs text-neutral-500 mt-1">
+                                                    ({(() => {
+                                                        const duration = calculateDurationMultiDay(
+                                                            new Date(formData.date),
+                                                            new Date(formData.endDate),
+                                                            formData.startTime,
+                                                            formData.endTime
+                                                        )
+                                                        const hours = Math.floor(duration / 60)
+                                                        const minutes = duration % 60
+                                                        return `${hours > 0 ? `${hours} giờ ` : ''}${minutes} phút`
+                                                    })()})
+                                                </p>
 
                                                 {/* Deposit amount */}
                                                 {formData.depositStatus === 'PAID_CASH' && (
@@ -350,6 +416,20 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                                 )}
                                             </div>
                                         )}
+
+                                        {/* Overlap Warning */}
+                                        {isRangeOverlapping(
+                                            new Date(formData.date),
+                                            formData.startTime,
+                                            new Date(formData.endDate),
+                                            formData.endTime,
+                                            bookedSlots,
+                                            endDayBookedSlots
+                                        ) && (
+                                                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400">
+                                                    ⚠️ Cảnh báo: Khung giờ này bị trùng với lịch đã có.
+                                                </div>
+                                            )}
                                     </div>
 
                                     <div className="mt-8 flex justify-end gap-3">
@@ -376,4 +456,72 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
             </Dialog>
         </Transition.Root>
     )
+}
+
+// --- Helpers copied from BookingFormV2 for consistency ---
+function timeToMinutes(time: string): number {
+    const [h, m] = time.split(':').map(Number)
+    return h * 60 + m
+}
+
+function getBookingDateTime(date: Date, time: string): Date {
+    const dt = new Date(date)
+    const [h, m] = time.split(':').map(Number)
+    dt.setUTCHours(h, m, 0, 0)
+    return dt
+}
+
+function calculateDurationMultiDay(startDate: Date, endDate: Date, startTime: string, endTime: string): number {
+    if (!startDate || !endDate || !startTime || !endTime) return 0
+    const startMin = timeToMinutes(startTime)
+    const endMin = timeToMinutes(endTime)
+
+    const s = new Date(startDate); s.setHours(0, 0, 0, 0)
+    const e = new Date(endDate); e.setHours(0, 0, 0, 0)
+    const daysDiff = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24))
+
+    return (daysDiff * 24 * 60) + endMin - startMin
+}
+
+function isRangeOverlapping(
+    sDate: Date,
+    sTime: string,
+    eDate: Date,
+    eTime: string,
+    startDaySlots: any[],
+    endDaySlots: any[] = []
+): boolean {
+    if (!sDate || !sTime || !eDate || !eTime) return false
+
+    const newStart = getBookingDateTime(sDate, sTime).getTime()
+    const newEnd = getBookingDateTime(eDate, eTime).getTime()
+
+    const checkSlots = (slots: any[], targetDay: Date) => {
+        for (const slot of slots) {
+            let slotStartMs: number
+            let slotEndMs: number
+            const baseDate = new Date(targetDay); baseDate.setUTCHours(0, 0, 0, 0)
+
+            if (slot.isSpillover) {
+                slotStartMs = getBookingDateTime(baseDate, '00:00').getTime()
+                slotEndMs = getBookingDateTime(baseDate, slot.endTime).getTime()
+            } else {
+                slotStartMs = getBookingDateTime(baseDate, slot.startTime).getTime()
+                const slotEnd = getBookingDateTime(baseDate, slot.endTime)
+                if (timeToMinutes(slot.endTime) <= timeToMinutes(slot.startTime)) {
+                    slotEnd.setUTCDate(slotEnd.getUTCDate() + 1)
+                }
+                slotEndMs = slotEnd.getTime()
+            }
+            if (newStart < slotEndMs && newEnd > slotStartMs) return true
+        }
+        return false
+    }
+
+    if (checkSlots(startDaySlots, sDate)) return true
+    if (sDate.toISOString().split('T')[0] !== eDate.toISOString().split('T')[0] && endDaySlots.length > 0) {
+        if (checkSlots(endDaySlots, eDate)) return true
+    }
+
+    return false
 }

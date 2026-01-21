@@ -61,9 +61,10 @@ export async function POST(req: Request) {
         const body = await req.json()
         const {
             roomId,
-            date, // ISO Date string
+            date, // Starting date string (YYYY-MM-DD)
+            endDate, // Ending date string (YYYY-MM-DD)
             startTime, // "HH:mm"
-            durationMinutes,
+            endTime, // "HH:mm"
             customerName,
             customerPhone,
             customerEmail,
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
         } = body
 
         // 1. Validation
-        if (!roomId || !date || !startTime || !durationMinutes || !customerName) {
+        if (!roomId || !date || !endDate || !startTime || !endTime || !customerName) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
@@ -88,6 +89,11 @@ export async function POST(req: Request) {
         if (room.type === 'POD_MONO') serviceType = 'POD_MONO'
         if (room.type === 'POD_MULTI') serviceType = 'POD_MULTI'
 
+        // Calculate duration and end date time
+        const startDateTime = getBookingDateTime(date, startTime)
+        const endDateTime = getBookingDateTime(endDate, endTime)
+        const durationMinutes = Math.round((endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60))
+
         let finalAmount = await calculateBookingPriceFromDB(serviceType, durationMinutes, 1)
         if (serviceType === 'MEETING' && body.guests) {
             finalAmount = await calculateBookingPriceFromDB('MEETING', durationMinutes, body.guests)
@@ -97,9 +103,7 @@ export async function POST(req: Request) {
         const bookingCode = await generateBookingCode(new Date(date))
 
         // 3. Validation: Past booking, Operating hours, Min duration
-        const now = new Date()
-        const startDateTime = getBookingDateTime(date, startTime)
-        const endDateTime = addMinutes(startDateTime, durationMinutes)
+        // const now = new Date()
 
         // Admin: Allow booking in past for backfill (optional - uncomment to block)
         // if (startDateTime < now) {
@@ -119,43 +123,27 @@ export async function POST(req: Request) {
             )
         }
 
-        // Minimum duration (60 minutes)
-        if (durationMinutes < 60) {
+        // Minimum duration (30 minutes for POD or walk-in flexibility)
+        if (durationMinutes < 30) {
             return NextResponse.json(
-                { error: 'Thời lượng tối thiểu là 60 phút' },
+                { error: 'Thời lượng tối thiểu là 30 phút' },
                 { status: 400 }
             )
         }
 
-        const conflict = await prisma.booking.findFirst({
-            where: {
-                roomId,
-                date: new Date(date),
-                status: { notIn: ['CANCELLED', 'NO_SHOW'] },
-                OR: [
-                    {
-                        startTime: { lte: startTime },
-                        endTime: { gt: startTime }
-                    },
-                    {
-                        startTime: { lt: format(endDateTime, 'HH:mm') },
-                        endTime: { gte: format(endDateTime, 'HH:mm') }
-                    },
-                    {
-                        startTime: { gte: startTime },
-                        endTime: { lte: format(endDateTime, 'HH:mm') }
-                    }
-                ]
-            }
-        })
+        const available = await isSlotAvailable(
+            roomId,
+            new Date(date),
+            new Date(endDate),
+            startTime,
+            endTime
+        )
 
-        if (conflict) {
+        if (!available) {
             return NextResponse.json({
-                error: `Phòng đã bị đặt trong khung giờ này (Trùng với booking ${conflict.bookingCode})`
+                error: `Phòng đã bị đặt trong khung giờ này.`
             }, { status: 409 })
         }
-
-        const endTime = format(endDateTime, 'HH:mm')
 
         // 3a. Find existing user to link
         let userId: string | null = null
@@ -181,6 +169,7 @@ export async function POST(req: Request) {
                 roomId,
                 locationId: room.locationId,
                 date: new Date(date),
+                endDate: new Date(endDate),
                 startTime,
                 endTime,
                 guests: body.guests || 1,
