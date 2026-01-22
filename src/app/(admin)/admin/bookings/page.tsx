@@ -566,18 +566,35 @@ function BookingsContent() {
                                             >
                                                 <ChevronLeftIcon className="size-4" />
                                             </button>
-                                            {[...Array(totalPages)].map((_, i) => (
-                                                <button
-                                                    key={i}
-                                                    onClick={() => setCurrentPage(i + 1)}
-                                                    className={`size-8 rounded-lg text-sm font-medium transition-colors ${currentPage === i + 1
-                                                        ? 'bg-primary-600 text-white'
-                                                        : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
-                                                        }`}
-                                                >
-                                                    {i + 1}
-                                                </button>
-                                            ))}
+
+                                            {(() => {
+                                                const getVisiblePages = (current: number, total: number) => {
+                                                    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+
+                                                    if (current <= 4) return [1, 2, 3, 4, 5, '...', total]
+                                                    if (current >= total - 3) return [1, '...', total - 4, total - 3, total - 2, total - 1, total]
+
+                                                    return [1, '...', current - 1, current, current + 1, '...', total]
+                                                }
+
+                                                return getVisiblePages(currentPage, totalPages).map((page, i) => (
+                                                    typeof page === 'number' ? (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => setCurrentPage(page)}
+                                                            className={`size-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page
+                                                                ? 'bg-primary-600 text-white'
+                                                                : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
+                                                                }`}
+                                                        >
+                                                            {page}
+                                                        </button>
+                                                    ) : (
+                                                        <span key={i} className="px-2 text-neutral-400">...</span>
+                                                    )
+                                                ))
+                                            })()}
+
                                             <button
                                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                                 disabled={currentPage === totalPages}
