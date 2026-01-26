@@ -63,6 +63,10 @@ interface Permissions {
     canManageRecruitment: boolean
     canViewQrGenerator: boolean
     canViewFeedback: boolean
+
+    // Study Date
+    canViewStudyDate: boolean
+    canManageStudyDate: boolean
 }
 
 type RoleKey = 'MANAGER' | 'STAFF' | 'CONTENT_EDITOR'
@@ -135,6 +139,10 @@ const permissionLabels: Record<keyof Permissions, { label: string; description: 
     // Nerd Coin
     canViewNerdCoin: { label: 'Xem Nerd Coin', description: 'Xem số dư Nerd Coin', group: 'Hệ thống' },
     canManageNerdCoin: { label: 'Quản lý Nerd Coin', description: 'Điều chỉnh Nerd Coin khách', group: 'Hệ thống' },
+
+    // Study Date
+    canViewStudyDate: { label: 'Xem Study Date', description: 'Xem danh sách hồ sơ và thống kê', group: 'Study Date' },
+    canManageStudyDate: { label: 'Quản lý Study Date', description: 'Sửa hồ sơ, tạo slots, matching', group: 'Study Date' },
 
     // System
     canViewSettings: { label: 'Xem Settings', description: 'Xem cài đặt hệ thống', group: 'Hệ thống' },
