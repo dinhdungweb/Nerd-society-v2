@@ -170,6 +170,37 @@ async function main() {
     }
     console.log('✅ Combos created:', combos.length)
 
+    // Create Study Slots
+    const days = [0, 1, 2, 3, 4, 5, 6]
+    const timeSlots = [
+        { start: '09:00', end: '12:00' },
+        { start: '14:00', end: '17:00' },
+        { start: '19:00', end: '22:00' },
+    ]
+
+    for (const locationId of ['loc-ho-tung-mau', 'loc-tay-son']) {
+        for (const day of days) {
+            for (const time of timeSlots) {
+                // Upsert logic for slots
+                // ID based on loc-day-start
+                const slotId = `slot-${locationId}-d${day}-${time.start.replace(':', '')}`
+                await prisma.studySlot.upsert({
+                    where: { id: slotId },
+                    update: {},
+                    create: {
+                        id: slotId,
+                        locationId: locationId,
+                        dayOfWeek: day,
+                        startTime: time.start,
+                        endTime: time.end,
+                        capacity: 20
+                    }
+                })
+            }
+        }
+    }
+    console.log('✅ Study Slots created')
+
     console.log('🎉 Seeding completed!')
 }
 

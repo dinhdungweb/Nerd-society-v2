@@ -37,6 +37,12 @@ model User {
   posts              Post[]
   sessions           Session[]
   assignedLocation   Location?             @relation(fields: [assignedLocationId], references: [id])
+  
+  // Study Date Relations
+  studyProfile       StudyProfile?
+  studyAvailabilities UserStudyAvailability[]
+  matchesAsA         StudyMatch[]          @relation("MatchUserA")
+  matchesAsB         StudyMatch[]          @relation("MatchUserB")
 
   @@index([name])
   @@index([phone])
@@ -105,6 +111,7 @@ model Location {
   bookings  Booking[]
   rooms     Room[]
   staff     User[]
+  studySlots StudySlot[]
 }
 
 model Service {
@@ -525,4 +532,156 @@ enum FeedbackType {
   STAFF_ATTITUDE
   SUGGESTION
   OTHER
+}
+
+// --- STUDY DATE FEATURE MODELS ---
+
+model StudyProfile {
+  id               String           @id @default(cuid())
+  userId           String           @unique
+  seeking          StudySeeking[] // STUDY_BUDDY, WORK_BUDDY, DATE
+  dateLevel        StudyDateLevel? // FOCUS_ONLY, 50_50, DATE_HEAVY
+  preferredFormat  StudyFormat? // ONE_ON_ONE, GROUP
+  workMode         StudyWorkMode? // SILENT, POMODORO, CHAT
+  interactionLevel InteractionLevel? // LOW, MEDIUM, HIGH
+  environment      StudyEnvironment? // QUIET, LIGHT_MUSIC, DONT_CARE
+  introExtro       IntroExtro? // INTROVERT, AMBIVERT, EXTROVERT
+  primaryFocus     String? // IELTS, Coding, etc. (Can be free text or dropdown enum in FE)
+  supportPreference SupportPreference? // PRESENCE, REVIEW, SKILL_SWAP
+  
+  // Safety & Filters
+  ageRangeMin      Int?
+  ageRangeMax      Int?
+  shareContact     Boolean          @default(false)
+  
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StudySlot {
+  id          String   @id @default(cuid())
+  locationId  String
+  dayOfWeek   Int      // 0=Sunday, 1=Monday, ... 6=Saturday
+  startTime   String   // "09:00"
+  endTime     String   // "12:00"
+  capacity    Int      @default(20)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  location    Location @relation(fields: [locationId], references: [id])
+  availabilities UserStudyAvailability[]
+  matches        StudyMatch[]
+
+  @@index([locationId])
+  @@index([dayOfWeek])
+}
+
+model UserStudyAvailability {
+  id          String    @id @default(cuid())
+  userId      String
+  slotId      String
+  weekStart   DateTime  @db.Date // Store the Monday of the week (or Sunday) to distinguish specific weeks
+  status      AvailabilityStatus @default(OPEN)
+  createdAt   DateTime  @default(now())
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slot        StudySlot  @relation(fields: [slotId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slotId, weekStart]) // One availability per slot per week per user
+  @@index([userId])
+  @@index([slotId])
+}
+
+model StudyMatch {
+  id          String      @id @default(cuid())
+  slotId      String
+  date        DateTime    @db.Date
+  userAId     String
+  userBId     String
+  
+  status      MatchStatus @default(PENDING_CONFIRMATION)
+  
+  confirmA    Boolean     @default(false)
+  confirmB    Boolean     @default(false)
+  
+  isCompleted Boolean     @default(false)
+  feedbackA   Json?
+  feedbackB   Json?
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  slot        StudySlot   @relation(fields: [slotId], references: [id])
+  userA       User        @relation("MatchUserA", fields: [userAId], references: [id])
+  userB       User        @relation("MatchUserB", fields: [userBId], references: [id])
+
+  @@index([slotId])
+  @@index([date])
+  @@index([status])
+}
+
+// --- ENUMS ---
+
+enum StudySeeking {
+  STUDY_BUDDY
+  WORK_BUDDY
+  OPEN_TO_DATE
+}
+
+enum StudyDateLevel {
+  FOCUS_ONLY
+  BALANCED // 50_50
+  DATE_HEAVY
+}
+
+enum StudyFormat {
+  ONE_ON_ONE
+  GROUP
+}
+
+enum StudyWorkMode {
+  SILENT
+  POMODORO
+  CASUAL_CHAT
+}
+
+enum InteractionLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum StudyEnvironment {
+  QUIET
+  LIGHT_MUSIC
+  DONT_CARE
+}
+
+enum IntroExtro {
+  INTROVERT
+  AMBIVERT
+  EXTROVERT
+}
+
+enum SupportPreference {
+  JUST_PRESENCE
+  QUICK_REVIEW
+  SKILL_SWAP
+}
+
+enum AvailabilityStatus {
+  OPEN
+  MATCHED
+  CANCELLED
+}
+
+enum MatchStatus {
+  PENDING_CONFIRMATION
+  PARTIAL_CONFIRMED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
 }
