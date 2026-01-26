@@ -62,6 +62,10 @@ export interface StaffPermissions {
     canManageRecruitment: boolean
     canViewQrGenerator: boolean
     canViewFeedback: boolean
+
+    // Study Date
+    canViewStudyDate: boolean
+    canManageStudyDate: boolean
 }
 
 const DEFAULT_PERMISSIONS: StaffPermissions = {
@@ -112,6 +116,10 @@ const DEFAULT_PERMISSIONS: StaffPermissions = {
     canViewNerdCoin: false,
     canManageNerdCoin: false,
 
+    // Study Date
+    canViewStudyDate: false,
+    canManageStudyDate: false,
+
     // System
     canViewSettings: false,
     canViewStaff: false,
@@ -152,6 +160,8 @@ const ADMIN_PERMISSIONS: StaffPermissions = {
     canManageCustomers: true,
     canViewNerdCoin: true,
     canManageNerdCoin: true,
+    canViewStudyDate: true,
+    canManageStudyDate: true,
     canViewSettings: true,
     canViewStaff: true,
     canManageStaff: true,
@@ -191,6 +201,8 @@ const CONTENT_EDITOR_PERMISSIONS: StaffPermissions = {
     canManageCustomers: false,
     canViewNerdCoin: false,
     canManageNerdCoin: false,
+    canViewStudyDate: false,
+    canManageStudyDate: false,
     canViewSettings: false,
     canViewStaff: false,
     canManageStaff: false,

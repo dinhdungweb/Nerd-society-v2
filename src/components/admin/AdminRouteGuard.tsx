@@ -26,6 +26,7 @@ const ROUTE_PERMISSIONS: Record<string, keyof StaffPermissions> = {
     '/admin/email-templates': 'canViewEmailTemplates',
     '/admin/feedback': 'canViewFeedback',
     '/admin/qr-generator': 'canViewQrGenerator',
+    '/admin/study-date': 'canViewStudyDate',
 }
 
 // Routes that are ONLY for ADMIN (only permissions page now)
