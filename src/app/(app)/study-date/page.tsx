@@ -3,10 +3,10 @@
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { ArrowRightIcon } from '@heroicons/react/24/outline'
 
-export default function StudyDateRootPage() {
+function StudyDateLandingContent() {
     const { data: session, status } = useSession()
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -69,5 +69,18 @@ export default function StudyDateRootPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+export default function StudyDateRootPage() {
+    return (
+        <Suspense fallback={(
+            <div className="flex h-[60vh] flex-col items-center justify-center space-y-4">
+                <div className="size-10 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+                <p className="text-neutral-500 animate-pulse">Đang tải...</p>
+            </div>
+        )}>
+            <StudyDateLandingContent />
+        </Suspense>
     )
 }

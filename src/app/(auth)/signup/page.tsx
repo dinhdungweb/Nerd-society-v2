@@ -1,4 +1,5 @@
 
+import { Suspense } from 'react'
 import SignupForm from './SignupForm'
 import { prisma } from '@/lib/prisma'
 
@@ -20,6 +21,8 @@ export default async function SignupPage() {
   const settings = await getSettings()
 
   return (
-    <SignupForm logoUrl={settings.siteLogo} logoLightUrl={settings.siteLogoLight} />
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><div className="size-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div></div>}>
+      <SignupForm logoUrl={settings.siteLogo} logoLightUrl={settings.siteLogoLight} />
+    </Suspense>
   )
 }
