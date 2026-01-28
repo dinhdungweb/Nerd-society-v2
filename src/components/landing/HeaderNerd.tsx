@@ -13,7 +13,8 @@ import {
     UserCircleIcon,
     UserIcon,
     UserPlusIcon,
-    XMarkIcon
+    XMarkIcon,
+    ChevronDownIcon
 } from '@heroicons/react/24/outline'
 import { signOut, useSession } from 'next-auth/react'
 import Link from 'next/link'
@@ -22,6 +23,13 @@ import { Fragment, useContext, useEffect, useState } from 'react'
 const navigation = [
     { name: 'Trang chủ', href: '/' },
     { name: 'Giới thiệu', href: '/#about' },
+    {
+        name: 'Sự kiện',
+        href: '#',
+        children: [
+            { name: 'Study Date', href: '/study-date' }
+        ]
+    },
     { name: 'Đặt lịch', href: '/booking' },
     { name: 'Tuyển dụng', href: '/tuyen-dung' },
     { name: 'Góp ý', href: '/gop-y' },
@@ -96,13 +104,38 @@ export default function HeaderNerd({ logoUrl, logoLightUrl }: { logoUrl?: string
                     <div className="hidden items-center lg:flex">
                         <div className="flex items-center rounded-full bg-neutral-100/80 p-1.5 backdrop-blur-sm dark:bg-neutral-800/80">
                             {navigation.map((item) => (
-                                <Link
-                                    key={item.name}
-                                    href={item.href}
-                                    className="rounded-full px-5 py-2 text-sm font-medium text-neutral-600 transition-all hover:bg-white hover:text-primary-600 hover:shadow-sm dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-primary-400"
-                                >
-                                    {item.name}
-                                </Link>
+                                item.children ? (
+                                    <div key={item.name} className="group relative">
+                                        <button
+                                            className="flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium text-neutral-600 transition-all hover:bg-white hover:text-primary-600 hover:shadow-sm focus:outline-none dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-primary-400"
+                                            onClick={(e) => e.preventDefault()}
+                                        >
+                                            {item.name}
+                                            <ChevronDownIcon className="size-3 text-neutral-400 transition-transform group-hover:rotate-180" />
+                                        </button>
+                                        <div className="invisible absolute left-0 top-full z-10 mt-2 w-48 origin-top-left opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100">
+                                            <div className="rounded-2xl bg-white p-1 shadow-lg ring-1 ring-black/5 dark:bg-neutral-800 dark:ring-white/5">
+                                                {item.children.map((child) => (
+                                                    <Link
+                                                        key={child.name}
+                                                        href={child.href}
+                                                        className="block rounded-xl px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-white"
+                                                    >
+                                                        {child.name}
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <Link
+                                        key={item.name}
+                                        href={item.href}
+                                        className="rounded-full px-5 py-2 text-sm font-medium text-neutral-600 transition-all hover:bg-white hover:text-primary-600 hover:shadow-sm dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-primary-400"
+                                    >
+                                        {item.name}
+                                    </Link>
+                                )
                             ))}
                         </div>
                     </div>
@@ -353,14 +386,34 @@ export default function HeaderNerd({ logoUrl, logoLightUrl }: { logoUrl?: string
                             <div className="mt-8 flow-root">
                                 <div className="space-y-1">
                                     {navigation.map((item) => (
-                                        <Link
-                                            key={item.name}
-                                            href={item.href}
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            className="block rounded-xl px-4 py-3 text-base font-medium text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-white dark:hover:bg-neutral-800"
-                                        >
-                                            {item.name}
-                                        </Link>
+                                        item.children ? (
+                                            <div key={item.name} className="space-y-1">
+                                                <div className="block rounded-xl px-4 py-3 text-base font-bold text-neutral-900 dark:text-white">
+                                                    {item.name}
+                                                </div>
+                                                <div className="pl-4">
+                                                    {item.children.map((child) => (
+                                                        <Link
+                                                            key={child.name}
+                                                            href={child.href}
+                                                            onClick={() => setMobileMenuOpen(false)}
+                                                            className="block rounded-xl px-4 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                                        >
+                                                            {child.name}
+                                                        </Link>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <Link
+                                                key={item.name}
+                                                href={item.href}
+                                                onClick={() => setMobileMenuOpen(false)}
+                                                className="block rounded-xl px-4 py-3 text-base font-medium text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-white dark:hover:bg-neutral-800"
+                                            >
+                                                {item.name}
+                                            </Link>
+                                        )
                                     ))}
                                 </div>
 

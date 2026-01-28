@@ -1,7 +1,8 @@
 'use client'
 
-import { EnvelopeIcon, GlobeAltIcon, MapPinIcon, PhoneIcon } from '@heroicons/react/24/outline'
+import { EnvelopeIcon, GlobeAltIcon, MapPinIcon, PhoneIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { useState } from 'react'
 
 // Coffee cup icon for logo
 const CoffeeIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -17,6 +18,13 @@ const navigation = {
         { name: 'Đặt lịch', href: '/booking' },
         { name: 'Tuyển dụng', href: '/tuyen-dung' },
         { name: 'Góp ý', href: '/gop-y' },
+        {
+            name: 'Sự kiện',
+            href: '#',
+            children: [
+                { name: 'Study Date', href: '/study-date' }
+            ]
+        },
     ],
     locations: [
         {
@@ -70,6 +78,16 @@ const navigation = {
 }
 
 export default function FooterNerd({ logoUrl }: { logoUrl?: string }) {
+    const [expandedSections, setExpandedSections] = useState<string[]>([])
+
+    const toggleAccordion = (name: string) => {
+        setExpandedSections(prev =>
+            prev.includes(name)
+                ? prev.filter(item => item !== name)
+                : [...prev, name]
+        )
+    }
+
     return (
         <footer className="relative overflow-hidden bg-neutral-900">
             {/* Background decoration */}
@@ -133,12 +151,37 @@ export default function FooterNerd({ logoUrl }: { logoUrl?: string }) {
                         <ul className="mt-6 space-y-4">
                             {navigation.main.map((item) => (
                                 <li key={item.name}>
-                                    <Link
-                                        href={item.href}
-                                        className="text-neutral-400 transition-colors hover:text-primary-400"
-                                    >
-                                        {item.name}
-                                    </Link>
+                                    {/* @ts-ignore - Dynamic check for children */}
+                                    {item.children ? (
+                                        <div>
+                                            <button
+                                                onClick={() => toggleAccordion(item.name)}
+                                                className="flex w-full items-center justify-between text-left text-neutral-400 transition-colors hover:text-primary-400"
+                                            >
+                                                <span>{item.name}</span>
+                                                <ChevronDownIcon className={`size-4 transition-transform ${expandedSections.includes(item.name) ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            <div className={`space-y-2 overflow-hidden pl-3 transition-all duration-300 ease-in-out ${expandedSections.includes(item.name) ? 'mt-2 max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                                {/* @ts-ignore */}
+                                                {item.children.map((child) => (
+                                                    <Link
+                                                        key={child.name}
+                                                        href={child.href}
+                                                        className="block text-sm text-neutral-500 transition-colors hover:text-primary-400"
+                                                    >
+                                                        {child.name}
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <Link
+                                            href={item.href}
+                                            className="text-neutral-400 transition-colors hover:text-primary-400"
+                                        >
+                                            {item.name}
+                                        </Link>
+                                    )}
                                 </li>
                             ))}
                         </ul>
@@ -146,6 +189,7 @@ export default function FooterNerd({ logoUrl }: { logoUrl?: string }) {
 
                     {/* Locations */}
                     <div className="lg:col-span-3">
+
                         <h3 className="text-sm font-semibold uppercase tracking-wider text-white">
                             Địa điểm
                         </h3>
