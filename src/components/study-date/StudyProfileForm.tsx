@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import ButtonPrimary from '@/shared/ButtonPrimary'
 import {
     getStudyProfile,
@@ -381,7 +382,7 @@ const StudyProfileForm = () => {
                         </div>
                         <div className="-mt-1 select-none">
                             <span className="text-sm font-medium text-neutral-900 dark:text-neutral-200">
-                                Tôi đồng ý với <span className="font-bold text-primary-600">Quy tắc ứng xử (Code of Conduct)</span> tại Nerd.
+                                Tôi đồng ý với <Link href="/code-of-conduct" target="_blank" className="font-bold text-primary-600 hover:underline" onClick={(e) => e.stopPropagation()}>Quy tắc ứng xử (Code of Conduct)</Link> tại Nerd.
                             </span>
                             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                                 Giữ thái độ tôn trọng, không quấy rối, giữ vệ sinh chung.
