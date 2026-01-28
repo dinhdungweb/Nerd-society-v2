@@ -5,7 +5,7 @@ import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
 // Coffee cup icon for logo
@@ -22,6 +22,8 @@ interface SignupFormProps {
 
 export default function SignupForm({ logoUrl, logoLightUrl }: SignupFormProps) {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const callbackUrl = searchParams.get('callbackUrl') || '/'
 
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
@@ -73,9 +75,9 @@ export default function SignupForm({ logoUrl, logoLightUrl }: SignupFormProps) {
 
             if (result?.error) {
                 // Registration succeeded but auto-login failed, redirect to login
-                router.push('/login?registered=true')
+                router.push(`/login?registered=true&callbackUrl=${encodeURIComponent(callbackUrl)}`)
             } else {
-                router.push('/')
+                router.push(callbackUrl)
                 router.refresh()
             }
         } catch (err) {
