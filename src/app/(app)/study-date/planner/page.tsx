@@ -4,11 +4,18 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+
 export const metadata: Metadata = {
     title: 'Lịch Study Date | Nerd Society',
 }
 
-export default function StudyPlannerPage() {
+export default async function StudyPlannerPage() {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return redirect('/study-date?callbackUrl=/study-date/planner')
+
     return (
         <div className="py-10">
             <div className="mb-6">

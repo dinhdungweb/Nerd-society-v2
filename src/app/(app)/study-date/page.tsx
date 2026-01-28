@@ -1,25 +1,26 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect } from 'react'
 import toast from 'react-hot-toast'
 
 export default function StudyDateRootPage() {
     const { data: session, status } = useSession()
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const callbackUrl = searchParams.get('callbackUrl') || '/study-date/dashboard'
 
     useEffect(() => {
         if (status === 'loading') return
 
         if (status === 'unauthenticated') {
             toast.error('Vui lòng đăng nhập để tham gia Study Date')
-            router.push('/login?callbackUrl=/study-date/dashboard')
+            router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`)
         } else if (status === 'authenticated') {
-            // Already logged in, go to dashboard
-            router.push('/study-date/dashboard')
+            router.push(callbackUrl)
         }
-    }, [status, router])
+    }, [status, router, callbackUrl])
 
     return (
         <div className="flex h-[60vh] flex-col items-center justify-center space-y-4">

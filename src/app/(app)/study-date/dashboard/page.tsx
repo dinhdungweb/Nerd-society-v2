@@ -26,7 +26,7 @@ const SectionHeader = ({ icon: Icon, title }: { icon: any, title: string }) => (
 
 const Page = async () => {
     const session = await getServerSession(authOptions)
-    if (!session?.user) return redirect('/login')
+    if (!session?.user) return redirect('/study-date?callbackUrl=/study-date/dashboard')
 
     const profile = await prisma.studyProfile.findUnique({
         where: { userId: session.user.id },
