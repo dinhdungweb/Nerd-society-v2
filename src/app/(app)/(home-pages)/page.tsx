@@ -19,6 +19,15 @@ export const metadata: Metadata = {
   description:
     'Nerd Society: Cộng đồng học tập Gen Z năng động tại Hà Nội. Không gian làm việc chung, học nhóm lý tưởng, tổ chức sự kiện, workshop chuyên sâu. Kết nối, phát triển bản thân và chinh phục kiến thức cùng Nerd Society!',
   keywords: ['Nerd Society', 'cafe học tập', 'co-working space', 'Hà Nội', 'Gen Z', 'không gian làm việc'],
+  openGraph: {
+    title: 'Nerd Society | Không gian học tập dành cho Gen Z',
+    description:
+      'Nerd Society: Cộng đồng học tập Gen Z năng động tại Hà Nội. Không gian làm việc chung, học nhóm lý tưởng, tổ chức sự kiện, workshop chuyên sâu. Kết nối, phát triển bản thân và chinh phục kiến thức cùng Nerd Society!',
+    url: 'https://nerdsociety.com.vn',
+  },
+  alternates: {
+    canonical: 'https://nerdsociety.com.vn',
+  },
 }
 
 import { prisma } from '@/lib/prisma'

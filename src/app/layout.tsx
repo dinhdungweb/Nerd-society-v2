@@ -22,6 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
   }, {} as Record<string, string>)
 
   return {
+    metadataBase: new URL('https://nerdsociety.com.vn'),
     title: {
       template: '%s - Nerd Society',
       default: config.siteName || 'Nerd Society | Không gian học tập dành cho Gen Z',
@@ -29,6 +30,21 @@ export async function generateMetadata(): Promise<Metadata> {
     description: config.siteDescription || 'Nerd Society: Cộng đồng học tập Gen Z năng động tại Hà Nội.',
     keywords: ['Nerd Society', 'cafe học tập', 'co-working space', 'Hà Nội', 'Gen Z'],
     icons: config.siteFavicon ? { icon: config.siteFavicon } : undefined,
+    openGraph: {
+      type: 'website',
+      locale: 'vi_VN',
+      url: 'https://nerdsociety.com.vn',
+      siteName: config.siteName || 'Nerd Society',
+      title: config.siteName || 'Nerd Society | Không gian học tập dành cho Gen Z',
+      description: config.siteDescription || 'Nerd Society: Cộng đồng học tập Gen Z năng động tại Hà Nội.',
+      images: config.siteLogo ? [{ url: config.siteLogo }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: config.siteName || 'Nerd Society',
+      description: config.siteDescription || 'Nerd Society: Cộng đồng học tập Gen Z năng động tại Hà Nội.',
+      images: config.siteLogo ? [config.siteLogo] : [],
+    },
   }
 }
 
