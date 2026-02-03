@@ -10,7 +10,8 @@ import {
     ArrowTrendingUpIcon,
     PlusIcon,
     CheckBadgeIcon,
-    SparklesIcon
+    SparklesIcon,
+    ArrowDownTrayIcon
 } from '@heroicons/react/24/outline'
 
 import StudyProfileDetailModal from '@/components/admin/StudyProfileDetailModal'
@@ -93,6 +94,13 @@ const AdminStudyDatePage = () => {
                     </p>
                 </div>
                 <div className="flex gap-3">
+                    <a
+                        href="/api/admin/export?type=study-profiles"
+                        className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                    >
+                        <ArrowDownTrayIcon className="size-5" />
+                        Xuất CSV
+                    </a>
                     <button
                         onClick={() => setIsSlotModalOpen(true)}
                         className="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm transition-all hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"

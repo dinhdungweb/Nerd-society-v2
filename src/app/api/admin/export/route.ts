@@ -202,6 +202,77 @@ export async function GET(req: Request) {
             })
         }
 
+        if (type === 'study-profiles') {
+            const { hasAccess } = await canView('Customers') // Reuse customer view permission
+            if (!hasAccess) return NextResponse.json({ error: 'Không có quyền xuất dữ liệu Hồ sơ Study Date' }, { status: 403 })
+
+            const profiles = await prisma.studyProfile.findMany({
+                include: {
+                    user: {
+                        select: {
+                            name: true,
+                            email: true,
+                            phone: true,
+                            gender: true,
+                            dateOfBirth: true
+                        }
+                    }
+                },
+                orderBy: { createdAt: 'desc' }
+            })
+
+            const headers = [
+                'Tên User',
+                'Email',
+                'SĐT',
+                'Giới tính',
+                'Năm sinh',
+                'Mục tiêu',
+                'Kiểu Date',
+                'Hình thức',
+                'Chế độ làm việc',
+                'Mức độ tương tác',
+                'Môi trường',
+                'Hướng nội/ngoại',
+                'Focus chính',
+                'Hỗ trợ',
+                'Chia sẻ contact',
+                'Ngày đăng ký'
+            ]
+
+            const rows = profiles.map(p => [
+                p.user?.name || '',
+                p.user?.email || '',
+                p.user?.phone || '',
+                p.user?.gender || '',
+                p.user?.dateOfBirth ? new Date(p.user.dateOfBirth).getFullYear().toString() : '',
+                p.seeking.join(', '),
+                p.dateLevel || '',
+                p.preferredFormat || '',
+                p.workMode || '',
+                p.interactionLevel || '',
+                p.environment || '',
+                p.introExtro || '',
+                p.primaryFocus || '',
+                p.supportPreference || '',
+                p.shareContact ? 'Có' : 'Không',
+                format(new Date(p.createdAt), 'dd/MM/yyyy HH:mm')
+            ])
+
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.map(cell => `"${cell?.replace(/"/g, '""')}"`).join(',')),
+            ].join('\n')
+
+            const bom = '\uFEFF'
+            return new Response(bom + csvContent, {
+                headers: {
+                    'Content-Type': 'text/csv; charset=utf-8',
+                    'Content-Disposition': `attachment; filename="study_profiles_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv"`,
+                },
+            })
+        }
+
         return NextResponse.json({ error: 'Invalid export type' }, { status: 400 })
     } catch (error) {
         console.error('Error exporting data:', error)
