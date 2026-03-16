@@ -13,7 +13,9 @@ async function runE2E() {
     console.log('🚀 Starting VietQR E2E Auto-Confirmation Test...');
 
     // 1. Create a Fake Booking
-    const bookingCode = 'NERD-E2E-' + Date.now();
+    // Format must match regex: /NERD[- ]?(\d{8})[- ]?(\d{3})/i (e.g., NERD-20250101-123)
+    const randomSeq = Math.floor(Math.random() * 900) + 100; // 100-999
+    const bookingCode = `NERD-20990101-${randomSeq}`;
     console.log(`\n1. Creating Pending Booking: ${bookingCode}`);
 
     // Create a dummy user first if needed, or link to existing. 

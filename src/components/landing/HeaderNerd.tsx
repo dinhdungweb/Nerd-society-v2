@@ -27,7 +27,8 @@ const navigation = [
         name: 'Sự kiện',
         href: '#',
         children: [
-            { name: 'Study Date', href: '/study-date' }
+            { name: 'Study Date', href: '/study-date' },
+            { name: 'The Nerd Tree', href: 'https://nerd1stbirthday.nerdsociety.com.vn' }
         ]
     },
     { name: 'Đặt lịch', href: '/booking' },
