@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { prisma } from '@/lib/prisma'
 import { getPaymentInfo, isVietQRConfigured } from '@/lib/vietqr'
 import { NextRequest, NextResponse } from 'next/server'
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Generate payment info
-        const paymentInfo = getPaymentInfo({
+        const paymentInfo = await getPaymentInfo({
             amount: booking.depositAmount,
             bookingCode: booking.bookingCode,
         })

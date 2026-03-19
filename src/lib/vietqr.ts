@@ -6,7 +6,8 @@
  * Register at: https://my.vietqr.vn
  */
 
-import crypto from 'crypto'
+import * as crypto from 'crypto'
+import QRCode from 'qrcode'
 
 // Common bank codes
 export const BANK_CODES = {
@@ -74,9 +75,119 @@ export function generateVietQRUrl(params: {
 }
 
 /**
- * Generate payment info for display
+ * Get VietQR API Token (Basic Auth)
  */
-export function getPaymentInfo(params: {
+export async function getVietQRToken(): Promise<string> {
+    const username = process.env.VIETQR_SYSTEM_USERNAME;
+    const password = process.env.VIETQR_SYSTEM_PASSWORD;
+
+    if (!username || !password) {
+        throw new Error('Missing VIETQR_SYSTEM_USERNAME or VIETQR_SYSTEM_PASSWORD in .env');
+    }
+
+    const credentials = Buffer.from(`${username}:${password}`).toString('base64');
+
+    const res = await fetch('https://api.vietqr.org/vqr/api/token_generate', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${credentials}`,
+            'User-Agent': 'NerdSociety/1.0',
+            'Referer': 'https://api.vietqr.vn/'
+        },
+        cache: 'no-store'
+    });
+
+    const textData = await res.text();
+    let data;
+    try {
+        data = JSON.parse(textData);
+    } catch (e) {
+        console.error('[VietQR Token Error] Unexpected Response:', textData.substring(0, 200));
+        throw new Error(`VietQR Token Error: Received HTML instead of JSON. Check credentials.`);
+    }
+
+    if (!res.ok || !data.access_token) {
+        throw new Error(`VietQR Token Error: ${JSON.stringify(data)}`);
+    }
+
+    return data.access_token;
+}
+
+/**
+ * Generate official VietQR using API
+ * The API returns an EMVCo string which we render into a Base64 image
+ */
+export async function generateOfficialQR(params: {
+    amount: number
+    description: string
+}): Promise<string> {
+    try {
+        const token = await getVietQRToken();
+        const { amount, description } = params;
+
+        const sanitizedDesc = description
+            .replace(/[^a-zA-Z0-9\s]/g, '')
+            .substring(0, 23)
+            .trim();
+
+        const orderId = sanitizedDesc.replace(/\s/g, '').substring(0, 13);
+
+        const officialBankCode = BANK_CODES[config.bankCode as keyof typeof BANK_CODES] || config.bankCode;
+
+        const payload = {
+            bankCode: officialBankCode,
+            bankAccount: config.accountNumber,
+            userBankName: config.accountName,
+            content: sanitizedDesc,
+            qrType: 0,
+            amount: amount,
+            orderId: orderId,
+            transType: 'C'
+        };
+
+        const res = await fetch('https://api.vietqr.org/vqr/api/qr/generate-customer', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'User-Agent': 'NerdSociety/1.0',
+                'Referer': 'https://api.vietqr.vn/'
+            },
+            body: JSON.stringify(payload),
+            cache: 'no-store'
+        });
+
+        const textResponse = await res.text();
+        let data;
+        try {
+            data = JSON.parse(textResponse);
+        } catch (e) {
+            console.error('[VietQR Generate Error] HTML Response:', textResponse.substring(0, 200));
+            // Use fallback if API fails
+            return generateVietQRUrl(params);
+        }
+        
+        if (data && data.qrCode) {
+            // Render the EMVCo string to Base64 image using 'qrcode' package
+            const qrUrl = await QRCode.toDataURL(data.qrCode, { width: 300, margin: 1 });
+            return qrUrl;
+        } else {
+            console.error('[VietQR Generate Error] API returned fail:', data);
+            // Fallback to static generation if API structure changed or returned error
+            return generateVietQRUrl(params);
+        }
+    } catch (error) {
+        console.error('[VietQR Generate Error] Exception:', error);
+        // Fallback robustly
+        return generateVietQRUrl(params);
+    }
+}
+
+/**
+ * Generate payment info for display (Async)
+ */
+export async function getPaymentInfo(params: {
     amount: number
     bookingCode: string
 }) {
@@ -84,11 +195,13 @@ export function getPaymentInfo(params: {
     // VietQR content length is limited, so we send the booking code clearly
     const description = `${params.bookingCode}`
 
+    const qrUrl = await generateOfficialQR({
+        amount: params.amount,
+        description,
+    });
+
     return {
-        qrUrl: generateVietQRUrl({
-            amount: params.amount,
-            description,
-        }),
+        qrUrl,
         bankCode: config.bankCode,
         accountNumber: config.accountNumber,
         accountName: config.accountName,
