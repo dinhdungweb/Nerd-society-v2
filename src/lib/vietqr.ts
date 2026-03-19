@@ -43,36 +43,7 @@ const config: VietQRConfig = {
     webhookSecret: process.env.VIETQR_WEBHOOK_SECRET,
 }
 
-/**
- * Generate VietQR image URL
- * Uses https://img.vietqr.io service (Public API)
- * This works for both services as it generates a standard VietQR code.
- */
-export function generateVietQRUrl(params: {
-    amount: number
-    description: string
-}) {
-    const { amount, description } = params
 
-    // Sanitize description (remove special chars, limit length)
-    const sanitizedDesc = description
-        .replace(/[^a-zA-Z0-9\s]/g, '')
-        .substring(0, 50)
-        .trim()
-
-    // Build URL
-    // Format: https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-{TEMPLATE}.png?amount={AMOUNT}&addInfo={DESCRIPTION}
-    const baseUrl = 'https://img.vietqr.io/image'
-    const imagePath = `${config.bankCode}-${config.accountNumber}-${config.template}.png`
-
-    const queryParams = new URLSearchParams({
-        amount: amount.toString(),
-        addInfo: sanitizedDesc,
-        accountName: config.accountName,
-    })
-
-    return `${baseUrl}/${imagePath}?${queryParams.toString()}`
-}
 
 /**
  * Get VietQR API Token (Basic Auth)
@@ -174,13 +145,11 @@ export async function generateOfficialQR(params: {
             return qrUrl;
         } else {
             console.error('[VietQR Generate Error] API returned fail:', data);
-            // Fallback to static generation if API structure changed or returned error
-            return generateVietQRUrl(params);
+            throw new Error(`VietQR API Failed: ${JSON.stringify(data)}`);
         }
     } catch (error) {
         console.error('[VietQR Generate Error] Exception:', error);
-        // Fallback robustly
-        return generateVietQRUrl(params);
+        throw error;
     }
 }
 
