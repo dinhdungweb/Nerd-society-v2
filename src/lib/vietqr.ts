@@ -128,30 +128,38 @@ export async function generateOfficialQR(params: {
             cache: 'no-store'
         });
 
-        // Parse JSON root response (it doesn't have a 'data' wrapper based on real tests)
-        // We call this to ensure the transaction is registered on VietQR system for Callback/Webhook
+        // Parse JSON root response
         const textResponse = await res.text();
+        let data;
         try {
-            JSON.parse(textResponse);
+            data = JSON.parse(textResponse);
         } catch (e) {
-            console.warn('[VietQR Register] Failed to parse JSON, but proceeding with image anyway.');
+            console.error('[VietQR Register] Failed to parse JSON:', textResponse);
+            throw new Error('Could not register transaction with VietQR system.');
         }
 
-        // Now return the BRANDED image URL from the image service
-        // This gives the official VietQR logo and bank branding
-        const baseUrl = 'https://img.vietqr.io/image';
-        const imagePath = `${officialBankCode}-${config.accountNumber}-${config.template}.png`;
+        // IMPORTANT: The official API returns 'qrCode' which is the EMVCo string
+        // Use THIS string to ensure the webhook works correctly!
+        if (!data || !data.qrCode) {
+            console.error('[VietQR Register] Missing qrCode in response:', data);
+            throw new Error('VietQR API did not return an EMVCo string.');
+        }
 
-        const queryParams = new URLSearchParams({
-            amount: amount.toString(),
-            addInfo: sanitizedDesc,
-            accountName: config.accountName,
+        // Render EMVCo string to Base64 image using 'qrcode' library
+        const QRCode = require('qrcode');
+        const qrBase64 = await QRCode.toDataURL(data.qrCode, {
+            margin: 2,
+            width: 400,
+            color: {
+                dark: '#000000',
+                light: '#ffffff',
+            },
         });
 
-        return `${baseUrl}/${imagePath}?${queryParams.toString()}`;
+        return qrBase64;
     } catch (error) {
         console.error('[VietQR Generate Error] Exception:', error);
-        // Fallback to image service direct link if registration fails
+        // Fallback to image service direct link if registration fails (but webhook might not work)
         const officialBankCode = BANK_CODES[config.bankCode as keyof typeof BANK_CODES] || config.bankCode;
         return `https://img.vietqr.io/image/${officialBankCode}-${config.accountNumber}-${config.template}.png?amount=${params.amount}&addInfo=${params.description}&accountName=${encodeURIComponent(config.accountName)}`;
     }
