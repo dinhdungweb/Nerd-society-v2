@@ -144,7 +144,7 @@ const CheckoutContent = () => {
                     // Check if booking is already confirmed/completed
                     if (data.booking.status === 'CONFIRMED' || data.booking.status === 'COMPLETED') {
                         toast.success('Đặt phòng đã được xác nhận!')
-                        router.push('/profile')
+                        router.push(`/booking/success?id=${bookingId}&payment=success`)
                         return
                     }
 
@@ -221,7 +221,7 @@ const CheckoutContent = () => {
                         router.push('/booking')
                     } else if (data.booking.status === 'CONFIRMED' || data.booking.status === 'COMPLETED') {
                         toast.success('Đặt phòng đã được xác nhận!')
-                        router.push('/profile')
+                        router.push(`/booking/success?id=${bookingId}&payment=success`)
                     }
                 }
             } catch (error) {

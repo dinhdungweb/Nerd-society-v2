@@ -14,7 +14,7 @@ export default async function BookingSuccessPage({
     searchParams: Promise<{ id: string; payment?: string }>
 }) {
     const session = await getServerSession(authOptions)
-    if (!session) redirect('/login')
+    // Removed mandatory redirect to login - allow guests to see success page for their specific booking
 
     const params = await searchParams
     const bookingId = params.id
@@ -29,7 +29,12 @@ export default async function BookingSuccessPage({
         },
     })
 
-    if (!booking || booking.userId !== session.user.id) notFound()
+    if (!booking) notFound()
+
+    // If logged in, ensure the user owns the booking (or is admin)
+    if (session && booking.userId && booking.userId !== session.user.id && session.user.role === 'CUSTOMER') {
+        notFound()
+    }
 
     // Check if payment is complete OR cash payment confirmed via URL param
     const isCashPayment = params.payment === 'cash'
@@ -134,12 +139,14 @@ export default async function BookingSuccessPage({
                     >
                         Về trang chủ
                     </Link>
-                    <Link
-                        href={`/profile/bookings/${booking.id}`}
-                        className="flex w-full items-center justify-center rounded-xl bg-neutral-100 px-6 py-3 font-medium text-neutral-900 transition-colors hover:bg-neutral-200 dark:bg-neutral-800 dark:text-white dark:hover:bg-neutral-700"
-                    >
-                        Xem chi tiết
-                    </Link>
+                    {session && (
+                        <Link
+                            href={`/profile/bookings/${booking.id}`}
+                            className="flex w-full items-center justify-center rounded-xl bg-neutral-100 px-6 py-3 font-medium text-neutral-900 transition-colors hover:bg-neutral-200 dark:bg-neutral-800 dark:text-white dark:hover:bg-neutral-700"
+                        >
+                            Xem chi tiết
+                        </Link>
+                    )}
                 </div>
             </div>
         </div>
