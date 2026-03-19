@@ -3,6 +3,7 @@
 import { Button } from '@/shared/Button'
 import {
     BanknotesIcon,
+    BoltIcon,
     BuildingLibraryIcon,
     CalendarDaysIcon,
     CheckCircleIcon,
@@ -433,16 +434,25 @@ const CheckoutContent = () => {
                                     <span>Vui lòng nhập <strong>đúng nội dung chuyển khoản</strong></span>
                                 </div>
 
-                                {/* Confirm Button */}
-                                <Button
-                                    onClick={handleConfirmPayment}
-                                    disabled={confirming || countdown <= 0 || bookingInfo.status === 'CANCELLED'}
-                                    className="w-full"
-                                >
-                                    <CheckCircleIcon className="mr-2 size-5" />
-                                    {bookingInfo.status === 'CANCELLED' || countdown <= 0 ? 'Hết thời gian thanh toán' :
-                                        confirming ? 'Đang xác nhận...' : 'Tôi đã thanh toán'}
-                                </Button>
+                                {/* Automatic Confirmation Info */}
+                                <div className="mt-4 rounded-xl border border-primary-100 bg-primary-50/50 p-4 text-center dark:border-primary-900/30 dark:bg-primary-900/10">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="relative">
+                                            <div className="absolute inset-0 animate-ping rounded-full bg-primary-400/20" />
+                                            <div className="relative flex size-10 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/50">
+                                                <BoltIcon className="size-5 text-primary-600 dark:text-primary-400" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="font-semibold text-primary-900 dark:text-white">
+                                                Hệ thống đang chờ xác nhận
+                                            </p>
+                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                Trang sẽ tự động chuyển sau khi bạn chuyển khoản thành công.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

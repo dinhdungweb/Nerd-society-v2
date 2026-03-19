@@ -169,6 +169,7 @@ export async function POST(request: NextRequest) {
                 where: { id: booking.id },
                 data: {
                     status: 'CONFIRMED',
+                    depositStatus: 'PAID_ONLINE',
                     depositPaidAt: finalPaidAt
                 }
             }),
