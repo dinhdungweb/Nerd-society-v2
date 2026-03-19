@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Generate payment info
-        const paymentInfo = getPaymentInfo({
+        const paymentInfo = await getPaymentInfo({
             amount: booking.depositAmount,
             bookingCode: booking.bookingCode,
         })

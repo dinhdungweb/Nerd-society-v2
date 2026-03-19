@@ -74,21 +74,100 @@ export function generateVietQRUrl(params: {
 }
 
 /**
- * Generate payment info for display
+ * Get VietQR API Token
  */
-export function getPaymentInfo(params: {
+export async function getVietQRToken(): Promise<string> {
+    const username = process.env.VIETQR_SYSTEM_USERNAME;
+    const password = process.env.VIETQR_SYSTEM_PASSWORD;
+
+    if (!username || !password) {
+        throw new Error('Missing VIETQR_SYSTEM_USERNAME or VIETQR_SYSTEM_PASSWORD in .env');
+    }
+
+    const res = await fetch('https://api.vietqr.org/vqr/api/token_generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json();
+    if (data.code !== '00') {
+        throw new Error(`VietQR Token Error: ${data.message || JSON.stringify(data)}`);
+    }
+
+    return data.data.access_token;
+}
+
+/**
+ * Generate official VietQR using API
+ */
+export async function generateOfficialQR(params: {
+    amount: number
+    description: string
+}): Promise<string> {
+    const token = await getVietQRToken();
+    const { amount, description } = params;
+
+    const sanitizedDesc = description
+        .replace(/[^a-zA-Z0-9\s]/g, '')
+        .substring(0, 23)
+        .trim();
+
+    const orderId = sanitizedDesc.replace(/\s/g, '').substring(0, 13);
+
+    const payload = {
+        bankCode: config.bankCode,
+        bankAccount: config.accountNumber,
+        userBankName: config.accountName,
+        content: sanitizedDesc,
+        qrType: 0,
+        amount: amount,
+        orderId: orderId,
+        transType: 'C'
+    };
+
+    const res = await fetch('https://api.vietqr.org/vqr/api/qr/generate-customer', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (data.code !== '00' || !data.data || !data.data.qrCode) {
+        console.error('[VietQR Generate Error]', data);
+        // Fallback to old img.vietqr.io URL if official API fails (e.g. system maintenance)
+        return generateVietQRUrl(params); 
+    }
+
+    let qrUrl = data.data.qrCode;
+    // Đảm bảo là data URI base64 hợp lệ để thẻ <img> hiển thị được
+    if (!qrUrl.startsWith('data:image')) {
+        qrUrl = `data:image/png;base64,${qrUrl}`;
+    }
+
+    return qrUrl;
+}
+
+/**
+ * Generate payment info for display (Async)
+ */
+export async function getPaymentInfo(params: {
     amount: number
     bookingCode: string
 }) {
     // Format: NERD XXXXXXXX
-    // VietQR content length is limited, so we send the booking code clearly
     const description = `${params.bookingCode}`
 
+    const qrUrl = await generateOfficialQR({
+        amount: params.amount,
+        description,
+    });
+
     return {
-        qrUrl: generateVietQRUrl({
-            amount: params.amount,
-            description,
-        }),
+        qrUrl,
         bankCode: config.bankCode,
         accountNumber: config.accountNumber,
         accountName: config.accountName,
