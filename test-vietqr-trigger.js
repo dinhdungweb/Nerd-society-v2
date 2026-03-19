@@ -1,26 +1,31 @@
-// Configuration from .env
-const VIETQR_SYSTEM_USERNAME = "customer-nerd-user25466";
-const VIETQR_SYSTEM_PASSWORD = "Y3VzdG9tZXItbmVyZC11c2VyMjU0NjY=";
+// Configuration from local .env
+require('dotenv').config();
 
-// VietQR Dev APIs
-const VQR_DEV_TOKEN_URL = "https://dev.vietqr.org/vqr/api/token_generate";
-const VQR_DEV_CALLBACK_TRIGGER_URL = "https://dev.vietqr.org/vqr/bank/api/test/transaction-callback";
+const IS_PROD = process.argv.includes('--prod');
 
-// Payment Info (matches your .env)
-const MY_BANK_CODE = "MB";
-const MY_BANK_ACCOUNT = "0904521145";
+// Credentials (Try .env first, then fallback)
+const VIETQR_SYSTEM_USERNAME = process.env.VIETQR_SYSTEM_USERNAME || "customer-nerd-user25466";
+const VIETQR_SYSTEM_PASSWORD = process.env.VIETQR_SYSTEM_PASSWORD || "Y3VzdG9tZXItbmVyZC11c2VyMjU0NjY=";
+
+// VietQR API Endpoints
+const API_BASE = IS_PROD ? "https://api.vietqr.org" : "https://dev.vietqr.org";
+const VQR_TOKEN_URL = `${API_BASE}/vqr/api/token_generate`;
+const VQR_CALLBACK_TRIGGER_URL = `${API_BASE}/vqr/bank/api/test/transaction-callback`;
+
+// Your System Info
+const MY_BANK_CODE = process.env.VIETQR_BANK_CODE || "TECHCOMBANK";
+const MY_BANK_ACCOUNT = process.env.VIETQR_ACCOUNT_NUMBER || "19075232403013";
 
 async function triggerVietQRTest() {
-    console.log('🚀 Starting VietQR Test Callback Trigger...\n');
+    console.log(`🚀 Starting VietQR Test Callback Trigger [Mode: ${IS_PROD ? 'PROD' : 'DEV'}]...\n`);
 
-    // 1. Get Token from VietQR System (To allow us to call THEIR test API)
-    console.log('1️⃣  Step 1: Authenticating with VietQR Dev System...');
+    // 1. Get Token from VietQR System
+    console.log(`1️⃣  Step 1: Authenticating with VietQR ${IS_PROD ? 'Production' : 'Dev'} System...`);
 
-    // Auth Basic for VietQR API
     const credentials = Buffer.from(`${VIETQR_SYSTEM_USERNAME}:${VIETQR_SYSTEM_PASSWORD}`).toString('base64');
 
     try {
-        const tokenResponse = await fetch(VQR_DEV_TOKEN_URL, {
+        const tokenResponse = await fetch(VQR_TOKEN_URL, {
             method: 'POST',
             headers: {
                 'Authorization': `Basic ${credentials}`
@@ -28,31 +33,34 @@ async function triggerVietQRTest() {
         });
 
         const tokenData = await tokenResponse.json();
-        console.log('Response Status:', tokenResponse.status);
-
+        
         if (!tokenResponse.ok || !tokenData.access_token) {
             console.error('❌ Failed to get access token from VietQR.');
-            console.error('Response:', tokenData);
+            console.error('Response Status:', tokenResponse.status);
+            console.error('Response Body:', tokenData);
             return;
         }
 
         const accessToken = tokenData.access_token;
-        console.log('✅ Got VietQR System Token.\n');
+        console.log('✅ Got VietQR System Token retrieved successfully.\n');
 
         // 2. Trigger the Test Callback
-        console.log('2️⃣  Step 2: Requesting Test Callback...');
+        console.log('2️⃣  Step 2: Requesting Test Callback (Simulating payment)...');
+
+        // Note: You should check your DB for a PENDING booking code to test realistically
+        const testBookingCode = "NERD 20251226 001"; 
 
         const payload = {
             bankAccount: MY_BANK_ACCOUNT,
             bankCode: MY_BANK_CODE,
-            amount: "100000",
-            content: "VQR6e1f550bdd NERD 20251226 001", // Format: VQR[mã] NERD [ngày] [số thứ tự]
+            amount: "10000",
+            content: `VQR${Math.random().toString(16).slice(2, 10)} ${testBookingCode}`, 
             transType: "C"
         };
 
-        console.log('Sending Payload:', payload);
+        console.log('Sending Payload to VietQR Test API:', payload);
 
-        const triggerResponse = await fetch(VQR_DEV_CALLBACK_TRIGGER_URL, {
+        const triggerResponse = await fetch(VQR_CALLBACK_TRIGGER_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -65,9 +73,10 @@ async function triggerVietQRTest() {
         console.log('Response Status:', triggerResponse.status);
         console.log('Response Body:', triggerData);
 
-        if (triggerResponse.ok && triggerData.status === 'SUCCESS') {
-            console.log('\n✅ Call Success! VietQR is now sending the webhook to your Public IP.');
-            console.log('👉 Please check your "npm run dev" terminal to see the incoming request.');
+        if (triggerResponse.ok && (triggerData.status === 'SUCCESS' || triggerData.error === false)) {
+            console.log('\n✅ Call Success! VietQR System is now sending the webhook to your VPS.');
+            console.log(`👉 Destination: ${process.env.NEXT_PUBLIC_SITE_URL || 'Your Configured Site URL'}`);
+            console.log('👉 Check your VPS logs (pm2 logs) to see the incoming sync request.');
         } else {
             console.warn('\n⚠️ Call Failed or returned error status.');
         }
