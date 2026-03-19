@@ -55,11 +55,13 @@ export async function POST(request: NextRequest) {
         const updatedBooking = await prisma.booking.update({
             where: { id: bookingId },
             data: {
-                // Status stays PENDING - admin will change to CONFIRMED after verification
+                // Chỉ đánh dấu thời gian user báo đã chuyển khoản
+                // KHÔNG đổi status sang CONFIRMED ở đây, để webhook tự động xử lý
                 depositPaidAt: new Date(),
                 payment: {
                     update: {
                         method: 'BANK_TRANSFER',
+                        status: 'PENDING' // Vẫn giữ PENDING cho đến khi có callback
                     }
                 }
             },

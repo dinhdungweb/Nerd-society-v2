@@ -142,8 +142,8 @@ export async function POST(request: NextRequest) {
         const booking = await prisma.booking.findFirst({
             where: {
                 bookingCode: extractedCode,
-                status: 'PENDING',
-                depositPaidAt: null
+                status: 'PENDING'
+                // Bỏ depositPaidAt: null để callback vẫn chạy được nếu user đã nhấn confirm thủ công
             },
             include: { user: true }
         })
