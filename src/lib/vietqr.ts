@@ -135,8 +135,7 @@ export async function generateOfficialQR(params: {
             data = JSON.parse(textResponse);
         } catch (e) {
             console.error('[VietQR Generate Error] HTML Response:', textResponse.substring(0, 200));
-            // Use fallback if API fails
-            return generateVietQRUrl(params);
+            throw new Error(`VietQR API returned HTML instead of JSON. Check credentials.`);
         }
         
         if (data && data.qrCode) {
