@@ -7,7 +7,6 @@
  */
 
 import * as crypto from 'crypto'
-import QRCode from 'qrcode'
 
 // Common bank codes
 export const BANK_CODES = {
@@ -140,8 +139,6 @@ export async function generateOfficialQR(params: {
 
         // Now return the BRANDED image URL from the image service
         // This gives the official VietQR logo and bank branding
-        const officialBankCode = BANK_CODES[config.bankCode as keyof typeof BANK_CODES] || config.bankCode;
-        
         const baseUrl = 'https://img.vietqr.io/image';
         const imagePath = `${officialBankCode}-${config.accountNumber}-${config.template}.png`;
 
