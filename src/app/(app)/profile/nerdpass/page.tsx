@@ -11,6 +11,9 @@ import {
     ExclamationTriangleIcon,
     ArrowUpIcon,
     ArrowDownIcon,
+    SparklesIcon,
+    ClipboardDocumentIcon,
+    IdentificationIcon,
 } from '@heroicons/react/24/outline'
 import { getVietQRConfig } from '@/lib/vietqr'
 import TopupModal from './TopupModal'
@@ -76,17 +79,17 @@ export default async function NerdPassPage() {
 
         // Có đơn hàng đã thanh toán → hiển thị trạng thái chờ gán thẻ
         if (pendingOrders.length > 0) {
-            const orderStatusLabels: Record<string, { label: string; style: string; icon: string }> = {
-                PAID: { label: 'Đã thanh toán — Chờ nhận thẻ', style: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800', icon: '⏳' },
-                PENDING_PAYMENT: { label: 'Chờ thanh toán', style: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800', icon: '💳' },
+            const orderStatusLabels: Record<string, { label: string; style: string; Icon: any }> = {
+                PAID: { label: 'Đã thanh toán — Chờ nhận thẻ', style: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800', Icon: ClockIcon },
+                PENDING_PAYMENT: { label: 'Chờ thanh toán', style: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800', Icon: CreditCardIcon },
             }
 
             return (
                 <div className="space-y-6">
                     {/* Banner thông báo */}
                     <div className="flex items-start gap-4 rounded-2xl border border-blue-200 bg-blue-50/50 p-5 dark:border-blue-800 dark:bg-blue-900/10">
-                        <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-2xl dark:bg-blue-900/30">
-                            🎉
+                        <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30">
+                            <SparklesIcon className="size-7" />
                         </div>
                         <div>
                             <h3 className="font-bold text-neutral-900 dark:text-white">Đơn đăng ký Nerd Pass đang được xử lý!</h3>
@@ -100,12 +103,14 @@ export default async function NerdPassPage() {
                     <div className="space-y-3">
                         <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Đơn đăng ký của bạn</h3>
                         {pendingOrders.map((order: any) => {
-                            const status = orderStatusLabels[order.orderStatus] || { label: order.orderStatus, style: 'bg-neutral-100 text-neutral-600', icon: '📋' }
+                            const status = orderStatusLabels[order.orderStatus] || { label: order.orderStatus, style: 'bg-neutral-100 text-neutral-600', Icon: ClipboardDocumentIcon }
                             return (
                                 <div key={order.id} className={`rounded-xl border p-4 ${status.style}`}>
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <span className="text-2xl">{status.icon}</span>
+                                            <div className="flex size-10 items-center justify-center rounded-lg bg-white/50 dark:bg-black/20">
+                                                <status.Icon className="size-6" />
+                                            </div>
                                             <div>
                                                 <p className="font-semibold">{order.orderCode}</p>
                                                 <p className="text-sm opacity-80">
@@ -333,7 +338,15 @@ export default async function NerdPassPage() {
                                 </div>
                                 <div className="text-right">
                                     <p className="text-sm font-bold text-primary-600">
-                                        {s.durationMin ? `${s.durationMin} phút` : '🟢 Đang ngồi'}
+                                        {s.durationMin ? `${s.durationMin} phút` : (
+                                            <span className="flex items-center gap-1.5 text-emerald-600">
+                                                <span className="relative flex h-2 w-2">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                                </span>
+                                                <span>Đang ngồi</span>
+                                            </span>
+                                        )}
                                     </p>
                                     {s.amountCharged > 0 && (
                                         <p className="text-xs font-mono text-neutral-500">

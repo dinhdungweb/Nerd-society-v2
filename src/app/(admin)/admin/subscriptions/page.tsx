@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { UserIcon } from '@heroicons/react/24/solid';
+import { UserIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { differenceInMinutes } from 'date-fns';
 
 
@@ -151,6 +151,28 @@ export default function SubscriptionsAdminPage() {
     setSelectedOrder(null);
   };
 
+  const handleDeleteSubscriber = async (sub: Subscriber) => {
+    if (!confirm(`Bạn chắc chắn muốn xóa hội viên "${sub.fullName}"?\nLưu ý: Toàn bộ dữ liệu của người này trên Web và MyTime sẽ bị xóa sạch và không thể khôi phục.`)) return;
+    
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/admin/subscriptions/subscribers', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: sub.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchData();
+      } else {
+        alert('Lỗi: ' + (data.error || 'Không thể xóa'));
+      }
+    } catch (err) {
+      alert('Có lỗi xảy ra khi xóa');
+    }
+    setActionLoading(false);
+  };
+
   const getStatusBadge = (status: string) => {
     const s = STATUS_LABELS[status] || { label: status, color: 'text-neutral-400', bg: 'bg-neutral-400/10' };
     return (
@@ -291,13 +313,14 @@ export default function SubscriptionsAdminPage() {
                   <th className="px-4 py-3">Gói</th>
                   <th className="px-4 py-3">Trạng thái</th>
                   <th className="px-4 py-3">Còn lại</th>
+                  <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                 {loading ? (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-neutral-400">Đang tải...</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-neutral-400">Đang tải...</td></tr>
                 ) : subscribers.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-neutral-400">Chưa có subscriber</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-neutral-400">Chưa có subscriber</td></tr>
                 ) : subscribers.map((sub) => {
                   const currentSub = sub.subscriptions[0];
                   const remaining = currentSub && currentSub.totalHoursMin
@@ -341,6 +364,16 @@ export default function SubscriptionsAdminPage() {
                         ) : (
                           <span className="text-neutral-500">—</span>
                         )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => handleDeleteSubscriber(sub)}
+                          disabled={actionLoading}
+                          className="rounded-lg p-2 text-neutral-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors"
+                          title="Xóa hội viên"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
                       </td>
                     </tr>
                   );

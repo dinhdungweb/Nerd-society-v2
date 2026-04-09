@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { importEmployee, generateNextEmployeeId } from '@/lib/mytime-api';
+import { importEmployee, deleteEmployee, generateNextEmployeeId } from '@/lib/mytime-api';
 import { revalidatePath } from 'next/cache';
 
 // ============= REGISTRATION (Khách đăng ký online) =============
@@ -390,4 +390,46 @@ export async function getMonthlyReport(year: number, month: number) {
     totalSessions: sessions,
     byPlan: byPlan.map(p => ({ plan: p.planType, count: p._count })),
   };
+}
+
+/**
+ * Admin: Xóa hội viên và các dữ liệu liên quan
+ */
+export async function deleteSubscriber(id: string) {
+  try {
+    const sub = await prisma.subscriber.findUnique({
+      where: { id },
+      include: {
+        subscriptions: true,
+      }
+    });
+
+    if (!sub) return { success: false, error: 'Hội viên không tồn tại' };
+
+    // Thực hiện xóa theo transaction để đảm bảo toàn vẹn dữ liệu
+    await prisma.$transaction([
+      prisma.registrationOrder.deleteMany({ where: { subscriberId: id } }),
+      prisma.subscriptionSession.deleteMany({ where: { subscriberId: id } }),
+      prisma.dailyUsage.deleteMany({ where: { subscriberId: id } }),
+      prisma.subscription.deleteMany({ where: { subscriberId: id } }),
+      prisma.transaction.deleteMany({ where: { subscriberId: id } }),
+      prisma.quickCall.deleteMany({ where: { subscriberId: id } }),
+      prisma.subscriber.delete({ where: { id } }),
+    ]);
+
+    // Đồng bộ xóa trên MyTime (không chặn nếu MyTime lỗi)
+    if (sub.mytimeEmpId) {
+      try {
+        await deleteEmployee(sub.mytimeEmpId);
+      } catch (err) {
+        console.error('[deleteSubscriber] MyTime Sync Error:', err);
+      }
+    }
+
+    revalidatePath('/admin/subscriptions');
+    return { success: true };
+  } catch (err) {
+    console.error('[deleteSubscriber] Error:', err);
+    return { success: false, error: 'Không thể xóa hội viên. Có lỗi xảy ra.' };
+  }
 }
