@@ -4,7 +4,7 @@
  */
 
 
-const MYTIME_BASE_URL = process.env.MYTIME_BASE_URL || 'http://14.177.224.83:7900/api/hpa/Paradise';
+const MYTIME_BASE_URL = process.env.MYTIME_BASE_URL || 'http://222.252.95.241:7900/api/hpa/Paradise';
 const MYTIME_USER = 'admin';
 const MYTIME_PASS = '123';
 
@@ -197,5 +197,6 @@ export function getBranchFromDevice(snOrAlias: string): string {
  */
 export async function generateNextEmployeeId(prisma: any): Promise<string> {
   const count = await prisma.subscriber.count();
-  return `NS${String(count + 1).padStart(3, '0')}`;
+  // Bắt đầu từ 1000 để tránh trùng với nhân viên cũ của MyTime
+  return String(1000 + count + 1);
 }

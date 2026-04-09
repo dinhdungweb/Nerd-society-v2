@@ -209,7 +209,7 @@ export async function assignCardAndCreate(orderId: string, cardNo: string, staff
       employeeId: empId,
       fullName: order.fullName,
       planType: order.planType,
-      accId: empId.replace('NS', ''),
+      accId: empId,
       cardNo,
       birthday: linkedUser?.dateOfBirth || undefined,
       gender: (linkedUser?.gender?.toLowerCase() === 'male' || linkedUser?.gender?.toLowerCase() === 'nam') ? 'male' : 
