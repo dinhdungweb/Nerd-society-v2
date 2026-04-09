@@ -186,11 +186,35 @@ async function activateSubscription(
  */
 async function performCheckIn(
   subscriber: { id: string },
-  subscription: { id: string; planType: string; totalHoursMin: number | null; usedHoursMin: number; carriedHoursMin: number; dailyLimitMin: number | null },
+  subscription: { id: string; planType: string; totalHoursMin: number | null; usedHoursMin: number; carriedHoursMin: number; dailyLimitMin: number | null } | null,
   attTime: Date,
   branch: string,
   record: unknown,
 ) {
+  // Nếu không có gói (dùng Wallet)
+  if (!subscription) {
+    const session = await prisma.subscriptionSession.create({
+      data: {
+        subscriberId: subscriber.id,
+        subscriptionId: null,
+        branch,
+        checkInTime: attTime,
+        source: 'card',
+        mytimeRaw: record as object,
+      },
+    });
+
+    return {
+      type: 'CHECK_IN',
+      message: `✅ CHECK-IN (WALLET)`,
+      subscriber: await prisma.subscriber.findUnique({ where: { id: subscriber.id } }),
+      subscription: null,
+      session,
+      remainingMin: null,
+      needsVerification: false,
+    };
+  }
+
   // Kiểm tra giờ còn lại (Limited)
   if (subscription.planType !== 'MONTHLY_UNLIMITED') {
     const total = (subscription.totalHoursMin || 0) + subscription.carriedHoursMin;
@@ -252,7 +276,7 @@ async function performCheckIn(
  */
 async function performCheckOut(
   sessionId: string,
-  subscription: { id: string; planType: string; usedHoursMin: number },
+  subscription: { id: string; planType: string; usedHoursMin: number } | null,
   attTime: Date,
 ) {
   const session = await prisma.subscriptionSession.findUnique({ where: { id: sessionId } });
@@ -267,25 +291,27 @@ async function performCheckOut(
     data: { checkOutTime: attTime, durationMin },
   });
 
-  // Cập nhật used hours
-  await prisma.subscription.update({
-    where: { id: subscription.id },
-    data: { usedHoursMin: { increment: durationMin } },
-  });
-
-  // Cập nhật daily usage (cho Unlimited)
-  if (subscription.planType === 'MONTHLY_UNLIMITED') {
-    const today = new Date(attTime.toISOString().split('T')[0]);
-    await prisma.dailyUsage.upsert({
-      where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: today } },
-      create: {
-        subscriberId: session.subscriberId,
-        subscriptionId: subscription.id,
-        usageDate: today,
-        totalMin: durationMin,
-      },
-      update: { totalMin: { increment: durationMin } },
+  if (subscription) {
+    // Cập nhật used hours
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: { usedHoursMin: { increment: durationMin } },
     });
+
+    // Cập nhật daily usage (cho Unlimited)
+    if (subscription.planType === 'MONTHLY_UNLIMITED') {
+      const today = new Date(attTime.toISOString().split('T')[0]);
+      await prisma.dailyUsage.upsert({
+        where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: today } },
+        create: {
+          subscriberId: session.subscriberId,
+          subscriptionId: subscription.id,
+          usageDate: today,
+          totalMin: durationMin,
+        },
+        update: { totalMin: { increment: durationMin } },
+      });
+    }
   }
 
   await prisma.subscriptionAuditLog.create({
@@ -298,7 +324,7 @@ async function performCheckOut(
     },
   });
 
-  const updatedSub = await prisma.subscription.findUnique({ where: { id: subscription.id } });
+  const updatedSub = subscription ? await prisma.subscription.findUnique({ where: { id: subscription.id } }) : null;
 
   return {
     type: 'CHECK_OUT',

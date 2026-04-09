@@ -12,8 +12,9 @@ export type ZaloTemplateType =
   | 'CHECK_OUT_WALLET'
   | 'OVERAGE_WARNING'
   | 'LOW_BALANCE'
-  | 'PAYMENT_RECEIVED'
-  | 'SUB_EXPIRING';
+  | 'PAYMENT_RECEIVED' 
+  | 'SUB_EXPIRING'
+  | 'BLOCK_CHECKIN';
 
 interface ZaloMessagePayload {
   recipient: {
@@ -47,6 +48,7 @@ export async function sendZaloNotification(phone: string, type: ZaloTemplateType
     LOW_BALANCE: 'template_006',
     PAYMENT_RECEIVED: 'template_007',
     SUB_EXPIRING: 'template_008',
+    BLOCK_CHECKIN: 'template_009',
   };
 
   try {
