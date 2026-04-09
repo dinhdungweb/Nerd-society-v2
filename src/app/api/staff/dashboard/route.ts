@@ -49,16 +49,16 @@ export async function GET(request: Request) {
         id: s.id,
         subscriberName: s.subscriber.fullName,
         subscriberPhoto: s.subscriber.photoUrl,
-        planType: s.subscription.planType,
+        planType: s.subscription?.planType || 'WALLET',
         branch: s.branch,
         checkInTime: s.checkInTime,
         durationSoFar: Math.round((Date.now() - s.checkInTime.getTime()) / (1000 * 60)),
-        remainingMin: s.subscription.totalHoursMin
+        remainingMin: s.subscription?.totalHoursMin
           ? s.subscription.totalHoursMin + s.subscription.carriedHoursMin - s.subscription.usedHoursMin
           : null,
-        isUnlimited: s.subscription.planType === 'MONTHLY_UNLIMITED',
+        isUnlimited: s.subscription?.planType === 'MONTHLY_UNLIMITED',
         staffVerified: s.staffVerified,
-        needsVerification: s.subscription.planType === 'MONTHLY_UNLIMITED' && !s.staffVerified,
+        needsVerification: s.subscription?.planType === 'MONTHLY_UNLIMITED' && !s.staffVerified,
       })),
       recentEvents,
       warnings,
@@ -115,24 +115,27 @@ export async function POST(request: Request) {
           where: { id: sessionId },
           data: { checkOutTime: new Date(), durationMin, source: 'manual' },
         });
-        await prisma.subscription.update({
-          where: { id: session.subscriptionId },
-          data: { usedHoursMin: { increment: durationMin } },
-        });
 
-        // Update daily usage for unlimited
-        if (session.subscription.planType === 'MONTHLY_UNLIMITED') {
-          const today = new Date(new Date().toISOString().split('T')[0]);
-          await prisma.dailyUsage.upsert({
-            where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: today } },
-            create: {
-              subscriberId: session.subscriberId,
-              subscriptionId: session.subscriptionId,
-              usageDate: today,
-              totalMin: durationMin,
-            },
-            update: { totalMin: { increment: durationMin } },
+        if (session.subscriptionId) {
+          await prisma.subscription.update({
+            where: { id: session.subscriptionId },
+            data: { usedHoursMin: { increment: durationMin } },
           });
+
+          // Update daily usage for unlimited
+          if (session.subscription?.planType === 'MONTHLY_UNLIMITED') {
+            const today = new Date(new Date().toISOString().split('T')[0]);
+            await prisma.dailyUsage.upsert({
+              where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: today } },
+              create: {
+                subscriberId: session.subscriberId,
+                subscriptionId: session.subscriptionId,
+                usageDate: today,
+                totalMin: durationMin,
+              },
+              update: { totalMin: { increment: durationMin } },
+            });
+          }
         }
 
         return NextResponse.json({ success: true, durationMin });
