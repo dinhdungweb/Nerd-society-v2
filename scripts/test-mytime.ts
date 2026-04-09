@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { getDeviceList } from '../src/lib/mytime-api.ts';
+import { getDeviceList } from '../src/lib/mytime-api';
 
 async function testConnection() {
   console.log('--- BẮT ĐẦU KIỂM THỬ KẾT NỐI MYTIME ---');
