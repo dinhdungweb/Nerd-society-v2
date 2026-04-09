@@ -605,3 +605,44 @@ export async function sendAdminNewApplicationEmail(application: any) {
 
     await sendEmail({ to: adminEmail, subject, html })
 }
+export async function sendSubscriptionPaidEmail(order: any) {
+    const enabled = await isEmailEnabled('emailSubscriptionPaid');
+    if (!enabled) return;
+
+    const recipientEmail = order.email;
+    if (!recipientEmail) return;
+
+    const customerName = order.fullName || 'Quý khách';
+    const planName = order.planType === 'MONTHLY_UNLIMITED' ? 'Gói Tháng Unlimited' : 
+                     order.planType === 'MONTHLY_LIMITED' ? 'Gói Tháng Limited' : 
+                     'Gói Tuần Limited';
+    
+    const amount = order.amount || 0;
+    const formattedAmount = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+
+    const subject = `[Nerd Society] Xác nhận thanh toán Nerd Pass #${order.orderCode}`;
+    
+    const content = `
+        <h1 class="h1">${ICONS.check}Thanh toán thành công!</h1>
+        <p class="p">Chào <strong>${customerName}</strong>, chúng tôi đã nhận được thanh toán cho đăng ký Nerd Pass của bạn.</p>
+        
+        <div class="info-box">
+            <div class="info-header">${ICONS.info}Thông tin đơn hàng</div>
+            <div class="info-item"><span class="info-label">Mã đơn</span><span class="info-value">#${order.orderCode}</span></div>
+            <div class="info-item"><span class="info-label">Gói đăng ký</span><span class="info-value">${planName}</span></div>
+            <div class="info-item"><span class="info-label">Số tiền</span><span class="info-value" style="color: #9B7850; font-weight: 700;">${formattedAmount}</span></div>
+            <div class="info-item"><span class="info-label">Trạng thái</span><span class="info-value" style="color: #10b981;">Đã thanh toán</span></div>
+        </div>
+
+        <div style="background-color: #FFFBEB; border-radius: 14px; padding: 20px; border: 1px solid #FEF3C7; margin-bottom: 24px;">
+            <p class="p" style="margin-bottom: 0; font-size: 15px; color: #92400E;">
+                <strong>Bước tiếp theo:</strong> Vui lòng đến quầy tại cơ sở <strong>${order.branchPrimary === 'TS' ? 'Tây Sơn' : 'Hồ Tùng Mậu'}</strong> để nhận thẻ thành viên vật lý và kích hoạt gói nhé!
+            </p>
+        </div>
+
+        <p class="p" style="font-size: 14px; text-align: center; color: #A09081;">Hẹn gặp bạn tại Nerd Society!</p>
+    `;
+
+    const html = getBaseTemplate(content, subject);
+    await sendEmail({ to: recipientEmail, subject, html });
+}

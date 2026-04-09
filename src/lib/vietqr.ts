@@ -199,6 +199,18 @@ export function isVietQRConfigured(): boolean {
 }
 
 /**
+ * Get VietQR raw config (server-side only)
+ */
+export function getVietQRConfig() {
+    return {
+        bankCode: config.bankCode,
+        accountNumber: config.accountNumber,
+        accountName: config.accountName,
+    };
+}
+
+
+/**
  * VietQR.vn Webhook Payload Interface
  * Based on 'N05' notification type
  */

@@ -8,6 +8,7 @@ import {
     Cog6ToothIcon,
     SparklesIcon,
     ChevronRightIcon,
+    CreditCardIcon,
 } from '@heroicons/react/24/outline'
 
 interface ProfileHeaderProps {
@@ -17,11 +18,14 @@ interface ProfileHeaderProps {
         avatar: string | null
         nerdCoinBalance?: number
         nerdCoinTier?: string
+        walletBalance?: number
+        hasNerdPass?: boolean
     }
 }
 
 const navigation = [
     { name: 'Lịch sử đặt lịch', href: '/profile', icon: ClockIcon },
+    { name: 'Nerd Pass & Ví', href: '/profile/nerdpass', icon: CreditCardIcon },
     { name: 'Nerd Member', href: '/profile/nerdcoin', icon: SparklesIcon },
     { name: 'Cài đặt tài khoản', href: '/profile/settings', icon: Cog6ToothIcon },
 ]
@@ -78,11 +82,17 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
                         </p>
 
                         {/* Stats */}
-                        <div className="mt-4 flex flex-wrap justify-center gap-4 sm:justify-start">
+                        <div className="mt-4 flex flex-wrap justify-center gap-3 sm:justify-start">
                             <div className="rounded-lg bg-white/10 px-4 py-2 backdrop-blur-sm">
                                 <div className="text-lg font-bold">{user.nerdCoinBalance || 0}</div>
                                 <div className="text-xs text-white/60">Nerd Coins</div>
                             </div>
+                            {user.hasNerdPass && (
+                                <Link href="/profile/nerdpass" className="rounded-lg bg-white/10 px-4 py-2 backdrop-blur-sm transition-colors hover:bg-white/20">
+                                    <div className="text-lg font-bold">{(user.walletBalance || 0).toLocaleString()}đ</div>
+                                    <div className="text-xs text-white/60">Số dư Ví</div>
+                                </Link>
+                            )}
                             <Link
                                 href="/booking"
                                 className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 font-semibold text-primary-600 transition-transform hover:scale-105"

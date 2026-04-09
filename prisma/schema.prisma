@@ -44,6 +44,11 @@ model User {
   matchesAsA         StudyMatch[]          @relation("MatchUserA")
   matchesAsB         StudyMatch[]          @relation("MatchUserB")
 
+  // Subscription relation
+  subscriber         Subscriber?
+
+  registrationOrders RegistrationOrder[]
+
   @@index([name])
   @@index([phone])
 }
@@ -684,4 +689,247 @@ enum MatchStatus {
   CANCELLED
   COMPLETED
   NO_SHOW
+}
+
+// ============================================
+// === SUBSCRIPTION MANAGEMENT SYSTEM (v4) ===
+// ============================================
+
+model Subscriber {
+  id              String   @id @default(cuid())
+  fullName        String
+  phone           String   @unique
+  email           String?
+  photoUrl        String?               // ảnh selfie khi đăng ký
+  cardNo          String?  @unique      // mã thẻ proximity 125KHz
+  mytimeEmpId     String?  @unique      // EmployeeID trên MyTime
+  branchPrimary   String?               // 'HTM' | 'TS'
+  status          SubscriberStatus @default(ACTIVE)
+  walletBalance      Int      @default(0)           // số dư ví (VNĐ)
+  outstandingBalance Int      @default(0)           // nợ quá giờ (VNĐ)
+  loyaltyTier        String   @default("BRONZE")    // BRONZE | SILVER | GOLD
+  notes              String?
+  userId             String?  @unique      // liên kết User (nếu có tài khoản)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user            User?    @relation(fields: [userId], references: [id])
+  subscriptions   Subscription[]
+  sessions        SubscriptionSession[]
+  dailyUsages     DailyUsage[]
+  registrationOrders RegistrationOrder[] @relation("SubscriberOrders")
+  transactions    Transaction[]
+  quickCalls      QuickCall[]
+
+  @@index([phone])
+  @@index([cardNo])
+  @@index([status])
+}
+
+model Subscription {
+  id                  String   @id @default(cuid())
+  subscriberId        String
+  planType            PlanType
+  pricePaid           Int                         // VNĐ
+  status              SubscriptionStatus @default(PENDING_ACTIVATION)
+
+  purchasedAt         DateTime @default(now())
+  activationDate      DateTime?                    // NULL cho đến khi tap thẻ lần đầu
+  startDate           DateTime? @db.Date
+  endDate             DateTime? @db.Date
+  activationDeadline  DateTime?                    // purchasedAt + 30 ngày
+
+  totalHoursMin       Int?                         // tổng phút cho Limited (NULL cho Unlimited)
+  usedHoursMin        Int      @default(0)
+  carriedHoursMin     Int      @default(0)         // carry-over từ tháng trước (phút)
+  dailyLimitMin       Int?                         // 480 cho Unlimited, NULL cho Limited
+
+  paymentMethod       String?                      // 'online_transfer' | 'cash' | 'at_counter'
+  paymentRef          String?
+  cardAssigned        String?
+  cardAssignedAt      DateTime?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  subscriber          Subscriber @relation(fields: [subscriberId], references: [id])
+  sessions            SubscriptionSession[]
+  dailyUsages         DailyUsage[]
+  registrationOrders  RegistrationOrder[] @relation("SubscriptionOrders")
+
+  @@index([subscriberId])
+  @@index([status])
+  @@index([endDate])
+}
+
+model SubscriptionSession {
+  id              String   @id @default(cuid())
+  subscriberId    String
+  subscriptionId  String?
+  branch          String                          // 'HTM' | 'TS'
+  checkInTime     DateTime
+  checkOutTime    DateTime?                       // NULL = đang ngồi
+  durationMin     Int?                            // tính sau check-out
+  isFirstCheckin  Boolean  @default(false)
+  source          String   @default("card")       // 'card' | 'manual' | 'qr'
+  mytimeRaw       Json?                           // raw data từ MyTime
+  overageMin      Int      @default(0)           // số phút vượt cap 8h
+  amountCharged   Int      @default(0)           // số tiền đã trừ/ghi nợ
+  status          SessionStatus @default(ACTIVE) // ACTIVE | COMPLETED | FORCE_CLOSED
+  staffVerified   Boolean  @default(false)        // NV đã xác nhận ảnh (Unlimited)
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  subscriber      Subscriber   @relation(fields: [subscriberId], references: [id])
+  subscription    Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriberId])
+  @@index([subscriptionId])
+  @@index([checkInTime])
+}
+
+model DailyUsage {
+  id              String   @id @default(cuid())
+  subscriberId    String
+  subscriptionId  String
+  usageDate       DateTime @db.Date
+  totalMin        Int      @default(0)
+
+  subscriber      Subscriber   @relation(fields: [subscriberId], references: [id])
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@unique([subscriberId, usageDate])
+  @@index([subscriptionId])
+}
+
+model RegistrationOrder {
+  id              String   @id @default(cuid())
+  orderCode       String   @unique                // NERD-YYYYMMDD-XXX
+  fullName        String
+  phone           String
+  email           String?
+  branchPrimary   String                          // 'HTM' | 'TS'
+  planType        PlanType
+  selfieUrl       String                          // ảnh selfie upload
+  userId          String?                         // liên kết tài khoản user (nếu có)
+
+  orderStatus     OrderStatus @default(PENDING_PAYMENT)
+  paymentMethod   String?
+  paymentRef      String?
+  paidAt          DateTime?
+  amount          Int
+
+  assignedCardNo  String?
+  assignedBy      String?
+  assignedAt      DateTime?
+
+  subscriberId    String?
+  subscriptionId  String?
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime?                       // created + 30 ngày
+
+  subscriber      Subscriber?   @relation("SubscriberOrders", fields: [subscriberId], references: [id])
+  subscription    Subscription? @relation("SubscriptionOrders", fields: [subscriptionId], references: [id])
+  user            User?         @relation(fields: [userId], references: [id])
+
+  @@index([orderStatus])
+  @@index([phone])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model SubscriptionAuditLog {
+  id           String   @id @default(cuid())
+  action       String                              // 'online_register' | 'payment_confirmed' | etc.
+  entityType   String?                             // 'subscriber' | 'subscription' | 'session'
+  entityId     String?
+  performedBy  String?                             // staff name / 'system' / 'customer'
+  details      Json?
+  createdAt    DateTime @default(now())
+
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// --- Subscription Enums ---
+
+enum SubscriberStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+enum PlanType {
+  WEEKLY_LIMITED
+  MONTHLY_LIMITED
+  MONTHLY_UNLIMITED
+}
+
+enum SubscriptionStatus {
+  PENDING_PAYMENT
+  PENDING_ACTIVATION
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  RENEWED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  CARD_ASSIGNED
+  ACTIVATED
+  CANCELLED
+  ORDER_EXPIRED
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  subscriberId    String
+  type            TransactionType
+  amount          Int                             // dương = nạp, âm = trừ
+  balanceBefore   Int
+  balanceAfter    Int
+  reference       String?                         // ID session hoặc payment ref
+  description     String?
+  createdAt       DateTime @default(now())
+
+  subscriber      Subscriber @relation(fields: [subscriberId], references: [id])
+
+  @@index([subscriberId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model QuickCall {
+  id              String   @id @default(cuid())
+  subscriberId    String
+  branch          String                          // 'HTM' | 'TS'
+  room            String?                         // 'mono_pod', 'mr1', etc.
+  startTime       DateTime @default(now())
+  endTime         DateTime?
+  durationMin     Int?
+  loggedBy        String?                         // tên NV
+  createdAt       DateTime @default(now())
+
+  subscriber      Subscriber @relation(fields: [subscriberId], references: [id])
+
+  @@index([subscriberId])
+  @@index([startTime])
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  FORCE_CLOSED
+}
+
+enum TransactionType {
+  TOPUP
+  SESSION_CHARGE
+  OVERAGE_CHARGE
+  SUBSCRIPTION_PURCHASE
+  REFUND
+  OVERAGE_PAYMENT
 }

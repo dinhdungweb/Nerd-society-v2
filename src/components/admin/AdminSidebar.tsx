@@ -22,6 +22,7 @@ import {
     RectangleStackIcon,
     BriefcaseIcon,
     QrCodeIcon,
+    TicketIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -54,6 +55,7 @@ const navigationGroups: NavGroup[] = [
         name: 'Quản lý đặt lịch',
         items: [
             { name: 'Bookings', href: '/admin/bookings', icon: CalendarDaysIcon, permissionKey: 'canViewBookings' },
+            { name: 'Subscription', href: '/admin/subscriptions', icon: TicketIcon, permissionKey: 'canViewBookings' },
             { name: 'Chat hỗ trợ', href: '/admin/chat', icon: ChatBubbleLeftRightIcon, permissionKey: 'canViewChat' },
             { name: 'Phòng', href: '/admin/rooms', icon: CubeIcon, permissionKey: 'canViewRooms' },
             { name: 'Dịch vụ', href: '/admin/services', icon: Squares2X2Icon, permissionKey: 'canViewServices' },

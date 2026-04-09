@@ -107,17 +107,19 @@ export async function POST(request: NextRequest) {
             return jsonOk('Ignored non-credit transaction', transactionid)
         }
 
-        // 5) Parse booking code from content
-        // Content example: "... NERD 20251226 001"
-        const bookingCodeMatch = (content || '').match(/NERD[- ]?(\d{8})[- ]?(\d{3})/i)
-        if (!bookingCodeMatch) {
-            console.log('[VietQR Sync] No booking code found in content:', content)
-            return jsonOk('No booking code found in transfer content', transactionid)
+        // 5) Parse booking/order code from content
+        // Pattern 1: NERD-YYYYMMDD-XXX (Booking)
+        // Pattern 2: NP-YYYYMMDD-XXX (Subscription)
+        const commonMatch = (content || '').match(/(NERD|NP)[- ]?(\d{8})[- ]?(\d{3})/i)
+        if (!commonMatch) {
+            console.log('[VietQR Sync] No valid code found in content:', content)
+            return jsonOk('No valid code found in transfer content', transactionid)
         }
 
-        const datePart = bookingCodeMatch[1]
-        const seqPart = bookingCodeMatch[2]
-        const extractedCode = `NERD-${datePart}-${seqPart}`
+        const prefix = commonMatch[1].toUpperCase()
+        const datePart = commonMatch[2]
+        const seqPart = commonMatch[3]
+        const extractedCode = `${prefix}-${datePart}-${seqPart}`
 
         console.log('[VietQR Sync] Extracted Code:', extractedCode)
 
@@ -131,72 +133,115 @@ export async function POST(request: NextRequest) {
                 ? new Date(Number(transactiontime))
                 : new Date()
 
-        if (Number.isNaN(paidAt.getTime())) {
-            // nếu transactiontime sai format thì fallback now
-            console.log('[VietQR Sync] Invalid transactiontime, fallback now:', transactiontime)
-        }
-
         const finalPaidAt = Number.isNaN(paidAt.getTime()) ? new Date() : paidAt
 
-        // 6) Find booking
-        const booking = await prisma.booking.findFirst({
-            where: {
-                bookingCode: extractedCode,
-                status: 'PENDING'
-                // Bỏ depositPaidAt: null để callback vẫn chạy được nếu user đã nhấn confirm thủ công
-            },
-            include: { user: true }
-        })
-
-        if (!booking) {
-            console.log('[VietQR Sync] Booking not found or already paid:', extractedCode)
-            return jsonOk('Booking not found or already paid', transactionid)
-        }
-
-        // 7) Optional amount check (log only)
-        if (transactionAmount < booking.depositAmount) {
-            console.log('[VietQR Sync] Amount is lower than depositAmount:', {
-                received: transactionAmount,
-                expected: booking.depositAmount
+        // 6) Find entity based on prefix
+        if (prefix === 'NERD') {
+            const booking = await prisma.booking.findFirst({
+                where: {
+                    bookingCode: extractedCode,
+                    status: 'PENDING'
+                },
+                include: { user: true }
             })
-            // tuỳ policy: reject hay vẫn confirm
-            // hiện tại vẫn confirm để không làm kẹt UX, nhưng bạn có thể đổi sang error nếu muốn
-        }
 
-        // 8) Update DB (transaction)
-        await prisma.$transaction([
-            prisma.booking.update({
-                where: { id: booking.id },
-                data: {
-                    status: 'CONFIRMED',
-                    depositStatus: 'PAID_ONLINE',
-                    depositPaidAt: finalPaidAt
+            if (booking) {
+                // 7) Optional amount check (log only)
+                if (transactionAmount < booking.depositAmount) {
+                    console.log('[VietQR Sync] Amount is lower than depositAmount:', {
+                        received: transactionAmount,
+                        expected: booking.depositAmount
+                    })
                 }
-            }),
-            prisma.payment.updateMany({
-                where: { bookingId: booking.id },
-                data: {
-                    status: 'COMPLETED',
-                    transactionId: transactionid,
-                    paidAt: finalPaidAt,
-                    amount: transactionAmount
+
+                // 8) Update DB (transaction)
+                await prisma.$transaction([
+                    prisma.booking.update({
+                        where: { id: booking.id },
+                        data: {
+                            status: 'CONFIRMED',
+                            depositStatus: 'PAID_ONLINE',
+                            depositPaidAt: finalPaidAt
+                        }
+                    }),
+                    prisma.payment.updateMany({
+                        where: { bookingId: booking.id },
+                        data: {
+                            status: 'COMPLETED',
+                            transactionId: transactionid,
+                            paidAt: finalPaidAt,
+                            amount: transactionAmount
+                        }
+                    })
+                ])
+
+                // 9) Send email (best-effort)
+                const emailRecipient = booking.customerEmail || booking.user?.email
+                if (emailRecipient) {
+                    try {
+                        const fullBooking = await prisma.booking.findUnique({
+                            where: { id: booking.id },
+                            include: { location: true, room: true, user: true }
+                        })
+                        if (fullBooking) await sendBookingEmail(fullBooking)
+                    } catch (emailError) {
+                        console.error('[VietQR Sync] Email error:', emailError)
+                    }
+                }
+                return jsonOk('Booking processed successfully', transactionid)
+            }
+        } else if (prefix === 'NP') {
+            // Check RegistrationOrder (Subscription)
+            const regOrder = await prisma.registrationOrder.findFirst({
+                where: {
+                    orderCode: extractedCode,
+                    orderStatus: 'PENDING_PAYMENT'
                 }
             })
-        ])
 
-        // 9) Send email (best-effort)
-        const emailRecipient = booking.customerEmail || booking.user?.email
-        if (emailRecipient) {
-            try {
-                const fullBooking = await prisma.booking.findUnique({
-                    where: { id: booking.id },
-                    include: { location: true, room: true, user: true }
+            if (regOrder) {
+                console.log('[VietQR Sync] Found RegistrationOrder:', extractedCode)
+                
+                // Update RegistrationOrder
+                await prisma.registrationOrder.update({
+                    where: { id: regOrder.id },
+                    data: {
+                        orderStatus: 'PAID',
+                        paidAt: finalPaidAt,
+                        paymentRef: transactionid
+                    }
                 })
-                if (fullBooking) await sendBookingEmail(fullBooking)
-            } catch (emailError) {
-                console.error('[VietQR Sync] Email error:', emailError)
+
+                // Log audit
+                await prisma.subscriptionAuditLog.create({
+                    data: {
+                        action: 'payment_confirmed_webhook',
+                        entityType: 'registration_order',
+                        entityId: regOrder.id,
+                        performedBy: 'system_webhook',
+                        details: { 
+                            transactionid, 
+                            amount: transactionAmount,
+                            orderCode: extractedCode
+                        }
+                    }
+                })
+
+                // Send subscription email
+                try {
+                    const { sendSubscriptionPaidEmail } = await import('@/lib/email')
+                    await sendSubscriptionPaidEmail(regOrder)
+                } catch (emailError) {
+                    console.error('[VietQR Sync] Subscription Email error:', emailError)
+                }
+
+                return jsonOk('RegistrationOrder processed successfully', transactionid)
             }
         }
+
+        console.log('[VietQR Sync] No matching order found for:', extractedCode)
+        return jsonOk('No matching order found', transactionid)
+
 
         return jsonOk('Transaction processed successfully', transactionid)
     } catch (error) {

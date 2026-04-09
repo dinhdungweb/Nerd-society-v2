@@ -38,9 +38,19 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                 region: true,
                 occupation: true,
                 visitPurpose: true,
+                // V4: Subscriber / Nerd Pass
+                subscriber: {
+                    select: {
+                        walletBalance: true,
+                        outstandingBalance: true,
+                        mytimeEmpId: true,
+                    }
+                }
             },
         }),
     ])
+
+    const subscriber = user?.subscriber
 
     return (
         <>
@@ -55,6 +65,8 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                             avatar: user?.avatar || null,
                             nerdCoinBalance: user?.nerdCoinBalance || 0,
                             nerdCoinTier: user?.nerdCoinTier || 'BRONZE',
+                            walletBalance: subscriber?.walletBalance || 0,
+                            hasNerdPass: !!subscriber,
                         }}
                     />
 

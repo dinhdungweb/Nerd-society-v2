@@ -8,13 +8,18 @@ import { authOptions } from '@/lib/auth'
 // POST /api/upload - Upload images
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
-
         const formData = await request.formData()
-        const files = formData.getAll('files') as File[]
+        
+        // Hỗ trợ cả single 'file' (từ Nerd Pass) và multiple 'files' (từ Admin)
+        let files: File[] = []
+        const filesFromFields = formData.getAll('files') as File[]
+        const fileFromField = formData.get('file') as File | null
+        
+        if (filesFromFields.length > 0) {
+            files = filesFromFields
+        } else if (fileFromField) {
+            files = [fileFromField]
+        }
 
         if (!files || files.length === 0) {
             return NextResponse.json({ error: 'No files uploaded' }, { status: 400 })
