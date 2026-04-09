@@ -197,6 +197,5 @@ export function getBranchFromDevice(snOrAlias: string): string {
  */
 export async function generateNextEmployeeId(prisma: any): Promise<string> {
   const count = await prisma.subscriber.count();
-  // Bắt đầu từ 1000 để tránh trùng với nhân viên cũ của MyTime
-  return String(1000 + count + 1);
+  return `NS${String(count + 1).padStart(3, '0')}`;
 }
