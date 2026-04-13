@@ -54,16 +54,6 @@ interface PlanInfo {
 
 const PLANS: PlanInfo[] = [
   {
-    type: 'WEEKLY_LIMITED',
-    name: 'Gói Tuần',
-    price: '199.000đ',
-    priceNum: 199000,
-    duration: '7 ngày',
-    hours: '15 giờ',
-    icon: <BoltIcon className="h-5 w-5 text-primary-600" />,
-    features: ['Fast check-in (quẹt thẻ)', 'Laptop stand', 'Locker', 'Giảm 10% đồ uống', 'Dùng cả 2 cơ sở'],
-  },
-  {
     type: 'MONTHLY_LIMITED',
     name: 'Gói Tháng Limited',
     price: '549.000đ',
@@ -79,25 +69,6 @@ const PLANS: PlanInfo[] = [
       'Giảm 15% đồ uống',
       '1 ly free/tuần',
       'Carry-over tối đa 10h',
-      'Dùng cả 2 cơ sở',
-    ],
-  },
-  {
-    type: 'MONTHLY_UNLIMITED',
-    name: 'Gói Tháng Unlimited',
-    price: '1.199.000đ',
-    priceNum: 1199000,
-    duration: '30 ngày',
-    hours: 'Không giới hạn',
-    icon: <ClockIcon className="h-5 w-5 text-primary-600" />,
-    features: [
-      'Fast check-in (quẹt thẻ)',
-      'Laptop stand',
-      'Locker cố định',
-      'Giảm 15% đồ uống',
-      '1 ly free/tuần',
-      'Pod/Meeting quick call',
-      'Max 8h/ngày',
       'Dùng cả 2 cơ sở',
     ],
   },
@@ -246,8 +217,9 @@ export default function NerdPassPage() {
           </div>
 
           {/* Plans Grid */}
-          <div className="grid gap-6 md:grid-cols-3">
-            {PLANS.map((plan) => (
+          <div className="flex justify-center">
+            <div className="w-full max-w-sm">
+              {PLANS.map((plan) => (
               <div
                 key={plan.type}
                 className={`group relative overflow-hidden rounded-3xl border bg-white transition-all duration-300 hover:shadow-lg ${
@@ -301,8 +273,9 @@ export default function NerdPassPage() {
                     Chọn gói này
                   </button>
                 </div>
-              </div>
-            ))}
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Note */}
