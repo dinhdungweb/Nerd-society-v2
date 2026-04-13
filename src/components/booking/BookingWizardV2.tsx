@@ -368,34 +368,7 @@ export default function BookingWizardV2({ locations }: BookingWizardV2Props) {
                 {/* Step 2: Service */}
                 {currentStep === 2 && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* Location Service Availability Warning Banner */}
-                        {unavailableServiceTypes.length > 0 && (
-                            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-primary-300 bg-primary-50 p-4 dark:border-primary-700/50 dark:bg-primary-900/20">
-                                <ExclamationTriangleIcon className="size-6 shrink-0 text-primary-500" />
-                                <div className="flex-1">
-                                    <p className="font-semibold text-primary-800 dark:text-primary-300">
-                                        Một số dịch vụ chưa có tại cơ sở này
-                                    </p>
-                                    <p className="mt-1 text-sm text-primary-700 dark:text-primary-400">
-                                        Hiện tại cơ sở này chỉ phục vụ chỗ ngồi chung (walk-in).
-                                    </p>
-                                    {alternativeLocation && (
-                                        <button
-                                            onClick={() => {
-                                                setSelectedLocation(alternativeLocation.id)
-                                                setSelectedService(null)
-                                                setSelectedRoom(null)
-                                                toast.success(`Đã chuyển sang cơ sở ${alternativeLocation.name}`)
-                                            }}
-                                            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
-                                        >
-                                            Chuyển sang {alternativeLocation.name}
-                                            <ArrowRightIcon className="size-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+
                         <div className="mb-6 flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">
                                 Chọn loại dịch vụ
