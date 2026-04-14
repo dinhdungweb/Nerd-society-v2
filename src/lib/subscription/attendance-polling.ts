@@ -78,6 +78,27 @@ async function processTapRecord(record: any) {
     const branch = getBranchFromDevice(record.sn || record.MachineAlias);
     const attTime = new Date(record.AttTime);
 
+    // [DEBOUNCE] Kiểm tra quẹt thẻ kép trong vòng 60 giây
+    const lastLog = await prisma.subscriptionAuditLog.findFirst({
+        where: { 
+            entityId: record.EmployeeID,
+            action: 'TAP_CARD'
+        },
+        orderBy: { createdAt: 'desc' }
+    });
+
+    if (lastLog && lastLog.details) {
+        const lastAttTimeStr = (lastLog.details as any).AttTime;
+        if (lastAttTimeStr) {
+            const lastAttTime = new Date(lastAttTimeStr);
+            const diffSec = Math.abs(attTime.getTime() - lastAttTime.getTime()) / 1000;
+            if (diffSec < 60) {
+                console.log(`[Polling] Bỏ qua quẹt kép cho ${record.EmployeeID} (${diffSec}s)`);
+                return;
+            }
+        }
+    }
+
     // Toggle Check-in/Out logic
     if (subscriber.sessions.length > 0) {
         // Khách đang ngồi -> Thực hiện Check-out
@@ -105,4 +126,18 @@ async function processTapRecord(record: any) {
             } as any);
         }
     }
+
+    // [IMPORTANT] Lưu log để không quét lại lần sau và phục vụ cơ chế Chống quẹt kép (Debounce)
+    await prisma.subscriptionAuditLog.create({
+        data: {
+            action: 'TAP_CARD',
+            entityType: 'ATTENDANCE',
+            entityId: record.EmployeeID,
+            performedBy: 'system',
+            details: { 
+                external_id: `${record.EmployeeID}_${record.AttDate}_${record.AttTime}`,
+                ...record 
+            }
+        }
+    });
 }
