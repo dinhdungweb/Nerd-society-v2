@@ -3,6 +3,7 @@ import { notifyOvertime, notifyEndingSoon, notifyBookingCancelled } from '@/lib/
 import { sendCheckinReminderEmail } from '@/lib/email'
 import cron from 'node-cron'
 import { differenceInMinutes, startOfDay } from 'date-fns'
+import { pollAttendanceRecords } from './subscription/attendance-polling'
 
 const PENDING_TIMEOUT_MINUTES = 600 // Hủy booking PENDING sau 10 giờ (600 phút)
 const ENDING_SOON_MINUTES = 15 // Cảnh báo 15 phút trước khi hết giờ
@@ -162,6 +163,7 @@ export function initCronJobs() {
     cron.schedule('* * * * *', () => {
         cancelPendingBookings()
         checkOvertimeBookings()
+        pollAttendanceRecords()
     })
 
     // Run every 15 minutes - for check-in reminders
