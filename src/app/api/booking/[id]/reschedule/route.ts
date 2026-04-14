@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { differenceInMinutes } from 'date-fns'
+import { generateBookingCode } from '@/lib/booking-utils'
+import { audit } from '@/lib/audit'
 
 const RESCHEDULE_BEFORE_MINUTES = 120 // Cho phép đổi lịch trước 2 tiếng
 
@@ -97,29 +99,86 @@ export async function POST(
             }, { status: 409 })
         }
 
-        // Update booking
-        const updatedBooking = await prisma.booking.update({
-            where: { id },
-            data: {
-                date: newDateObj,
-                startTime: newStartTime,
-                endTime: newEndTime,
-                status: 'CONFIRMED', // Ensure status is confirmed
-                updatedAt: new Date(),
-                isRescheduled: true,
-                note: `${booking.note || ''}\n[Đổi lịch từ ${booking.date.toLocaleDateString('vi-VN')} ${booking.startTime} lúc ${now.toLocaleString('vi-VN')}]`.trim(),
-            },
-        })
+        // 4. Create new booking and cancel old one in a transaction
+        const result = await prisma.$transaction(async (tx) => {
+            // Generate NEW booking code for the NEW date
+            const newBookingCode = await generateBookingCode(newDateObj);
+
+            // a. Create new booking
+            const newBooking = await tx.booking.create({
+                data: {
+                    bookingCode: newBookingCode,
+                    roomId: booking.roomId,
+                    locationId: booking.locationId,
+                    date: newDateObj,
+                    endDate: newDateObj,
+                    startTime: newStartTime,
+                    endTime: newEndTime,
+                    guests: booking.guests,
+                    customerName: booking.customerName,
+                    customerPhone: booking.customerPhone,
+                    customerEmail: booking.customerEmail,
+                    userId: booking.userId,
+                    status: 'CONFIRMED',
+                    depositAmount: booking.depositAmount,
+                    depositStatus: booking.depositStatus,
+                    depositPaidAt: booking.depositPaidAt,
+                    estimatedAmount: booking.estimatedAmount,
+                    source: booking.source,
+                    isRescheduled: true,
+                    note: `[Đổi lịch từ ${booking.bookingCode} (${booking.date.toLocaleDateString('vi-VN')} ${booking.startTime})]\n${booking.note || ''}`.trim(),
+                }
+            });
+
+            // b. Migrate payment to the new booking ID
+            // Check if there is a payment record
+            const payment = await tx.payment.findUnique({
+                where: { bookingId: id }
+            });
+
+            if (payment) {
+                await tx.payment.update({
+                    where: { id: payment.id },
+                    data: { bookingId: newBooking.id }
+                });
+            }
+
+            // c. Update old booking status to CANCELLED
+            await tx.booking.update({
+                where: { id },
+                data: {
+                    status: 'CANCELLED',
+                    note: `[Đã đổi lịch sang ${newBookingCode} lúc ${now.toLocaleString('vi-VN')}]\n${booking.note || ''}`.trim(),
+                }
+            });
+
+            return newBooking;
+        });
+
+        // 5. Create audit log for the action
+        await audit.create(
+            session.user.id,
+            session.user.name || session.user.email,
+            'booking',
+            id,
+            { 
+                action: 'reschedule_create_new', 
+                oldBookingId: id, 
+                newBookingId: result.id, 
+                newDate, 
+                newStartTime 
+            }
+        );
 
         return NextResponse.json({
             success: true,
-            message: 'Đổi lịch thành công',
+            message: 'Đổi lịch thành công và đã tạo booking mới.',
             booking: {
-                id: updatedBooking.id,
-                bookingCode: updatedBooking.bookingCode,
-                date: updatedBooking.date,
-                startTime: updatedBooking.startTime,
-                endTime: updatedBooking.endTime,
+                id: result.id,
+                bookingCode: result.bookingCode,
+                date: result.date,
+                startTime: result.startTime,
+                endTime: result.endTime,
             },
         })
     } catch (error) {
