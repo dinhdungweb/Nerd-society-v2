@@ -18,7 +18,8 @@ export type CheckInResult = {
 /**
  * Xử lý Check-in khi tap thẻ
  */
-export async function handleCheckIn(cardNo: string, branch: string): Promise<CheckInResult> {
+export async function handleCheckIn(cardNo: string, branch: string, customTime?: Date): Promise<CheckInResult> {
+    const now = customTime || new Date();
     // 1. Tìm subscriber
     const subscriber = await prisma.subscriber.findUnique({
         where: { cardNo },
@@ -48,7 +49,7 @@ export async function handleCheckIn(cardNo: string, branch: string): Promise<Che
     const activeSub = subscriber.subscriptions[0];
     if (activeSub) {
         // Kiểm tra hết hạn nếu đã kích hoạt
-        if (activeSub.status === 'ACTIVE' && activeSub.endDate && activeSub.endDate < new Date()) {
+        if (activeSub.status === 'ACTIVE' && activeSub.endDate && activeSub.endDate < now) {
             // Auto-expire sub
             await prisma.subscription.update({
                 where: { id: activeSub.id },
@@ -58,8 +59,8 @@ export async function handleCheckIn(cardNo: string, branch: string): Promise<Che
         } else {
             // Kích hoạt nếu là lần đầu tap
             if (activeSub.status === 'PENDING_ACTIVATION') {
-                const now = new Date();
-                const endDate = new Date(now);
+                const activationTime = now;
+                const endDate = new Date(activationTime);
                 endDate.setDate(endDate.getDate() + 30);
 
                 await prisma.subscription.update({
@@ -74,7 +75,7 @@ export async function handleCheckIn(cardNo: string, branch: string): Promise<Che
             }
 
             // Tính toán Cap 8h
-            const today = startOfDay(new Date());
+            const today = startOfDay(now);
 
             const usageToday = await prisma.dailyUsage.findUnique({
                 where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: today } }
@@ -98,7 +99,7 @@ export async function handleCheckIn(cardNo: string, branch: string): Promise<Che
                     subscriberId: subscriber.id,
                     subscriptionId: activeSub.id,
                     branch,
-                    checkInTime: new Date(),
+                    checkInTime: now,
                     status: 'ACTIVE' as $Enums.SessionStatus,
                     source: 'card'
                 }
@@ -128,7 +129,7 @@ export async function handleCheckIn(cardNo: string, branch: string): Promise<Che
         data: {
             subscriberId: subscriber.id,
             branch,
-            checkInTime: new Date(),
+            checkInTime: now,
             status: 'ACTIVE' as $Enums.SessionStatus,
             source: 'card'
         }
@@ -145,7 +146,8 @@ export async function handleCheckIn(cardNo: string, branch: string): Promise<Che
 /**
  * Xử lý Check-out khi tap thẻ
  */
-export async function handleCheckOut(cardNo: string): Promise<CheckInResult> {
+export async function handleCheckOut(cardNo: string, customTime?: Date): Promise<CheckInResult> {
+    const now = customTime || new Date();
     const subscriber = await prisma.subscriber.findUnique({
         where: { cardNo },
         include: {
@@ -162,7 +164,6 @@ export async function handleCheckOut(cardNo: string): Promise<CheckInResult> {
     }
 
     const session = subscriber.sessions[0];
-    const now = new Date();
     const durationMin = differenceInMinutes(now, session.checkInTime);
 
     // Quy tắc làm tròn 15 phút (CEIL)

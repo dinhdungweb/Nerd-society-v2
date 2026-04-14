@@ -48,13 +48,14 @@ async function forceSyncToday() {
             }
 
             const branch = getBranchFromDevice(record.sn || record.MachineAlias);
+            const attTime = new Date(record.AttTime);
             
             // Fake xử lý Check-in/Out (Copy logic từ polling)
             if (subscriber.sessions.length > 0) {
-                await handleCheckOut(subscriber.cardNo!);
+                await handleCheckOut(subscriber.cardNo!, attTime);
                 console.log(`  ✅ Đã Check-out cho ${subscriber.fullName}`);
             } else {
-                const res = await handleCheckIn(subscriber.cardNo!, branch);
+                const res = await handleCheckIn(subscriber.cardNo!, branch, attTime);
                 console.log(`  ✅ Đã Check-in cho ${subscriber.fullName}: ${res.message}`);
             }
 

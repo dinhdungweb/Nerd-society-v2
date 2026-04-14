@@ -76,11 +76,12 @@ async function processTapRecord(record: any) {
     }
 
     const branch = getBranchFromDevice(record.sn || record.MachineAlias);
+    const attTime = new Date(record.AttTime);
 
     // Toggle Check-in/Out logic
     if (subscriber.sessions.length > 0) {
         // Khách đang ngồi -> Thực hiện Check-out
-        const result = await handleCheckOut(subscriber.cardNo!);
+        const result = await handleCheckOut(subscriber.cardNo!, attTime);
         if (result.success) {
             await sendZaloNotification(subscriber.phone, 'CHECK_OUT_SUB', {
                 'CustomerName': subscriber.fullName,
@@ -89,7 +90,7 @@ async function processTapRecord(record: any) {
         }
     } else {
         // Khách chưa ngồi -> Thực hiện Check-in
-        const result = await handleCheckIn(subscriber.cardNo!, branch);
+        const result = await handleCheckIn(subscriber.cardNo!, branch, attTime);
         if (result.success) {
             await sendZaloNotification(subscriber.phone, 'CHECK_IN_SUB', {
                 'CustomerName': subscriber.fullName,
