@@ -181,6 +181,12 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
             update: { totalMin: { increment: durationMin } }
         });
 
+        // 🟢 BỔ SUNG: Cập nhật tổng số phút đã dùng vào Gói dịch vụ
+        await prisma.subscription.update({
+            where: { id: session.subscriptionId },
+            data: { usedHoursMin: { increment: durationMin } }
+        });
+
         // Tính overage
         const usedMinBefore = (usage.totalMin - durationMin);
         const capRemaining = Math.max(0, DAILY_CAP_MIN - usedMinBefore);
