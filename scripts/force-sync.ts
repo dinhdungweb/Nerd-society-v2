@@ -50,6 +50,27 @@ async function forceSyncToday() {
             const branch = getBranchFromDevice(record.sn || record.MachineAlias);
             const attTime = new Date(record.AttTime);
             
+            // [DEBOUNCE] Kiểm tra quẹt thẻ kép trong vòng 60 giây
+            const lastLog = await prisma.subscriptionAuditLog.findFirst({
+                where: { 
+                    entityId: record.EmployeeID,
+                    action: 'TAP_CARD'
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+
+            if (lastLog && lastLog.details) {
+                const lastAttTimeStr = (lastLog.details as any).AttTime;
+                if (lastAttTimeStr) {
+                    const lastAttTime = new Date(lastAttTimeStr);
+                    const diffSec = Math.abs(attTime.getTime() - lastAttTime.getTime()) / 1000;
+                    if (diffSec < 60) {
+                        console.log(`- Bỏ qua quẹt kép cho ${record.EmployeeID} lúc ${record.AttTime} (${diffSec}s)`);
+                        continue;
+                    }
+                }
+            }
+
             // Fake xử lý Check-in/Out (Copy logic từ polling)
             if (subscriber.sessions.length > 0) {
                 await handleCheckOut(subscriber.cardNo!, attTime);
