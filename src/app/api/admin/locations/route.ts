@@ -8,7 +8,15 @@ import { canView, canManage } from '@/lib/apiPermissions'
 // GET - Lấy danh sách locations
 export async function GET() {
     try {
+        const session = await getServerSession(authOptions)
+
+        const whereClause: any = {}
+        if (session?.user?.role !== 'ADMIN' && session?.user?.assignedLocationId) {
+            whereClause.id = session.user.assignedLocationId
+        }
+
         const locations = await prisma.location.findMany({
+            where: whereClause,
             orderBy: { name: 'asc' },
         })
         return NextResponse.json(locations)

@@ -286,22 +286,29 @@ function BookingsContent() {
                         >
                             <TableCellsIcon className="size-4" />
                             Bảng
-                        </button>
-                    </div>
-
-                    {/* Location Filter */}
-                    {locations.length > 0 && (
+                      {/* Location Filter */}
+                    {locations.length > 1 ? (
                         <div className="flex items-center gap-2">
                             <FunnelIcon className="size-4 text-neutral-400" />
                             <select
                                 value={selectedLocation}
                                 onChange={(e) => setSelectedLocation(e.target.value)}
-                                className="rounded-xl border border-neutral-200 bg-white pl-4 pr-10 py-2.5 text-sm font-medium text-neutral-700 transition-all hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                className="rounded-xl border border-neutral-200 bg-white pl-4 pr-10 py-2.5 text-sm font-medium text-neutral-700 transition-all hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-300"
                             >
                                 {locations.map(loc => (
                                     <option key={loc.id} value={loc.id}>{loc.name}</option>
                                 ))}
                             </select>
+                        </div>
+                    ) : locations.length === 1 ? (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-100 dark:border-neutral-700">
+                            <FunnelIcon className="size-4 text-neutral-400" />
+                            <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                                {locations[0].name}
+                            </span>
+                        </div>
+                    ) : null}
+lect>
                         </div>
                     )}
 
@@ -366,7 +373,7 @@ function BookingsContent() {
                         </button>
                     </div>
 
-                    {locations.length > 0 && (
+                    {locations.length > 1 ? (
                         <select
                             value={selectedLocation}
                             onChange={(e) => setSelectedLocation(e.target.value)}
@@ -376,7 +383,11 @@ function BookingsContent() {
                                 <option key={loc.id} value={loc.id}>{loc.name}</option>
                             ))}
                         </select>
-                    )}
+                    ) : locations.length === 1 ? (
+                        <div className="flex-1 px-3 py-2.5 text-sm font-medium text-neutral-600 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl border border-neutral-100 dark:border-neutral-700 text-center">
+                            {locations[0].name}
+                        </div>
+                    ) : null}
 
                     {/* Export Dropdown */}
                     <div className="relative group">
