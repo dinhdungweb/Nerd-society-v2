@@ -12,8 +12,8 @@ export async function GET(req: Request) {
         const endDate = searchParams.get('endDate')
 
         if (type === 'bookings') {
-            const { hasAccess } = await canView('Bookings')
-            if (!hasAccess) return NextResponse.json({ error: 'Không có quyền xuất dữ liệu Booking' }, { status: 403 })
+            const { session, hasAccess } = await canView('Bookings')
+            if (!session || !hasAccess) return NextResponse.json({ error: 'Không có quyền xuất dữ liệu Booking' }, { status: 403 })
 
             // Export bookings
             const whereClause: any = {}
@@ -22,6 +22,11 @@ export async function GET(req: Request) {
                     gte: new Date(startDate),
                     lte: new Date(endDate),
                 }
+            }
+
+            // Location Filter for STAFF/MANAGER
+            if ((session.user.role === 'STAFF' || session.user.role === 'MANAGER') && session.user.assignedLocationId) {
+                whereClause.locationId = session.user.assignedLocationId
             }
 
             const bookings = await prisma.booking.findMany({
@@ -132,22 +137,31 @@ export async function GET(req: Request) {
         }
 
         if (type === 'revenue') {
-            const { hasAccess } = await canView('Reports')
-            if (!hasAccess) return NextResponse.json({ error: 'Không có quyền xuất báo cáo Doanh thu' }, { status: 403 })
+            const { session, hasAccess } = await canView('Reports')
+            if (!session || !hasAccess) return NextResponse.json({ error: 'Không có quyền xuất báo cáo Doanh thu' }, { status: 403 })
 
             // Export revenue report
+            const whereClause: any = {
+                status: 'COMPLETED',
+                ...(startDate && endDate
+                    ? {
+                        paidAt: {
+                            gte: new Date(startDate),
+                            lte: new Date(endDate),
+                        },
+                    }
+                    : {}),
+            }
+
+            // Location Filter for STAFF/MANAGER
+            if ((session.user.role === 'STAFF' || session.user.role === 'MANAGER') && session.user.assignedLocationId) {
+                whereClause.booking = {
+                    locationId: session.user.assignedLocationId
+                }
+            }
+
             const payments = await prisma.payment.findMany({
-                where: {
-                    status: 'COMPLETED',
-                    ...(startDate && endDate
-                        ? {
-                            paidAt: {
-                                gte: new Date(startDate),
-                                lte: new Date(endDate),
-                            },
-                        }
-                        : {}),
-                },
+                where: whereClause,
                 include: {
                     booking: {
                         select: {

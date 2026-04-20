@@ -18,6 +18,9 @@ export async function GET() {
         }
 
         const bookings = await prisma.booking.findMany({
+            where: (session.user.role === 'STAFF' || session.user.role === 'MANAGER') && session.user.assignedLocationId
+                ? { locationId: session.user.assignedLocationId }
+                : {},
             orderBy: { createdAt: 'desc' },
             include: {
                 user: { select: { name: true, email: true, phone: true } },
@@ -83,6 +86,13 @@ export async function POST(req: Request) {
             include: { location: true }
         })
         if (!room) return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+        
+        // 2a. Location Permission Check for STAFF/MANAGER
+        if ((session.user.role === 'STAFF' || session.user.role === 'MANAGER') && 
+             session.user.assignedLocationId && 
+             room.locationId !== session.user.assignedLocationId) {
+            return NextResponse.json({ error: 'Bạn không có quyền tạo booking tại cơ sở này' }, { status: 403 })
+        }
 
         // Map Room Type to Service Type
         let serviceType: any = 'MEETING'
