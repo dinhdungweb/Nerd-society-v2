@@ -121,7 +121,7 @@ export default function SubscriptionsAdminPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full px-4 py-8 sm:px-6 lg:px-8">
       {/* Header Section */}
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
@@ -158,7 +158,7 @@ export default function SubscriptionsAdminPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all duration-200 ${
                 activeTab === tab.key
-                  ? 'bg-white text-neutral-900 shadow-lg dark:bg-neutral-800 dark:text-white'
+                  ? 'bg-white text-neutral-900 border border-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white'
                   : 'text-neutral-500 hover:bg-neutral-200/50 hover:text-neutral-900 dark:hover:bg-neutral-700/50 dark:hover:text-neutral-300'
               }`}
             >

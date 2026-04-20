@@ -101,10 +101,10 @@ export default function WalletManagement({ subscribers, onRefresh }: WalletManag
         <Table dense striped>
           <TableHead>
             <TableRow>
-              <TableHeader>Thành viên</TableHeader>
+              <TableHeader className="pl-6">Thành viên</TableHeader>
               <TableHeader>Số dư Ví</TableHeader>
               <TableHeader>Công nợ quá giờ</TableHeader>
-              <TableHeader className="text-right">Hành động</TableHeader>
+              <TableHeader className="pr-6 text-right">Hành động</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -115,7 +115,7 @@ export default function WalletManagement({ subscribers, onRefresh }: WalletManag
             ) : (
               subscribers.map((sub) => (
                 <TableRow key={sub.id} className="group">
-                  <TableCell>
+                  <TableCell className="pl-6">
                      <div className="flex items-center gap-3">
                        <div className="rounded-full bg-neutral-100 p-2 dark:bg-neutral-800">
                          <UserIcon className="h-5 w-5 text-neutral-400" />
@@ -137,7 +137,7 @@ export default function WalletManagement({ subscribers, onRefresh }: WalletManag
                        {(sub.outstandingBalance || 0).toLocaleString()}đ
                     </div>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="pr-6 text-right">
                     <Button 
                       outline
                       onClick={() => setShowTopup({ id: sub.id, name: sub.fullName })}

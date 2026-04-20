@@ -25,19 +25,19 @@ export default function SubscriberTable({ subscribers, loading, onDelete, action
       <Table dense striped>
         <TableHead>
           <TableRow>
-            <TableHeader>Thành viên</TableHeader>
+            <TableHeader className="pl-6 text-sm">Thành viên</TableHeader>
             <TableHeader>Liên hệ</TableHeader>
             <TableHeader>Gói hiện tại</TableHeader>
             <TableHeader>Trạng thái</TableHeader>
             <TableHeader>Thời lượng còn lại</TableHeader>
-            <TableHeader className="text-right">Thao tác</TableHeader>
+            <TableHeader className="pr-6 text-right">Thao tác</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
           {loading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <TableRow key={i}>
-                <TableCell>
+                <TableCell className="pl-6">
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-800" />
                     <div className="h-4 w-24 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" />
@@ -47,7 +47,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, action
                 <TableCell><div className="h-4 w-24 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 <TableCell><div className="h-6 w-16 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 <TableCell><div className="h-4 w-12 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
-                <TableCell><div className="ml-auto h-8 w-8 animate-pulse rounded-lg bg-neutral-200 dark:bg-neutral-800" /></TableCell>
+                <TableCell className="pr-6"><div className="ml-auto h-8 w-8 animate-pulse rounded-lg bg-neutral-200 dark:bg-neutral-800" /></TableCell>
               </TableRow>
             ))
           ) : subscribers.length === 0 ? (
@@ -63,7 +63,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, action
 
               return (
                 <TableRow key={sub.id} className="group">
-                  <TableCell>
+                  <TableCell className="pl-6">
                     <div className="flex items-center gap-3">
                       <img 
                         src={sub.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(sub.fullName)}&background=random`} 
@@ -102,7 +102,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, action
                       <span className="text-neutral-400">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="pr-6 text-right">
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(sub); }}
                       disabled={actionLoading}

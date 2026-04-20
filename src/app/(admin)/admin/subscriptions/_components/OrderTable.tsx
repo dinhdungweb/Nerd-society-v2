@@ -34,13 +34,13 @@ export default function OrderTable({ orders, loading, onSelectOrder }: OrderTabl
       <Table dense striped>
         <TableHead>
           <TableRow>
-            <TableHeader>Mã đơn</TableHeader>
+            <TableHeader className="pl-6">Mã đơn</TableHeader>
             <TableHeader>Khách hàng</TableHeader>
             <TableHeader>Gói dịch vụ</TableHeader>
             <TableHeader>Cơ sở</TableHeader>
             <TableHeader>Trạng thái</TableHeader>
             <TableHeader>Ngày đăng ký</TableHeader>
-            <TableHeader className="text-right">Thao tác</TableHeader>
+            <TableHeader className="pr-6 text-right">Thao tác</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -61,7 +61,7 @@ export default function OrderTable({ orders, loading, onSelectOrder }: OrderTabl
                 <TableCell><div className="h-4 w-12 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 <TableCell><div className="h-6 w-20 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 <TableCell><div className="h-4 w-16 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
-                <TableCell><div className="ml-auto h-4 w-12 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
+                <TableCell className="pr-6"><div className="ml-auto h-4 w-12 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
               </TableRow>
             ))
           ) : (
@@ -71,7 +71,7 @@ export default function OrderTable({ orders, loading, onSelectOrder }: OrderTabl
                 className="group cursor-pointer transition-colors" 
                 onClick={() => onSelectOrder(order)}
               >
-                <TableCell className="font-mono text-xs font-medium text-neutral-500">{order.orderCode}</TableCell>
+                <TableCell className="pl-6 font-mono text-xs font-medium text-neutral-500">{order.orderCode}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <img 
@@ -96,7 +96,7 @@ export default function OrderTable({ orders, loading, onSelectOrder }: OrderTabl
                 <TableCell className="text-xs text-neutral-500">
                   {new Date(order.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="pr-6 text-right">
                   <button className="text-sm font-medium text-primary-600 opacity-0 transition-opacity group-hover:opacity-100 dark:text-primary-400">
                     Chi tiết
                   </button>
