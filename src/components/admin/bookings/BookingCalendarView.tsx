@@ -151,7 +151,7 @@ export default function BookingCalendarView({
         })
 
         return result
-    }, [bookings, selectedDate])
+    }, [bookings, selectedDate, selectedLocation])
 
     // Get bookings for a specific date (for week view)
     // Also include cross-day/multi-day bookings that overlap
