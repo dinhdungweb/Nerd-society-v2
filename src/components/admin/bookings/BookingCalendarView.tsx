@@ -244,6 +244,26 @@ export default function BookingCalendarView({
     }
 
     const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                    
+    // Total count for current view (day or week)
+    const currentViewBookingsCount = useMemo(() => {
+        if (viewMode === 'day') return dayBookings.length
+        
+        // Count for all days in the week
+        const start = weekDates[0]
+        const end = addDays(weekDates[6], 1)
+        
+        const startUtc = new Date(format(start, 'yyyy-MM-dd') + 'T00:00:00.000Z')
+        const endUtc = new Date(format(end, 'yyyy-MM-dd') + 'T00:00:00.000Z')
+
+        return bookings.filter(b => {
+             if (b.status === 'CANCELLED') return false
+             if (selectedLocation && b.locationId !== selectedLocation) return false
+             
+             const bDate = new Date(b.date)
+             return bDate >= startUtc && bDate < endUtc
+        }).length
+    }, [viewMode, dayBookings, weekDates, bookings, selectedLocation])
 
     // Generate mini calendar for date picker
     const generateMonthDays = () => {
@@ -434,7 +454,7 @@ export default function BookingCalendarView({
 
                     <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
                         <CalendarDaysIcon className="size-5" />
-                        <span>{viewMode === 'day' ? dayBookings.length : bookings.filter(b => b.status !== 'CANCELLED' && (!selectedLocation || b.locationId === selectedLocation)).length} booking</span>
+                        <span>{currentViewBookingsCount} booking</span>
                     </div>
 
                 </div>
