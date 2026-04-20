@@ -539,15 +539,13 @@ export default function BookingFormV2({
                             type="number"
                             min={1}
                             max={20}
-                            value={guests}
-                            onChange={(e) => setGuests(Math.max(1, parseInt(e.target.value) || 1))}
+                            value={guests || ''}
+                            onChange={(e) => setGuests(Math.min(20, parseInt(e.target.value) || 0))}
                             className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 pl-11 text-neutral-900 focus:border-primary-500 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
                         />
                         <UsersIcon className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-400" />
                     </div>
-                    <p className="mt-1 text-xs text-neutral-500">
-                        {guests < 8 ? '< 8 người: 80,000đ/giờ' : '≥ 8 người: 100,000đ/giờ'}
-                    </p>
+
                 </div>
             )}
 
