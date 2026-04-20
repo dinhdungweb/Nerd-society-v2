@@ -11,8 +11,8 @@ export async function GET() {
         const session = await getServerSession(authOptions)
 
         const whereClause: any = {}
-        if (session?.user?.role !== 'ADMIN' && session?.user?.assignedLocationId) {
-            whereClause.id = session.user.assignedLocationId
+        if (session?.user?.role !== 'ADMIN' && (session?.user as any)?.assignedLocationId) {
+            whereClause.id = (session?.user as any).assignedLocationId
         }
 
         const locations = await prisma.location.findMany({

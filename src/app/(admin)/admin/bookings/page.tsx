@@ -283,10 +283,10 @@ function BookingsContent() {
                                 ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-white'
                                 : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300'
                                 }`}
-                        >
-                            <TableCellsIcon className="size-4" />
-                            Bảng
-                      {/* Location Filter */}
+                        </button>
+                    </div>
+
+                    {/* Location Filter */}
                     {locations.length > 1 ? (
                         <div className="flex items-center gap-2">
                             <FunnelIcon className="size-4 text-neutral-400" />
@@ -308,9 +308,6 @@ function BookingsContent() {
                             </span>
                         </div>
                     ) : null}
-lect>
-                        </div>
-                    )}
 
                     {/* Export Dropdown */}
                     <div className="relative group">
