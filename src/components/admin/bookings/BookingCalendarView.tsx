@@ -16,6 +16,8 @@ interface Booking {
     customerName: string
     customerPhone: string
     room: { name: string; type: string } | null
+    roomId: string
+    locationId: string
     location: { name: string }
     estimatedAmount: number
 }
@@ -107,6 +109,7 @@ export default function BookingCalendarView({
 
         bookings.forEach(b => {
             if (b.status === 'CANCELLED') return
+            if (selectedLocation && b.locationId !== selectedLocation) return
 
             const bookingStartDate = new Date(b.date)
             let bookingEndDate: Date
@@ -162,6 +165,7 @@ export default function BookingCalendarView({
 
         bookings.forEach(b => {
             if (b.status === 'CANCELLED') return
+            if (selectedLocation && b.locationId !== selectedLocation) return
 
             const bookingStartDate = new Date(b.date)
             let bookingEndDate: Date
@@ -430,21 +434,9 @@ export default function BookingCalendarView({
 
                     <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
                         <CalendarDaysIcon className="size-5" />
-                        <span>{viewMode === 'day' ? dayBookings.length : bookings.filter(b => b.status !== 'CANCELLED').length} booking</span>
+                        <span>{viewMode === 'day' ? dayBookings.length : bookings.filter(b => b.status !== 'CANCELLED' && (!selectedLocation || b.locationId === selectedLocation)).length} booking</span>
                     </div>
 
-                    {/* Location Filter */}
-                    {locations.length > 0 && (
-                        <select
-                            value={selectedLocation}
-                            onChange={(e) => onLocationChange(e.target.value)}
-                            className="pl-3 pr-8 py-1.5 text-sm border border-neutral-300 rounded-lg bg-white dark:bg-neutral-800 dark:border-neutral-600 dark:text-white"
-                        >
-                            {locations.map(loc => (
-                                <option key={loc.id} value={loc.id}>{loc.name}</option>
-                            ))}
-                        </select>
-                    )}
                 </div>
             </div>
 
@@ -509,7 +501,7 @@ export default function BookingCalendarView({
 
                                         {/* Bookings for this room */}
                                         {dayBookings
-                                            .filter(b => b.room?.name === room.name)
+                                            .filter(b => b.roomId === room.id)
                                             .map(booking => {
                                                 const HOUR_HEIGHT = 80
                                                 const displayStartTime = getBookingDisplayStartTime(booking)

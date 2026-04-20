@@ -57,6 +57,8 @@ interface Booking {
     customerPhone: string
     customerEmail: string | null
     guests: number
+    roomId: string
+    locationId: string
     location: { name: string }
     room: { name: string; type: string } | null
     // ... other fields if needed for logic but table uses these
@@ -180,9 +182,14 @@ function BookingsContent() {
             result = result.filter(b => b.status === statusFilter)
         }
 
+        // Location filter
+        if (selectedLocation) {
+            result = result.filter(b => b.locationId === selectedLocation)
+        }
+
         setFilteredBookings(result)
         setCurrentPage(1)
-    }, [bookings, searchQuery, statusFilter])
+    }, [bookings, searchQuery, statusFilter, selectedLocation])
 
     useEffect(() => {
         applyFilters()
@@ -212,10 +219,10 @@ function BookingsContent() {
 
     // Stats
     const stats = {
-        pending: bookings.filter(b => b.status === 'PENDING').length,
-        confirmed: bookings.filter(b => b.status === 'CONFIRMED').length,
-        inProgress: bookings.filter(b => b.status === 'IN_PROGRESS').length,
-        cancelled: bookings.filter(b => b.status === 'CANCELLED').length,
+        pending: bookings.filter(b => b.status === 'PENDING' && (!selectedLocation || b.locationId === selectedLocation)).length,
+        confirmed: bookings.filter(b => b.status === 'CONFIRMED' && (!selectedLocation || b.locationId === selectedLocation)).length,
+        inProgress: bookings.filter(b => b.status === 'IN_PROGRESS' && (!selectedLocation || b.locationId === selectedLocation)).length,
+        cancelled: bookings.filter(b => b.status === 'CANCELLED' && (!selectedLocation || b.locationId === selectedLocation)).length,
     }
 
     const handleViewDetail = (booking: Booking) => {
@@ -282,6 +289,22 @@ function BookingsContent() {
                         </button>
                     </div>
 
+                    {/* Location Filter */}
+                    {locations.length > 0 && (
+                        <div className="flex items-center gap-2">
+                            <FunnelIcon className="size-4 text-neutral-400" />
+                            <select
+                                value={selectedLocation}
+                                onChange={(e) => setSelectedLocation(e.target.value)}
+                                className="rounded-xl border border-neutral-200 bg-white pl-4 pr-10 py-2.5 text-sm font-medium text-neutral-700 transition-all hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                            >
+                                {locations.map(loc => (
+                                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                     {/* Export Dropdown */}
                     <div className="relative group">
                         <button
@@ -342,6 +365,18 @@ function BookingsContent() {
                             Bảng
                         </button>
                     </div>
+
+                    {locations.length > 0 && (
+                        <select
+                            value={selectedLocation}
+                            onChange={(e) => setSelectedLocation(e.target.value)}
+                            className="flex-1 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                        >
+                            {locations.map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                        </select>
+                    )}
 
                     {/* Export Dropdown */}
                     <div className="relative group">
