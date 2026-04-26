@@ -4,7 +4,7 @@
  */
 
 
-const MYTIME_BASE_URL = process.env.MYTIME_BASE_URL || 'http://222.252.95.241:7900/api/hpa/Paradise';
+const MYTIME_BASE_URL = process.env.MYTIME_BASE_URL || 'http://14.162.181.197:7900/api/hpa/Paradise';
 const MYTIME_USER = 'admin';
 const MYTIME_PASS = '123';
 
