@@ -1,4 +1,4 @@
-import { broadcastMytime, formatDate } from '@/lib/mytime-api';
+import { callMytime } from '@/lib/mytime-api';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -18,14 +18,14 @@ export async function GET() {
   ];
 
   try {
-    console.log('[Debug] Starting test creation broadcast...');
-    const results = await broadcastMytime('sp_ImportEmployeeInfor', args);
+    console.log('[Debug] Starting test creation...');
+    const result = await callMytime('sp_ImportEmployeeInfor', args);
     
     return NextResponse.json({
-      message: 'Test broadcast finished.',
+      message: 'Test finished.',
       employeeId,
       fullName,
-      results
+      result
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
