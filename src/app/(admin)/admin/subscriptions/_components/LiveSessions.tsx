@@ -39,20 +39,20 @@ export default function LiveSessions() {
         <Table dense striped>
           <TableHead>
             <TableRow>
-              <TableHeader>Hội viên</TableHeader>
+              <TableHeader className="pl-8">Hội viên</TableHeader>
               <TableHeader>Cơ sở</TableHeader>
               <TableHeader>Vào lúc</TableHeader>
-              <TableHeader>Thời gian đã ngồi</TableHeader>
+              <TableHeader className="pr-8">Thời gian đã ngồi</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><div className="h-4 w-32 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
+                  <TableCell className="pl-8"><div className="h-4 w-32 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                   <TableCell><div className="h-4 w-24 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                   <TableCell><div className="h-4 w-16 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
-                  <TableCell><div className="h-4 w-12 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
+                  <TableCell className="pr-8"><div className="h-4 w-12 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 </TableRow>
               ))
             ) : sessions.length === 0 ? (
@@ -67,7 +67,7 @@ export default function LiveSessions() {
             ) : (
               sessions.map((s) => (
                 <TableRow key={s.id}>
-                  <TableCell className="font-semibold text-neutral-900 dark:text-white">
+                  <TableCell className="pl-8 font-semibold text-neutral-900 dark:text-white">
                     {s.subscriber.fullName}
                   </TableCell>
                   <TableCell>
@@ -79,7 +79,7 @@ export default function LiveSessions() {
                   <TableCell className="text-neutral-500">
                     {new Date(s.checkInTime).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="pr-8">
                     <div className="flex items-center gap-1.5 text-primary-600 dark:text-primary-400 font-mono font-medium">
                       <ClockIcon className="h-4 w-4" />
                       {Math.floor(differenceInMinutes(new Date(), new Date(s.checkInTime)))} m

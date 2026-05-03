@@ -6,7 +6,15 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { 
+  MagnifyingGlassIcon, 
+  FunnelIcon,
+  ClipboardDocumentListIcon,
+  UserGroupIcon,
+  GlobeAltIcon,
+  WalletIcon,
+  ChartBarIcon
+} from '@heroicons/react/24/outline';
 
 // Components
 import OrderTable from './_components/OrderTable';
@@ -112,12 +120,12 @@ export default function SubscriptionsAdminPage() {
     setActionLoading(false);
   };
 
-  const tabs: Array<{ key: TabType, label: string, icon: string }> = [
-    { key: 'orders', label: 'Đơn đăng ký', icon: '📋' },
-    { key: 'subscribers', label: 'Hội viên', icon: '👥' },
-    { key: 'live', label: 'Trực tuyến', icon: '🎯' },
-    { key: 'wallet', label: 'Ví tiền', icon: '💳' },
-    { key: 'report', label: 'Báo cáo', icon: '📊' },
+  const tabs: Array<{ key: TabType, label: string, icon: any }> = [
+    { key: 'orders', label: 'Đơn đăng ký', icon: ClipboardDocumentListIcon },
+    { key: 'subscribers', label: 'Hội viên', icon: UserGroupIcon },
+    { key: 'live', label: 'Trực tuyến', icon: GlobeAltIcon },
+    { key: 'wallet', label: 'Ví tiền', icon: WalletIcon },
+    { key: 'report', label: 'Báo cáo', icon: ChartBarIcon },
   ];
 
   return (
@@ -162,7 +170,7 @@ export default function SubscriptionsAdminPage() {
                   : 'text-neutral-500 hover:bg-neutral-200/50 hover:text-neutral-900 dark:hover:bg-neutral-700/50 dark:hover:text-neutral-300'
               }`}
             >
-              <span>{tab.icon}</span>
+              <tab.icon className={`h-5 w-5 ${activeTab === tab.key ? 'text-white' : 'text-neutral-500'}`} />
               {tab.label}
             </button>
           ))}
