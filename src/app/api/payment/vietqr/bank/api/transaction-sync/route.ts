@@ -90,14 +90,24 @@ export async function POST(request: NextRequest) {
         }
 
         // 3) Idempotency: nếu transactionid đã được ghi nhận -> OK luôn
-        const existed = await prisma.payment.findFirst({
+        const existedPayment = await prisma.payment.findFirst({
             where: { transactionId: transactionid },
             select: { id: true, bookingId: true }
         })
 
-        if (existed) {
+        if (existedPayment) {
             console.log('[VietQR Sync] Idempotent hit - already processed:', transactionid)
             return jsonOk('Already processed', transactionid)
+        }
+
+        const existedTransaction = await prisma.transaction.findFirst({
+            where: { reference: transactionid },
+            select: { id: true }
+        })
+
+        if (existedTransaction) {
+            console.log('[VietQR Sync] Idempotent hit (Topup) - already processed:', transactionid)
+            return jsonOk('Already processed topup', transactionid)
         }
 
         // 4) Only process credit transactions
@@ -127,9 +137,9 @@ export async function POST(request: NextRequest) {
             const empId = topupMatch[1]
             console.log('[VietQR Sync] Topup detected for empId:', empId)
 
-            // Tìm subscriber theo empId (myTimeEmployeeId)
+            // Tìm subscriber theo empId (mytimeEmpId)
             const subscriber = await prisma.subscriber.findFirst({
-                where: { myTimeEmployeeId: empId }
+                where: { mytimeEmpId: empId }
             })
 
             if (!subscriber) {
@@ -150,23 +160,6 @@ export async function POST(request: NextRequest) {
                 console.error('[VietQR Sync] Topup wallet failed:', result.error)
                 return jsonError('TOPUP_FAILED', result.error || 'Topup failed', 500)
             }
-
-            // Lưu Payment record để idempotency check lần sau
-            await prisma.payment.create({
-                data: {
-                    transactionId: transactionid,
-                    amount: transactionAmount,
-                    method: 'BANK_TRANSFER',
-                    status: 'COMPLETED',
-                    paidAt: finalPaidAt,
-                    metadata: {
-                        type: 'WALLET_TOPUP',
-                        empId,
-                        subscriberId: subscriber.id,
-                        newBalance: result.newBalance
-                    }
-                }
-            })
 
             console.log('[VietQR Sync] Topup success! New balance:', result.newBalance)
             return jsonOk('Wallet topup processed successfully', transactionid)
