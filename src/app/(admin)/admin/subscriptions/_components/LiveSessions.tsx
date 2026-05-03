@@ -39,7 +39,7 @@ export default function LiveSessions() {
         <Table dense striped>
           <TableHead>
             <TableRow>
-              <TableHeader>Công dân hội viên</TableHeader>
+              <TableHeader>Hội viên</TableHeader>
               <TableHeader>Cơ sở</TableHeader>
               <TableHeader>Vào lúc</TableHeader>
               <TableHeader>Thời gian đã ngồi</TableHeader>
