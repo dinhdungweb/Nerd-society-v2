@@ -34,7 +34,7 @@ const subStatusLabels: Record<string, { label: string; style: string }> = {
     CANCELLED: { label: 'Đã hủy', style: 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-500' },
 }
 
-export default async function NerdPassPage() {
+export default async function MonthlyBeaverPage() {
     const session = await getServerSession(authOptions)
     if (!session) redirect('/login')
 
@@ -92,7 +92,7 @@ export default async function NerdPassPage() {
                             <SparklesIcon className="size-7" />
                         </div>
                         <div>
-                            <h3 className="font-bold text-neutral-900 dark:text-white">Đơn đăng ký Nerd Pass đang được xử lý!</h3>
+                            <h3 className="font-bold text-neutral-900 dark:text-white">Đơn đăng ký Monthly Beaver đang được xử lý!</h3>
                             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
                                 Bạn đã đăng ký thành công. Vui lòng đến quầy để nhận thẻ hội viên hoặc liên hệ nhân viên để được hỗ trợ.
                             </p>
@@ -158,15 +158,15 @@ export default async function NerdPassPage() {
                 <div className="mb-4 flex size-20 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-900/20">
                     <CreditCardIcon className="size-10 text-primary-500" />
                 </div>
-                <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Bạn chưa có Nerd Pass</h2>
+                <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Bạn chưa có Monthly Beaver</h2>
                 <p className="mt-2 max-w-sm text-neutral-500 dark:text-neutral-400">
-                    Đăng ký Nerd Pass để sử dụng không gian linh hoạt, quản lý ví tiền và tận hưởng nhiều ưu đãi.
+                    Đăng ký Monthly Beaver để sử dụng không gian linh hoạt, quản lý ví tiền và tận hưởng nhiều ưu đãi.
                 </p>
                 <Link
-                    href="/nerd-pass"
+                    href="/monthly-beaver"
                     className="mt-6 rounded-xl bg-primary-500 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:bg-primary-600 hover:shadow-xl"
                 >
-                    Đăng ký Nerd Pass ngay
+                    Đăng ký Monthly Beaver ngay
                 </Link>
             </div>
         )
@@ -255,7 +255,7 @@ export default async function NerdPassPage() {
                         <div className="mt-3">
                             <p className="text-neutral-500 dark:text-neutral-400">Không có gói nào đang hoạt động</p>
                             <Link
-                                href="/nerd-pass"
+                                href="/monthly-beaver"
                                 className="mt-3 inline-block rounded-lg bg-primary-50 px-4 py-2 text-sm font-medium text-primary-600 transition-colors hover:bg-primary-100 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/40"
                             >
                                 Đăng ký gói mới

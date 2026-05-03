@@ -64,7 +64,7 @@ export default function TopupModal({ empId, bankConfig: initialBankConfig }: Top
         if (isOpen && !isSuccess) {
             interval = setInterval(async () => {
                 try {
-                    const res = await fetch('/api/profile/nerdpass/check-topup')
+                    const res = await fetch('/api/profile/monthly-beaver/check-topup')
                     if (res.ok) {
                         const data = await res.json()
                         if (data.hasNewTopup) {

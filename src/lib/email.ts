@@ -620,11 +620,11 @@ export async function sendSubscriptionPaidEmail(order: any) {
     const amount = order.amount || 0;
     const formattedAmount = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-    const subject = `[Nerd Society] Xác nhận thanh toán Nerd Pass #${order.orderCode}`;
+    const subject = `[Nerd Society] Xác nhận thanh toán Monthly Beaver #${order.orderCode}`;
     
     const content = `
         <h1 class="h1">${ICONS.check}Thanh toán thành công!</h1>
-        <p class="p">Chào <strong>${customerName}</strong>, chúng tôi đã nhận được thanh toán cho đăng ký Nerd Pass của bạn.</p>
+        <p class="p">Chào <strong>${customerName}</strong>, chúng tôi đã nhận được thanh toán cho đăng ký Monthly Beaver của bạn.</p>
         
         <div class="info-box">
             <div class="info-header">${ICONS.info}Thông tin đơn hàng</div>

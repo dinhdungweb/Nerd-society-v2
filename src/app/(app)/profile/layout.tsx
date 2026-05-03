@@ -38,7 +38,7 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                 region: true,
                 occupation: true,
                 visitPurpose: true,
-                // V4: Subscriber / Nerd Pass
+                // V4: Subscriber / Monthly Beaver
                 subscriber: {
                     select: {
                         walletBalance: true,
@@ -66,7 +66,7 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                             nerdCoinBalance: user?.nerdCoinBalance || 0,
                             nerdCoinTier: user?.nerdCoinTier || 'BRONZE',
                             walletBalance: subscriber?.walletBalance || 0,
-                            hasNerdPass: !!subscriber,
+                            hasMonthlyBeaver: !!subscriber,
                         }}
                     />
 

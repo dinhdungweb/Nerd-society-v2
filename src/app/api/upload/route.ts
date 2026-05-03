@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     try {
         const formData = await request.formData()
         
-        // Hỗ trợ cả single 'file' (từ Nerd Pass) và multiple 'files' (từ Admin)
+        // Hỗ trợ cả single 'file' (từ Monthly Beaver) và multiple 'files' (từ Admin)
         let files: File[] = []
         const filesFromFields = formData.getAll('files') as File[]
         const fileFromField = formData.get('file') as File | null

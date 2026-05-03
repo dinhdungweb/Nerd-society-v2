@@ -35,7 +35,7 @@ async function generateOrderCode(): Promise<string> {
       },
     },
   });
-  return `NP-${dateStr}-${String(count + 1).padStart(3, '0')}`;
+  return `MB-${dateStr}-${String(count + 1).padStart(3, '0')}`;
 }
 
 import { generateOfficialQR, getVietQRConfig } from '@/lib/vietqr';

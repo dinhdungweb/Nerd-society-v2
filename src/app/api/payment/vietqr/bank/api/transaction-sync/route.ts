@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
         // 5) Parse booking/order code from content
         // Pattern 1: NERD-YYYYMMDD-XXX (Booking)
-        // Pattern 2: NP-YYYYMMDD-XXX (Subscription)
+        // Pattern 2: MB-YYYYMMDD-XXX (Subscription)
         const commonMatch = (content || '').match(/(NERD|NP)[- ]?(\d{8})[- ]?(\d{3})/i)
         if (!commonMatch) {
             console.log('[VietQR Sync] No valid code found in content:', content)

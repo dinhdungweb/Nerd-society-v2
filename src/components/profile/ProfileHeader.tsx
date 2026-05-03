@@ -19,13 +19,13 @@ interface ProfileHeaderProps {
         nerdCoinBalance?: number
         nerdCoinTier?: string
         walletBalance?: number
-        hasNerdPass?: boolean
+        hasMonthlyBeaver?: boolean
     }
 }
 
 const navigation = [
     { name: 'Lịch sử đặt lịch', href: '/profile', icon: ClockIcon },
-    { name: 'Nerd Pass & Ví', href: '/profile/nerdpass', icon: CreditCardIcon },
+    { name: 'Monthly Beaver & Ví', href: '/profile/monthly-beaver', icon: CreditCardIcon },
     { name: 'Nerd Member', href: '/profile/nerdcoin', icon: SparklesIcon },
     { name: 'Cài đặt tài khoản', href: '/profile/settings', icon: Cog6ToothIcon },
 ]
@@ -87,8 +87,8 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
                                 <div className="text-lg font-bold">{user.nerdCoinBalance || 0}</div>
                                 <div className="text-xs text-white/60">Nerd Coins</div>
                             </div>
-                            {user.hasNerdPass && (
-                                <Link href="/profile/nerdpass" className="rounded-lg bg-white/10 px-4 py-2 backdrop-blur-sm transition-colors hover:bg-white/20">
+                            {user.hasMonthlyBeaver && (
+                                <Link href="/profile/monthly-beaver" className="rounded-lg bg-white/10 px-4 py-2 backdrop-blur-sm transition-colors hover:bg-white/20">
                                     <div className="text-lg font-bold">{(user.walletBalance || 0).toLocaleString()}đ</div>
                                     <div className="text-xs text-white/60">Số dư Ví</div>
                                 </Link>

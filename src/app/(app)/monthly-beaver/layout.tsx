@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'Nerd Pass — Gói Thành Viên | Nerd Society',
-    description: 'Đăng ký gói thành viên Nerd Pass để check-in nhanh bằng thẻ, hưởng ưu đãi đặc biệt tại Nerd Society.',
+    title: 'Monthly Beaver — Gói Thành Viên | Nerd Society',
+    description: 'Đăng ký gói thành viên Monthly Beaver để check-in nhanh bằng thẻ, hưởng ưu đãi đặc biệt tại Nerd Society.',
 }
 
 async function getSettings() {

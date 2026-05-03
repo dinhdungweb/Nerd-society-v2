@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Trang Nerd Pass — Đăng ký gói thành viên (Public)
+ * Trang Monthly Beaver — Đăng ký gói thành viên (Public)
  * Flow: Chọn gói → Điền info + Selfie → Thanh toán → Xác nhận
  * Phong cách: Đồng bộ với website (Light, Warm Beige Tones)
  */
@@ -76,7 +76,7 @@ const PLANS: PlanInfo[] = [
 
 // ======================== MAIN COMPONENT ========================
 
-export default function NerdPassPage() {
+export default function MonthlyBeaverPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [selectedPlan, setSelectedPlan] = useState<PlanInfo | null>(null);
   const [formData, setFormData] = useState({
@@ -187,10 +187,10 @@ export default function NerdPassPage() {
              <ExclamationCircleIcon className="h-8 w-8 text-amber-500" />
            </div>
            <h2 className="mb-3 text-2xl font-bold text-neutral-900">Yêu cầu đăng nhập</h2>
-           <p className="mb-6 text-neutral-500">Để đăng ký Nerd Pass và quản lý quyền lợi hội viên, bạn cần có tài khoản Nerd Society trước.</p>
+           <p className="mb-6 text-neutral-500">Để đăng ký Monthly Beaver và quản lý quyền lợi hội viên, bạn cần có tài khoản Nerd Society trước.</p>
            <div className="flex flex-col gap-3">
-             <a href="/login?callbackUrl=/nerd-pass" className="w-full rounded-full bg-primary-500 py-3 font-semibold text-white shadow-lg hover:bg-primary-600 transition-all">Đăng nhập ngay</a>
-             <a href="/signup?callbackUrl=/nerd-pass" className="w-full rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700 hover:bg-neutral-50 transition-all">Đăng ký tài khoản mới</a>
+             <a href="/login?callbackUrl=/monthly-beaver" className="w-full rounded-full bg-primary-500 py-3 font-semibold text-white shadow-lg hover:bg-primary-600 transition-all">Đăng nhập ngay</a>
+             <a href="/signup?callbackUrl=/monthly-beaver" className="w-full rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700 hover:bg-neutral-50 transition-all">Đăng ký tài khoản mới</a>
            </div>
         </div>
       </div>
@@ -206,13 +206,13 @@ export default function NerdPassPage() {
           <div className="mb-14 text-center">
             <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary-400/30 bg-primary-100 px-5 py-2 text-sm font-medium text-primary-700">
               <SparklesSolidIcon className="h-4 w-4" />
-              NERD PASS
+              MONTHLY BEAVER
             </span>
             <h1 className="mt-5 text-4xl font-bold text-neutral-900 md:text-5xl">
               Gói Thành Viên
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-500">
-              Đăng ký Nerd Pass để check-in nhanh bằng thẻ, hưởng ưu đãi đặc biệt tại không gian Nerd Society.
+              Đăng ký Monthly Beaver để check-in nhanh bằng thẻ, hưởng ưu đãi đặc biệt tại không gian Nerd Society.
             </p>
           </div>
 
@@ -433,7 +433,7 @@ export default function NerdPassPage() {
 
   // ======================== STEP 3: THANH TOÁN ========================
   if (step === 3 && selectedPlan) {
-    const orderCodePreview = `NP-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-XXX`;
+    const orderCodePreview = `MB-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-XXX`;
 
     return (
       <div className="bg-neutral-50 pt-24 pb-12 px-4">
@@ -626,7 +626,7 @@ export default function NerdPassPage() {
               <ul className="space-y-1.5 text-sm text-neutral-600">
                 <li className="flex items-start gap-2">
                   <MapPinIcon className="h-4 w-4 flex-shrink-0 text-primary-500 mt-0.5" />
-                  Ghé cơ sở <strong className="text-neutral-900">{branchName}</strong> để nhận thẻ Nerd Pass
+                  Ghé cơ sở <strong className="text-neutral-900">{branchName}</strong> để nhận thẻ Monthly Beaver
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckIcon className="h-4 w-4 flex-shrink-0 text-primary-500 mt-0.5" />
