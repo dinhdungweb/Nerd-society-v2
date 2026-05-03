@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { UserIcon, TrashIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { UserIcon, TrashIcon, ClockIcon, ListBulletIcon } from '@heroicons/react/24/outline';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/table';
 import { Badge } from '@/shared/Badge';
 import { Button } from '@/shared/Button';
@@ -11,10 +11,11 @@ interface SubscriberTableProps {
   subscribers: Subscriber[];
   loading: boolean;
   onDelete: (sub: Subscriber) => Promise<void>;
+  onViewHistory: (sub: Subscriber) => void;
   actionLoading: boolean;
 }
 
-export default function SubscriberTable({ subscribers, loading, onDelete, actionLoading }: SubscriberTableProps) {
+export default function SubscriberTable({ subscribers, loading, onDelete, onViewHistory, actionLoading }: SubscriberTableProps) {
   const getStatusBadge = (status: string) => {
     const s = STATUS_LABELS[status] || { label: status, color: 'zinc' };
     return <Badge color={s.color}>{s.label}</Badge>;
@@ -103,14 +104,23 @@ export default function SubscriberTable({ subscribers, loading, onDelete, action
                     )}
                   </TableCell>
                   <TableCell className="pr-8 text-right">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onDelete(sub); }}
-                      disabled={actionLoading}
-                      className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 disabled:opacity-50"
-                      title="Xóa hội viên"
-                    >
-                      <TrashIcon className="h-5 w-5" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onViewHistory(sub); }}
+                        className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/20"
+                        title="Lịch sử check-in"
+                      >
+                        <ListBulletIcon className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(sub); }}
+                        disabled={actionLoading}
+                        className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 disabled:opacity-50"
+                        title="Xóa hội viên"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

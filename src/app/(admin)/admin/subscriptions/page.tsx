@@ -23,6 +23,7 @@ import LiveSessions from './_components/LiveSessions';
 import WalletManagement from './_components/WalletManagement';
 import SubscriptionReport from './_components/SubscriptionReport';
 import OrderDetailsModal from './_components/OrderDetailsModal';
+import SessionHistoryModal from './_components/SessionHistoryModal';
 
 // Constants & Types
 import { TabType, RegistrationOrder, Subscriber } from './_components/constants';
@@ -36,6 +37,7 @@ export default function SubscriptionsAdminPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [historySubscriber, setHistorySubscriber] = useState<{ id: string; name: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -210,6 +212,7 @@ export default function SubscriptionsAdminPage() {
               subscribers={subscribers} 
               loading={loading} 
               onDelete={handleDeleteSubscriber}
+              onViewHistory={(sub) => setHistorySubscriber({ id: sub.id, name: sub.fullName })}
               actionLoading={actionLoading}
             />
           )}
@@ -239,6 +242,12 @@ export default function SubscriptionsAdminPage() {
         onAssignCard={handleAssignCard}
         onCancelOrder={handleCancelOrder}
         actionLoading={actionLoading}
+      />
+
+      <SessionHistoryModal
+        subscriberId={historySubscriber?.id || null}
+        subscriberName={historySubscriber?.name || ''}
+        onClose={() => setHistorySubscriber(null)}
       />
     </div>
   );
