@@ -77,7 +77,7 @@ export default function LiveSessions() {
                     </div>
                   </TableCell>
                   <TableCell className="text-neutral-500">
-                    {new Date(s.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(s.checkInTime).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5 text-primary-600 dark:text-primary-400 font-mono font-medium">
