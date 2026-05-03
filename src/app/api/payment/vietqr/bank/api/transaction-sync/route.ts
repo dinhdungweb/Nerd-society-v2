@@ -107,22 +107,8 @@ export async function POST(request: NextRequest) {
             return jsonOk('Ignored non-credit transaction', transactionid)
         }
 
-        // 5) Parse booking/order code from content
-        // Pattern 1: NERD-YYYYMMDD-XXX (Booking)
-        // Pattern 2: MB-YYYYMMDD-XXX (Subscription)
-        const commonMatch = (content || '').match(/(NERD|NP)[- ]?(\d{8})[- ]?(\d{3})/i)
-        if (!commonMatch) {
-            console.log('[VietQR Sync] No valid code found in content:', content)
-            return jsonOk('No valid code found in transfer content', transactionid)
-        }
-
-        const prefix = commonMatch[1].toUpperCase()
-        const datePart = commonMatch[2]
-        const seqPart = commonMatch[3]
-        const extractedCode = `${prefix}-${datePart}-${seqPart}`
-
-        console.log('[VietQR Sync] Extracted Code:', extractedCode)
-
+        // 5) Parse content to determine transaction type
+        const contentStr = (content || '').trim().toUpperCase()
         const transactionAmount = Number(amount)
         if (!Number.isFinite(transactionAmount) || transactionAmount <= 0) {
             return jsonError('INVALID_AMOUNT', 'Invalid amount', 400)
@@ -135,6 +121,74 @@ export async function POST(request: NextRequest) {
 
         const finalPaidAt = Number.isNaN(paidAt.getTime()) ? new Date() : paidAt
 
+        // ===== Pattern A: Wallet Topup — "TU {empId}" =====
+        const topupMatch = contentStr.match(/TU\s+(\S+)/i)
+        if (topupMatch) {
+            const empId = topupMatch[1]
+            console.log('[VietQR Sync] Topup detected for empId:', empId)
+
+            // Tìm subscriber theo empId (myTimeEmployeeId)
+            const subscriber = await prisma.subscriber.findFirst({
+                where: { myTimeEmployeeId: empId }
+            })
+
+            if (!subscriber) {
+                console.log('[VietQR Sync] No subscriber found for empId:', empId)
+                return jsonOk('No subscriber found for topup empId', transactionid)
+            }
+
+            // Gọi topUpWallet để cộng tiền
+            const { topUpWallet } = await import('@/lib/subscription/wallet-actions')
+            const result = await topUpWallet(
+                subscriber.id,
+                transactionAmount,
+                transactionid,
+                `Nạp ví qua VietQR — ${transactionAmount.toLocaleString()}đ`
+            )
+
+            if (!result.success) {
+                console.error('[VietQR Sync] Topup wallet failed:', result.error)
+                return jsonError('TOPUP_FAILED', result.error || 'Topup failed', 500)
+            }
+
+            // Lưu Payment record để idempotency check lần sau
+            await prisma.payment.create({
+                data: {
+                    transactionId: transactionid,
+                    amount: transactionAmount,
+                    method: 'BANK_TRANSFER',
+                    status: 'COMPLETED',
+                    paidAt: finalPaidAt,
+                    metadata: {
+                        type: 'WALLET_TOPUP',
+                        empId,
+                        subscriberId: subscriber.id,
+                        newBalance: result.newBalance
+                    }
+                }
+            })
+
+            console.log('[VietQR Sync] Topup success! New balance:', result.newBalance)
+            return jsonOk('Wallet topup processed successfully', transactionid)
+        }
+
+        // ===== Pattern B: Booking/Subscription — "NERD-xxx" / "MB-xxx" / "NP-xxx" =====
+        // Pattern 1: NERD-YYYYMMDD-XXX (Booking)
+        // Pattern 2: MB-YYYYMMDD-XXX (Monthly Beaver Subscription — mới)
+        // Pattern 3: NP-YYYYMMDD-XXX (Nerd Pass Subscription — cũ, backward compat)
+        const commonMatch = contentStr.match(/(NERD|MB|NP)[- ]?(\d{8})[- ]?(\d{3})/i)
+        if (!commonMatch) {
+            console.log('[VietQR Sync] No valid code found in content:', content)
+            return jsonOk('No valid code found in transfer content', transactionid)
+        }
+
+        const prefix = commonMatch[1].toUpperCase()
+        const datePart = commonMatch[2]
+        const seqPart = commonMatch[3]
+        const extractedCode = `${prefix}-${datePart}-${seqPart}`
+
+        console.log('[VietQR Sync] Extracted Code:', extractedCode)
+
         // 6) Find entity based on prefix
         if (prefix === 'NERD') {
             const booking = await prisma.booking.findFirst({
@@ -146,7 +200,7 @@ export async function POST(request: NextRequest) {
             })
 
             if (booking) {
-                // 7) Optional amount check (log only)
+                // Optional amount check (log only)
                 if (transactionAmount < booking.depositAmount) {
                     console.log('[VietQR Sync] Amount is lower than depositAmount:', {
                         received: transactionAmount,
@@ -154,7 +208,7 @@ export async function POST(request: NextRequest) {
                     })
                 }
 
-                // 8) Update DB (transaction)
+                // Update DB (transaction)
                 await prisma.$transaction([
                     prisma.booking.update({
                         where: { id: booking.id },
@@ -175,7 +229,7 @@ export async function POST(request: NextRequest) {
                     })
                 ])
 
-                // 9) Send email (best-effort)
+                // Send email (best-effort)
                 const emailRecipient = booking.customerEmail || booking.user?.email
                 if (emailRecipient) {
                     try {
@@ -190,8 +244,8 @@ export async function POST(request: NextRequest) {
                 }
                 return jsonOk('Booking processed successfully', transactionid)
             }
-        } else if (prefix === 'NP') {
-            // Check RegistrationOrder (Subscription)
+        } else if (prefix === 'MB' || prefix === 'NP') {
+            // Check RegistrationOrder (Subscription) — hỗ trợ cả MB (mới) và NP (cũ)
             const regOrder = await prisma.registrationOrder.findFirst({
                 where: {
                     orderCode: extractedCode,
@@ -241,9 +295,6 @@ export async function POST(request: NextRequest) {
 
         console.log('[VietQR Sync] No matching order found for:', extractedCode)
         return jsonOk('No matching order found', transactionid)
-
-
-        return jsonOk('Transaction processed successfully', transactionid)
     } catch (error) {
         console.error('[VietQR Sync] Fatal error:', error)
         // E05: Unknown error
