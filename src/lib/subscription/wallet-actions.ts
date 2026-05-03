@@ -91,3 +91,49 @@ export async function payOutstandingBalance(subscriberId: string, amount: number
         return { success: false, error: error.message };
     }
 }
+
+/**
+ * Tự động cấn trừ công nợ quá giờ bằng số dư ví
+ */
+export async function payDebtWithWallet(subscriberId: string) {
+    try {
+        const subscriber = await prisma.subscriber.findUnique({
+            where: { id: subscriberId }
+        });
+
+        if (!subscriber) throw new Error('Không tìm thấy hội viên');
+        if (subscriber.walletBalance <= 0 || subscriber.outstandingBalance <= 0) {
+            throw new Error('Số dư ví hoặc công nợ không hợp lệ để cấn trừ');
+        }
+
+        const payAmount = Math.min(subscriber.walletBalance, subscriber.outstandingBalance);
+        const newWalletBalance = subscriber.walletBalance - payAmount;
+        const newDebt = subscriber.outstandingBalance - payAmount;
+
+        await prisma.$transaction([
+            prisma.subscriber.update({
+                where: { id: subscriberId },
+                data: { 
+                    walletBalance: newWalletBalance,
+                    outstandingBalance: newDebt
+                }
+            }),
+            prisma.transaction.create({
+                data: {
+                    subscriberId,
+                    type: 'OVERAGE_PAYMENT' as $Enums.TransactionType,
+                    amount: payAmount,
+                    balanceBefore: subscriber.walletBalance,
+                    balanceAfter: newWalletBalance,
+                    description: `Tự động cấn trừ nợ quá giờ từ số dư ví`
+                }
+            })
+        ]);
+
+        revalidatePath('/admin/subscriptions');
+        return { success: true, newDebt, newWalletBalance };
+    } catch (error: any) {
+        console.error('[Wallet] Reconcile failed:', error);
+        return { success: false, error: error.message };
+    }
+}

@@ -5,8 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/shared/Button';
 import Input from '@/shared/Input';
 import { Badge } from '@/shared/Badge';
-import { BanknotesIcon, ArrowUpCircleIcon, UserIcon, WalletIcon } from '@heroicons/react/24/outline';
-import { topUpWallet } from '@/lib/subscription/wallet-actions';
+import { BanknotesIcon, ArrowUpCircleIcon, UserIcon, WalletIcon, DocumentCheckIcon } from '@heroicons/react/24/outline';
+import { topUpWallet, payOutstandingBalance, payDebtWithWallet } from '@/lib/subscription/wallet-actions';
 import { Subscriber } from './constants';
 import NcModal from '@/shared/NcModal';
 
@@ -17,6 +17,7 @@ interface WalletManagementProps {
 
 export default function WalletManagement({ subscribers, onRefresh }: WalletManagementProps) {
   const [showTopup, setShowTopup] = useState<{ id: string; name: string } | null>(null);
+  const [showPayDebt, setShowPayDebt] = useState<{ id: string; name: string; debt: number; wallet: number } | null>(null);
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,6 +29,40 @@ export default function WalletManagement({ subscribers, onRefresh }: WalletManag
       if (res.success) {
         setShowTopup(null);
         setAmount('');
+        onRefresh();
+      } else {
+        alert('Lỗi: ' + res.error);
+      }
+    } catch (err) {
+      alert('Có lỗi xảy ra');
+    }
+    setLoading(false);
+  };
+
+  const handlePayDebtWithWallet = async () => {
+    if (!showPayDebt) return;
+    setLoading(true);
+    try {
+      const res = await payDebtWithWallet(showPayDebt.id);
+      if (res.success) {
+        setShowPayDebt(null);
+        onRefresh();
+      } else {
+        alert('Lỗi: Không thể cấn trừ nợ');
+      }
+    } catch (err) {
+      alert('Có lỗi xảy ra');
+    }
+    setLoading(false);
+  };
+
+  const handlePayDebtCash = async () => {
+    if (!showPayDebt) return;
+    setLoading(true);
+    try {
+      const res = await payOutstandingBalance(showPayDebt.id, showPayDebt.debt, 'CASH_PAYMENT');
+      if (res.success) {
+        setShowPayDebt(null);
         onRefresh();
       } else {
         alert('Lỗi: ' + res.error);
@@ -88,6 +123,71 @@ export default function WalletManagement({ subscribers, onRefresh }: WalletManag
     </div>
   );
 
+  const renderPayDebtContent = () => {
+    if (!showPayDebt) return null;
+    const canReconcile = showPayDebt.wallet > 0;
+    const reconcileAmount = Math.min(showPayDebt.wallet, showPayDebt.debt);
+    
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4 rounded-2xl bg-amber-50 p-4 dark:bg-amber-900/20">
+          <div className="rounded-full bg-amber-100 p-3 dark:bg-amber-900/40">
+            <DocumentCheckIcon className="h-6 w-6 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-amber-600/80">Khách hàng đang nợ</p>
+            <p className="text-xl font-black text-amber-700 dark:text-amber-500">{showPayDebt.debt.toLocaleString()}đ</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {canReconcile ? (
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-emerald-900/20 dark:bg-emerald-900/10">
+              <p className="text-sm font-medium text-emerald-800 dark:text-emerald-400">
+                Ví khách đang có sẵn <strong>{showPayDebt.wallet.toLocaleString()}đ</strong>.
+              </p>
+              <p className="mt-1 text-xs text-emerald-600/80">
+                Bạn có thể tự động cấn trừ <strong>{reconcileAmount.toLocaleString()}đ</strong> từ ví để trả nợ.
+              </p>
+              <Button
+                className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={handlePayDebtWithWallet}
+                loading={loading}
+              >
+                Cấn trừ từ ví
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-neutral-500">
+              Khách không có số dư trong ví. Cần thu tiền mặt hoặc chuyển khoản trực tiếp.
+            </p>
+          )}
+
+          <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-4 dark:border-neutral-800/50 dark:bg-neutral-800/50">
+             <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+               Khách trả tiền mặt / chuyển khoản
+             </p>
+             <p className="mt-1 text-xs text-neutral-500">
+               Đánh dấu là đã thu đủ {showPayDebt.debt.toLocaleString()}đ bên ngoài hệ thống.
+             </p>
+             <Button
+                outline
+                className="mt-4 w-full"
+                onClick={handlePayDebtCash}
+                loading={loading}
+              >
+                Xác nhận đã thu {showPayDebt.debt.toLocaleString()}đ
+              </Button>
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <Button outline onClick={() => setShowPayDebt(null)} disabled={loading}>Đóng</Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -138,14 +238,26 @@ export default function WalletManagement({ subscribers, onRefresh }: WalletManag
                     </div>
                   </TableCell>
                   <TableCell className="pr-8 text-right">
-                    <Button 
-                      outline
-                      onClick={() => setShowTopup({ id: sub.id, name: sub.fullName })}
-                      className="text-xs group-hover:border-primary-500 group-hover:text-primary-600 transition-all"
-                    >
-                      <ArrowUpCircleIcon className="mr-1 h-4 w-4" />
-                      Nạp tiền
-                    </Button>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button 
+                        outline
+                        onClick={() => setShowTopup({ id: sub.id, name: sub.fullName })}
+                        className="text-xs group-hover:border-primary-500 group-hover:text-primary-600 transition-all"
+                      >
+                        <ArrowUpCircleIcon className="mr-1 h-4 w-4" />
+                        Nạp
+                      </Button>
+                      {sub.outstandingBalance > 0 && (
+                        <Button 
+                          outline
+                          onClick={() => setShowPayDebt({ id: sub.id, name: sub.fullName, debt: sub.outstandingBalance, wallet: sub.walletBalance || 0 })}
+                          className="text-xs group-hover:border-amber-500 group-hover:text-amber-600 transition-all border-amber-200 text-amber-600 dark:border-amber-900/50 dark:text-amber-500"
+                        >
+                          <DocumentCheckIcon className="mr-1 h-4 w-4" />
+                          Thu nợ
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -159,6 +271,14 @@ export default function WalletManagement({ subscribers, onRefresh }: WalletManag
         onCloseModal={() => setShowTopup(null)}
         renderContent={renderTopupContent}
         modalTitle="Nạp tiền vào ví hội viên"
+        contentExtraClass="max-w-md"
+      />
+
+      <NcModal
+        isOpenProp={!!showPayDebt}
+        onCloseModal={() => setShowPayDebt(null)}
+        renderContent={renderPayDebtContent}
+        modalTitle={`Thu nợ quá giờ — ${showPayDebt?.name}`}
         contentExtraClass="max-w-md"
       />
     </div>
