@@ -110,6 +110,15 @@ export default function OrderDetailsModal({
                 <p className="text-sm font-bold text-primary-600 dark:text-primary-400">{(order.amount).toLocaleString()}đ</p>
               </div>
             </div>
+            {order.assignedCardNo && (
+              <div className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 dark:border-emerald-900/20 dark:bg-emerald-900/10 col-span-1 sm:col-span-2">
+                <CreditCardIcon className="h-5 w-5 text-emerald-500" />
+                <div>
+                  <p className="text-[10px] uppercase text-emerald-500 font-bold">Mã thẻ đã gán</p>
+                  <p className="text-sm font-black text-emerald-700 dark:text-emerald-400 tracking-widest">{order.assignedCardNo}</p>
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="pt-2">
