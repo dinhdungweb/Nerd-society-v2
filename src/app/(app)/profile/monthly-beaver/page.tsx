@@ -297,7 +297,12 @@ export default async function MonthlyBeaverPage() {
                                     </div>
                                     <div>
                                         <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                                            {tx.type === 'TOPUP' ? 'Nạp tiền' : tx.type === 'DEDUCT' ? 'Trừ tiền' : tx.type === 'REFUND' ? 'Hoàn tiền' : tx.type}
+                                            {tx.type === 'TOPUP' ? 'Nạp tiền' : 
+                                             tx.type === 'DEDUCT' ? 'Trừ tiền' : 
+                                             tx.type === 'REFUND' ? 'Hoàn tiền' : 
+                                             tx.type === 'OVERAGE_PAYMENT' ? 'Thanh toán nợ' :
+                                             tx.type === 'OVERAGE_CHARGE' ? 'Phí quá giờ' :
+                                             tx.type}
                                         </p>
                                         <p className="text-xs text-neutral-400">
                                             {new Date(tx.createdAt).toLocaleString('vi-VN')}
