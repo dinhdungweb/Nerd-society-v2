@@ -8,14 +8,15 @@ import { prisma } from '@/lib/prisma';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { searchParams } = new URL(request.url);
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
-    const where: any = { subscriberId: params.id };
+    const where: any = { subscriberId: id };
 
     if (from || to) {
       where.checkInTime = {};
