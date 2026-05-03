@@ -71,6 +71,16 @@ export async function callMytime<T>(name: string, params: (string | number)[]): 
 
     try {
       const data = JSON.parse(text) as MytimeResponse<T>;
+      
+      // Fix lỗi mảng lồng nhau từ MyTime API (VD: [ [{...}] ])
+      if (data.result === 'success' && Array.isArray(data.data) && data.data.length > 0 && Array.isArray(data.data[0])) {
+        data.data = data.data.flat() as unknown as T;
+      }
+      // Trường hợp mảng rỗng lồng nhau [ [] ]
+      if (data.result === 'success' && Array.isArray(data.data) && data.data.length === 1 && Array.isArray(data.data[0]) && data.data[0].length === 0) {
+        data.data = [] as unknown as T;
+      }
+
       if (data.result === 'error') console.error(`[MyTime API] ${name} error:`, data.reason);
       return data;
     } catch (parseErr) {
