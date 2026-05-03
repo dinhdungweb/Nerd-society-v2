@@ -4,7 +4,7 @@
  */
 
 
-const MYTIME_BASE_URL = process.env.MYTIME_BASE_URL || 'http://htm.vietjewelers.com:7900/api/hpa/Paradise';
+const MYTIME_ENDPOINT = process.env.MYTIME_BASE_URL || process.env.MYTIME_URL_HTM || 'http://htm.vietjewelers.com:7900/api/hpa/Paradise';
 const MYTIME_USER = 'admin';
 const MYTIME_PASS = '123';
 
@@ -45,12 +45,12 @@ function formatDate(date: Date | string): string {
 // Mapping Serial Number → Branch
 const DEVICE_BRANCH_MAP: Record<string, string> = {
   '8116250900027': 'HTM', // Máy 1: Hồ Tùng Mậu
-  'ĐIỀN_SỐ_SERIAL_MÁY_2': 'TS',  // Máy 2: Tây Sơn (Ví dụ: '82212345678')
+  '8116254601505': 'TS',  // Máy 2: Tây Sơn
 };
 
 export async function callMytime<T>(name: string, params: (string | number)[]): Promise<MytimeResponse<T>> {
   const paramStr = JSON.stringify(params);
-  const url = `${MYTIME_BASE_URL}?user=${MYTIME_USER}&pass=${MYTIME_PASS}&name=${name}&param=${paramStr}`;
+  const url = `${MYTIME_ENDPOINT}?user=${MYTIME_USER}&pass=${MYTIME_PASS}&name=${name}&param=${paramStr}`;
 
   try {
     const res = await fetch(url, {
@@ -113,10 +113,6 @@ export async function importEmployee(params: {
   return callMytime('sp_ImportEmployeeInfor', args);
 }
 
-/**
- * 2. Cập nhật trạng thái nhân viên (API_UpdateEmployeeStatus)
- * Dùng để khóa thẻ (Mã 20) hoặc mở thẻ (Mã 0)
- */
 export async function updateEmployeeStatus(employeeId: string, status: 'ACTIVE' | 'LOCKED' | 'RESIGNED' = 'ACTIVE') {
   const statusMap: Record<string, string> = {
     ACTIVE: '0',
@@ -184,10 +180,6 @@ export async function deleteEmployee(employeeId: string) {
  */
 export function getBranchFromDevice(snOrAlias: string): string {
   if (DEVICE_BRANCH_MAP[snOrAlias]) return DEVICE_BRANCH_MAP[snOrAlias];
-
-  const alias = snOrAlias.toLowerCase();
-  if (alias.includes('htm') || alias.includes('hồ tùng mậu')) return 'HTM';
-  if (alias.includes('ts') || alias.includes('tây sơn')) return 'TS';
 
   return 'HTM';
 }

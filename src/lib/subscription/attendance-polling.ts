@@ -14,9 +14,13 @@ export async function pollAttendanceRecords() {
     const toDate = format(now, 'yyyy-MM-dd HH:mm:ss');
 
     try {
-        const response = await getAttendanceList(fromDate, toDate);
+        console.log('[Polling] Fetching attendance from MyTime (Global)');
+        const response = await getAttendanceList(fromDate, toDate, '-1');
+        
         if (response.result !== 'success' || !Array.isArray(response.data)) {
-            console.warn('[Polling] MyTime API returned error or no data', response);
+            if (response.reason !== 'Connection failed') {
+                console.warn('[Polling] MyTime API returned error or no data', response);
+            }
             return;
         }
 
@@ -49,7 +53,7 @@ export async function pollAttendanceRecords() {
             });
         }
     } catch (error) {
-        console.error('[Polling] Fatal error polling attendance:', error);
+        console.error('[Polling] Error polling attendance:', error);
     }
 }
 
