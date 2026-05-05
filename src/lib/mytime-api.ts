@@ -194,10 +194,32 @@ export function getBranchFromDevice(snOrAlias: string): string {
   return 'HTM';
 }
 
-/**
- * Tạo EmployeeID tiếp theo (NS001, NS002...)
- */
 export async function generateNextEmployeeId(prisma: any): Promise<string> {
-  const count = await prisma.subscriber.count();
-  return `NS${String(count + 1).padStart(3, '0')}`;
+  const subscribers = await prisma.subscriber.findMany({
+    where: {
+      mytimeEmpId: {
+        startsWith: 'NS'
+      }
+    },
+    select: {
+      mytimeEmpId: true
+    }
+  });
+
+  if (subscribers.length === 0) {
+    return 'NS001';
+  }
+
+  let maxNum = 0;
+  for (const sub of subscribers) {
+    if (sub.mytimeEmpId) {
+      const numStr = sub.mytimeEmpId.replace('NS', '');
+      const num = parseInt(numStr, 10);
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+      }
+    }
+  }
+
+  return `NS${String(maxNum + 1).padStart(3, '0')}`;
 }
