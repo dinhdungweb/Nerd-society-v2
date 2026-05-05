@@ -663,35 +663,36 @@ export default function MonthlyBeaverPage() {
 
 function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => void }) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
-  const [streaming, setStreaming] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState('');
+
+  // Gắn stream vào video element mỗi khi stream thay đổi hoặc video mount
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch((e) => console.error('Video play error:', e));
+    }
+  }, [stream]);
 
   const startCamera = async () => {
     setCameraError('');
-    
-    // Kiểm tra Secure Context (Camera yêu cầu HTTPS hoặc localhost)
+
     if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCameraError('Trình duyệt chặn mở camera do kết nối không bảo mật (yêu cầu HTTPS). Vui lòng dùng nút "Chọn ảnh".');
       return;
     }
 
     try {
-      // Thử mở camera trước, bỏ qua width/height vì một số ĐT bị lỗi OverconstrainedError
-      let stream;
+      let newStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        newStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user' },
         });
       } catch (fallbackErr) {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        newStream = await navigator.mediaDevices.getUserMedia({ video: true });
       }
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        // Bắt buộc gọi play() để fix lỗi màn hình đen trên iOS Safari
-        videoRef.current.play().catch(e => console.error("Video play error:", e));
-        setStreaming(true);
-      }
+
+      setStream(newStream);
     } catch (err: any) {
       console.error('Camera Error:', err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -724,11 +725,20 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
         const url = URL.createObjectURL(blob);
         onCapture(url, blob);
 
-        const stream = video.srcObject as MediaStream;
+        // Stop stream
         stream?.getTracks().forEach((t) => t.stop());
-        setStreaming(false);
+        setStream(null);
       }
     }, 'image/jpeg', 0.85);
+  };
+
+  // Hàm handle file upload
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      onCapture(url, file);
+    }
   };
 
   return (
@@ -747,46 +757,37 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
             <label className="inline-flex items-center gap-2 cursor-pointer rounded-full border border-neutral-300 bg-white px-6 py-2.5 text-sm text-neutral-600 hover:border-primary-400 hover:bg-primary-50 transition-colors">
               <PhotoIcon className="h-4 w-4" />
               Chọn ảnh
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const url = URL.createObjectURL(file);
-                    onCapture(url, file);
-                  }
-                }}
-              />
+              <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             </label>
           </div>
         </div>
       )}
 
-      {/* Container video (luôn render để videoRef.current có giá trị) */}
-      <div className={(!streaming || cameraError) ? "hidden" : "block"}>
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="mx-auto h-48 w-48 rounded-2xl object-cover border-2 border-primary-300 shadow-sm"
-        />
-        <div className="mt-3 flex justify-center gap-2">
-          <button
-            onClick={capture}
-            className="inline-flex items-center gap-2 rounded-full bg-primary-500 px-8 py-2 text-sm font-medium text-white shadow-lg shadow-primary-500/25 hover:bg-primary-600 transition-colors"
-          >
-            <CameraIcon className="h-4 w-4" />
-            Chụp
-          </button>
+      {/* Hiển thị Video chỉ khi có stream và không có lỗi */}
+      {stream && !cameraError && (
+        <div className="block">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="mx-auto h-48 w-48 rounded-2xl object-cover border-2 border-primary-300 shadow-sm bg-black"
+          />
+          <div className="mt-3 flex justify-center gap-2">
+            <button
+              onClick={capture}
+              className="inline-flex items-center gap-2 rounded-full bg-primary-500 px-8 py-2 text-sm font-medium text-white shadow-lg shadow-primary-500/25 hover:bg-primary-600 transition-colors"
+            >
+              <CameraIcon className="h-4 w-4" />
+              Chụp
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-neutral-400">Nhìn thẳng vào camera · Đủ ánh sáng · Không đeo khẩu trang</p>
         </div>
-        <p className="mt-2 text-xs text-neutral-400">Nhìn thẳng vào camera · Đủ ánh sáng · Không đeo khẩu trang</p>
-      </div>
+      )}
 
-      {/* Button Mở camera nếu chưa streaming và không có lỗi */}
-      {!streaming && !cameraError && (
+      {/* Nút Mở Camera khi chưa có stream và không có lỗi */}
+      {!stream && !cameraError && (
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={startCamera}
@@ -798,18 +799,7 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
           <label className="inline-flex items-center gap-2 cursor-pointer rounded-full border border-neutral-300 bg-white px-6 py-2.5 text-sm text-neutral-600 hover:border-primary-400 hover:bg-primary-50 transition-colors">
             <PhotoIcon className="h-4 w-4" />
             Chọn ảnh
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const url = URL.createObjectURL(file);
-                  onCapture(url, file);
-                }
-              }}
-            />
+            <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </label>
         </div>
       )}
