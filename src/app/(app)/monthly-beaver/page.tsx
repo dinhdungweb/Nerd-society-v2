@@ -663,38 +663,78 @@ export default function MonthlyBeaverPage() {
 
 function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => void }) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
   const [cameraError, setCameraError] = useState('');
 
-  // Gắn stream vào video element mỗi khi stream thay đổi hoặc video mount
+  // Dừng camera khi component unmount.
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.play().catch((e) => console.error('Video play error:', e));
-    }
-  }, [stream]);
+    return () => {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    };
+  }, []);
+
+  const stopCamera = React.useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setStream(null);
+    setIsVideoReady(false);
+  }, []);
+
+  // Gắn stream vào video element mỗi khi stream thay đổi hoặc video mount.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !stream) return;
+
+    video.srcObject = stream;
+    video.play().catch((e) => {
+      console.error('Video play error:', e);
+      setCameraError('Trình duyệt đã cấp quyền camera nhưng không phát được hình. Vui lòng thử lại hoặc chọn ảnh.');
+      stopCamera();
+    });
+
+    return () => {
+      if (video.srcObject === stream) {
+        video.srcObject = null;
+      }
+    };
+  }, [stream, stopCamera]);
 
   const startCamera = async () => {
     setCameraError('');
+    setIsCameraStarting(true);
+    setIsVideoReady(false);
+    stopCamera();
 
     if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCameraError('Trình duyệt chặn mở camera do kết nối không bảo mật (yêu cầu HTTPS). Vui lòng dùng nút "Chọn ảnh".');
+      setIsCameraStarting(false);
       return;
     }
 
     try {
-      let newStream;
+      let newStream: MediaStream;
       try {
         newStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' },
+          video: {
+            facingMode: { ideal: 'user' },
+            width: { ideal: 720 },
+            height: { ideal: 720 },
+          },
+          audio: false,
         });
       } catch (fallbackErr) {
-        newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       }
 
+      streamRef.current = newStream;
       setStream(newStream);
     } catch (err: any) {
       console.error('Camera Error:', err);
+      stopCamera();
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         setCameraError('Bạn đã chặn quyền truy cập camera. Vui lòng cấp quyền lại trong cài đặt trình duyệt.');
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
@@ -702,11 +742,13 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
       } else {
         setCameraError('Lỗi: ' + (err.message || 'Không thể truy cập camera. Vui lòng thử lại.'));
       }
+    } finally {
+      setIsCameraStarting(false);
     }
   };
 
   const capture = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !isVideoReady) return;
 
     const canvas = document.createElement('canvas');
     canvas.width = 500;
@@ -715,6 +757,8 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
     if (!ctx) return;
 
     const video = videoRef.current;
+    if (!video.videoWidth || !video.videoHeight) return;
+
     const size = Math.min(video.videoWidth, video.videoHeight);
     const sx = (video.videoWidth - size) / 2;
     const sy = (video.videoHeight - size) / 2;
@@ -726,10 +770,14 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
         onCapture(url, blob);
 
         // Stop stream
-        stream?.getTracks().forEach((t) => t.stop());
-        setStream(null);
+        stopCamera();
       }
     }, 'image/jpeg', 0.85);
+  };
+
+  const handleVideoReady = () => {
+    setIsVideoReady(true);
+    videoRef.current?.play().catch((e) => console.error('Video play error:', e));
   };
 
   // Hàm handle file upload
@@ -763,23 +811,40 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
         </div>
       )}
 
-      {/* Hiển thị Video chỉ khi có stream và không có lỗi */}
-      {stream && !cameraError && (
+      {/* Hiển thị video khi đang mở camera hoặc đã có stream */}
+      {(isCameraStarting || stream) && !cameraError && (
         <div className="block">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="mx-auto h-48 w-48 rounded-2xl object-cover border-2 border-primary-300 shadow-sm bg-black"
-          />
+          <div className="relative mx-auto h-48 w-48 overflow-hidden rounded-2xl border-2 border-primary-300 bg-black shadow-sm">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              onLoadedMetadata={handleVideoReady}
+              onCanPlay={handleVideoReady}
+              className="h-full w-full object-cover"
+            />
+            {(isCameraStarting || !isVideoReady) && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 text-white">
+                <ArrowPathIcon className="h-6 w-6 animate-spin" />
+                <span className="text-xs font-medium">Đang mở camera...</span>
+              </div>
+            )}
+          </div>
           <div className="mt-3 flex justify-center gap-2">
             <button
               onClick={capture}
-              className="inline-flex items-center gap-2 rounded-full bg-primary-500 px-8 py-2 text-sm font-medium text-white shadow-lg shadow-primary-500/25 hover:bg-primary-600 transition-colors"
+              disabled={!isVideoReady}
+              className="inline-flex items-center gap-2 rounded-full bg-primary-500 px-8 py-2 text-sm font-medium text-white shadow-lg shadow-primary-500/25 hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
             >
               <CameraIcon className="h-4 w-4" />
               Chụp
+            </button>
+            <button
+              onClick={stopCamera}
+              className="inline-flex items-center gap-2 rounded-full border border-neutral-300 bg-white px-5 py-2 text-sm font-medium text-neutral-600 hover:border-primary-400 hover:bg-primary-50 transition-colors"
+            >
+              Hủy
             </button>
           </div>
           <p className="mt-2 text-xs text-neutral-400">Nhìn thẳng vào camera · Đủ ánh sáng · Không đeo khẩu trang</p>
@@ -787,7 +852,7 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
       )}
 
       {/* Nút Mở Camera khi chưa có stream và không có lỗi */}
-      {!stream && !cameraError && (
+      {!stream && !isCameraStarting && !cameraError && (
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={startCamera}
