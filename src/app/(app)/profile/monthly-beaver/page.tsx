@@ -64,13 +64,22 @@ export default async function MonthlyBeaverPage() {
 
     // Nếu chưa là hội viên → kiểm tra có đơn hàng đang chờ xử lý không
     if (!subscriber) {
+        const conditions: any[] = [{ userId: session.user.id }];
+        
+        const nullUserConditions: any[] = [];
+        if (user?.email) nullUserConditions.push({ email: user.email });
+        if (user?.phone) nullUserConditions.push({ phone: user.phone });
+
+        if (nullUserConditions.length > 0) {
+            conditions.push({
+                userId: null,
+                OR: nullUserConditions
+            });
+        }
+
         const pendingOrders = await prisma.registrationOrder.findMany({
             where: {
-                OR: [
-                    { userId: session.user.id },
-                    { email: user?.email },
-                    { phone: user?.phone || '' },
-                ],
+                OR: conditions,
                 orderStatus: { in: ['PAID', 'PENDING_PAYMENT'] },
             },
             orderBy: { createdAt: 'desc' },

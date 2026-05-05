@@ -27,6 +27,20 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Check if phone already exists
+        if (phone) {
+            const existingPhone = await prisma.user.findFirst({
+                where: { phone },
+            })
+
+            if (existingPhone) {
+                return NextResponse.json(
+                    { error: 'Số điện thoại đã được sử dụng bởi một tài khoản khác' },
+                    { status: 400 }
+                )
+            }
+        }
+
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 12)
 
@@ -63,6 +77,33 @@ export async function POST(request: NextRequest) {
                 userId: user.id,
             },
         })
+
+        // AUTO-SYNC: Registration Orders
+        await prisma.registrationOrder.updateMany({
+            where: {
+                userId: null,
+                OR: [
+                    { email: email },
+                    ...(phone ? [{ phone: phone }] : [])
+                ]
+            },
+            data: {
+                userId: user.id,
+            },
+        })
+
+        // AUTO-SYNC: Subscriber Profile
+        if (phone) {
+            await prisma.subscriber.updateMany({
+                where: {
+                    userId: null,
+                    phone: phone,
+                },
+                data: {
+                    userId: user.id,
+                },
+            })
+        }
 
         return NextResponse.json(
             { message: 'Đăng ký thành công', user },
