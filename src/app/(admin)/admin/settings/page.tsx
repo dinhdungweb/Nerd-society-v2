@@ -26,6 +26,8 @@ interface GeneralSettings {
     // Email toggle settings
     emailBookingConfirmation: boolean
     emailBookingPending: boolean
+    emailSubscriptionPending: boolean
+    emailSubscriptionPaid: boolean
     emailPasswordReset: boolean
     emailBookingCancelled: boolean
     emailCheckinReminder: boolean
@@ -74,6 +76,8 @@ export default function AdminSettingsPage() {
         // Email defaults - all enabled
         emailBookingConfirmation: true,
         emailBookingPending: true,
+        emailSubscriptionPending: true,
+        emailSubscriptionPaid: true,
         emailPasswordReset: true,
         emailBookingCancelled: true,
         emailCheckinReminder: true,
@@ -98,7 +102,7 @@ export default function AdminSettingsPage() {
             const data = await res.json()
             if (res.ok && Object.keys(data).length > 0) {
                 // Convert string booleans to actual booleans
-                const booleanKeys = ['emailBookingConfirmation', 'emailBookingPending', 'emailPasswordReset', 'emailBookingCancelled', 'emailCheckinReminder']
+                const booleanKeys = ['emailBookingConfirmation', 'emailBookingPending', 'emailSubscriptionPending', 'emailSubscriptionPaid', 'emailPasswordReset', 'emailBookingCancelled', 'emailCheckinReminder']
                 const processedData = { ...data }
                 booleanKeys.forEach(key => {
                     if (key in processedData) {
@@ -577,6 +581,39 @@ export default function AdminSettingsPage() {
                                     type="checkbox"
                                     checked={settings.emailBookingPending}
                                     onChange={(e) => handleChange('emailBookingPending', e.target.checked)}
+                                    className="peer sr-only"
+                                />
+                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                            </label>
+                        </div>
+
+                        {/* Monthly Beaver Pending */}
+                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                            <div>
+                                <p className="font-medium text-neutral-900 dark:text-white">Tiếp nhận đăng ký Monthly Beaver</p>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi khách tạo đơn đăng ký Monthly Beaver mới</p>
+                            </div>
+                            <label className="relative inline-flex cursor-pointer items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.emailSubscriptionPending}
+                                    onChange={(e) => handleChange('emailSubscriptionPending', e.target.checked)}
+                                    className="peer sr-only"
+                                />
+                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                            </label>
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                            <div>
+                                <p className="font-medium text-neutral-900 dark:text-white">Xác nhận thanh toán Monthly Beaver</p>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi đơn Monthly Beaver đã thanh toán</p>
+                            </div>
+                            <label className="relative inline-flex cursor-pointer items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.emailSubscriptionPaid}
+                                    onChange={(e) => handleChange('emailSubscriptionPaid', e.target.checked)}
                                     className="peer sr-only"
                                 />
                                 <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>

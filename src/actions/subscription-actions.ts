@@ -9,6 +9,11 @@ import { importEmployee, deleteEmployee, generateNextEmployeeId } from '@/lib/my
 import { revalidatePath } from 'next/cache';
 import { ensureUserWalletAccount } from '@/lib/wallet-account';
 import { refundRegistrationOrderToWallet } from '@/lib/wallet-ledger';
+import {
+  sendAdminNewSubscriptionOrderEmail,
+  sendSubscriptionOrderEmail,
+  sendSubscriptionPaidEmail,
+} from '@/lib/email';
 
 // ============= REGISTRATION (Khách đăng ký online) =============
 
@@ -100,6 +105,13 @@ export async function createRegistrationOrder(data: {
       qrUrl = `https://img.vietqr.io/image/${bankConfig.bankCode}-${bankConfig.accountNumber}-compact2.png?amount=${amount}&addInfo=${orderCode}&accountName=${encodeURIComponent(bankConfig.accountName)}`;
     }
   }
+
+  Promise.all([
+    sendSubscriptionOrderEmail(order),
+    sendAdminNewSubscriptionOrderEmail(order),
+  ]).catch((error) => {
+    console.error('[createRegistrationOrder] Email error:', error);
+  });
 
   return { 
     success: true, 
@@ -282,6 +294,12 @@ export async function cancelOrder(orderId: string, reason?: string) {
       details: { reason, refund: refundResult },
     },
   });
+
+  try {
+    await sendSubscriptionPaidEmail(order);
+  } catch (emailError) {
+    console.error('[confirmPayment] Subscription email error:', emailError);
+  }
 
   revalidatePath('/admin/subscriptions');
   return { success: true, refund: refundResult };

@@ -537,6 +537,115 @@ export async function sendAdminNewBookingEmail(booking: any) {
     await sendEmail({ to: adminEmail, subject, html })
 }
 
+function getSubscriptionPlanName(planType: string) {
+    if (planType === 'MONTHLY_UNLIMITED') return 'Gói Tháng Unlimited'
+    if (planType === 'MONTHLY_LIMITED') return 'Gói Tháng Limited'
+    if (planType === 'WEEKLY_LIMITED') return 'Gói Tuần Limited'
+    return planType || 'Monthly Beaver'
+}
+
+function getSubscriptionBranchName(branchPrimary?: string | null) {
+    if (branchPrimary === 'TS') return 'Tây Sơn'
+    if (branchPrimary === 'HTM') return 'Hồ Tùng Mậu'
+    return branchPrimary || 'Nerd Society'
+}
+
+function getSubscriptionOrderVariables(order: any) {
+    const amount = order.amount || 0
+    return {
+        customerName: order.fullName || 'Quý khách',
+        orderCode: order.orderCode || '',
+        planName: getSubscriptionPlanName(order.planType),
+        branchName: getSubscriptionBranchName(order.branchPrimary),
+        phone: order.phone || 'N/A',
+        email: order.email || 'N/A',
+        paymentMethod: order.paymentMethod === 'online' ? 'Chuyển khoản VietQR' : (order.paymentMethod || 'N/A'),
+        amount: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount),
+        orderUrl: `${process.env.NEXTAUTH_URL}/profile/monthly-beaver`,
+        adminUrl: `${process.env.NEXTAUTH_URL}/admin/subscriptions`,
+    }
+}
+
+export async function sendSubscriptionOrderEmail(order: any) {
+    const enabled = await isEmailEnabled('emailSubscriptionPending')
+    if (!enabled) return
+
+    const recipientEmail = order.email
+    if (!recipientEmail) return
+
+    const variables = getSubscriptionOrderVariables(order)
+    const dbTemplate = await getEmailTemplate('subscription_pending')
+
+    let subject: string
+    let html: string
+
+    if (dbTemplate) {
+        subject = replaceVariables(dbTemplate.subject, variables)
+        html = replaceVariables(dbTemplate.content, variables)
+    } else {
+        subject = `[Nerd Society] Tiếp nhận đăng ký Monthly Beaver #${variables.orderCode}`
+        const content = `
+            <h1 class="h1">${ICONS.info}Đã nhận đăng ký Monthly Beaver</h1>
+            <p class="p">Xin chào <strong>${variables.customerName}</strong>,</p>
+            <p class="p">Chúng tôi đã tiếp nhận đăng ký Monthly Beaver của bạn. Vui lòng hoàn tất thanh toán để Nerd Society xác nhận đơn và chuẩn bị thẻ thành viên.</p>
+
+            <div class="info-box">
+                <div class="info-header">${ICONS.info}Thông tin đăng ký</div>
+                <div class="info-item"><span class="info-label">Mã đơn</span><span class="info-value">#${variables.orderCode}</span></div>
+                <div class="info-item"><span class="info-label">Gói đăng ký</span><span class="info-value">${variables.planName}</span></div>
+                <div class="info-item"><span class="info-label">Cơ sở nhận thẻ</span><span class="info-value">${variables.branchName}</span></div>
+                <div class="info-item"><span class="info-label">Phương thức</span><span class="info-value">${variables.paymentMethod}</span></div>
+                <div class="info-item"><span class="info-label">Số tiền</span><span class="info-value" style="color: #9B7850; font-weight: 700;">${variables.amount}</span></div>
+            </div>
+
+            <div style="background-color: #FFFBEB; border-radius: 14px; padding: 20px; border: 1px solid #FEF3C7; margin-bottom: 24px;">
+                <p class="p" style="margin-bottom: 0; font-size: 15px; color: #92400E;">
+                    <strong>Nội dung chuyển khoản:</strong> ${variables.orderCode}
+                </p>
+            </div>
+
+            <div style="text-align: center; margin-top: 40px;">
+                <a href="${variables.orderUrl}" class="button">Xem Monthly Beaver</a>
+            </div>
+        `
+        html = getBaseTemplate(content, subject)
+    }
+
+    await sendEmail({ to: recipientEmail, subject, html })
+}
+
+export async function sendAdminNewSubscriptionOrderEmail(order: any) {
+    const adminEmail = await getSmtpSetting('adminNotificationEmail', undefined)
+    if (!adminEmail) return
+
+    const variables = getSubscriptionOrderVariables(order)
+    const subject = `[ADMIN] Đăng ký Monthly Beaver mới #${variables.orderCode} - ${variables.customerName}`
+
+    const content = `
+        <h1 class="h1" style="color: #9B7850;">Đăng ký Monthly Beaver mới</h1>
+        <p class="p">Hệ thống vừa nhận một đơn đăng ký Monthly Beaver mới.</p>
+
+        <div class="info-box">
+            <div class="info-header">${ICONS.info}Thông tin chi tiết</div>
+            <div class="info-item"><span class="info-label">Mã đơn</span><span class="info-value">#${variables.orderCode}</span></div>
+            <div class="info-item"><span class="info-label">Khách hàng</span><span class="info-value">${variables.customerName}</span></div>
+            <div class="info-item"><span class="info-label">SĐT</span><span class="info-value">${variables.phone}</span></div>
+            <div class="info-item"><span class="info-label">Email</span><span class="info-value">${variables.email}</span></div>
+            <div class="info-item"><span class="info-label">Gói đăng ký</span><span class="info-value">${variables.planName}</span></div>
+            <div class="info-item"><span class="info-label">Cơ sở nhận thẻ</span><span class="info-value">${variables.branchName}</span></div>
+            <div class="info-item"><span class="info-label">Thanh toán</span><span class="info-value">${variables.paymentMethod}</span></div>
+            <div class="info-item"><span class="info-label">Số tiền</span><span class="info-value" style="color: #9B7850; font-weight: 700;">${variables.amount}</span></div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="${variables.adminUrl}" class="button">Xem trong Admin</a>
+        </div>
+    `
+
+    const html = getBaseTemplate(content, subject)
+    await sendEmail({ to: adminEmail, subject, html })
+}
+
 export async function sendApplicationEmail(application: any) {
     const enabled = await isEmailEnabled('emailApplicationReceived')
     if (!enabled) return
