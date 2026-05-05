@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Validate method
-        const validMethods: PaymentMethod[] = ['CASH', 'VNPAY', 'MOMO', 'ZALOPAY', 'BANK_TRANSFER']
+        const validMethods: PaymentMethod[] = ['CASH', 'VNPAY', 'MOMO', 'ZALOPAY', 'BANK_TRANSFER', 'WALLET']
         if (!validMethods.includes(method)) {
             return NextResponse.json(
                 { error: 'Invalid payment method' },
@@ -87,6 +87,9 @@ export async function POST(request: NextRequest) {
                 break
             case 'CASH':
                 // No action needed, customer will pay at counter
+                break
+            case 'WALLET':
+                // Actual wallet deduction is handled by /api/payment/wallet
                 break
         }
 

@@ -38,12 +38,18 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                 region: true,
                 occupation: true,
                 visitPurpose: true,
+                wallet: {
+                    select: {
+                        balance: true,
+                    }
+                },
                 // V4: Subscriber / Monthly Beaver
                 subscriber: {
                     select: {
                         walletBalance: true,
                         outstandingBalance: true,
                         mytimeEmpId: true,
+                        walletCode: true,
                     }
                 }
             },
@@ -65,8 +71,7 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                             avatar: user?.avatar || null,
                             nerdCoinBalance: user?.nerdCoinBalance || 0,
                             nerdCoinTier: user?.nerdCoinTier || 'BRONZE',
-                            walletBalance: subscriber?.walletBalance || 0,
-                            hasMonthlyBeaver: !!subscriber,
+                            walletBalance: user?.wallet?.balance || subscriber?.walletBalance || 0,
                         }}
                     />
 

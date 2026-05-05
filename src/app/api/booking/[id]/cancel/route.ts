@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { differenceInMinutes } from 'date-fns'
 import { notifyBookingCancelled } from '@/lib/notifications'
+import { refundBookingPaymentToWallet } from '@/lib/wallet-ledger'
 
 const CANCEL_BEFORE_MINUTES = 120 // Cho phép hủy trước 2 tiếng
 
@@ -73,6 +74,16 @@ export async function POST(
             },
         })
 
+        let refundResult = null
+        try {
+            refundResult = await refundBookingPaymentToWallet({
+                bookingId: updatedBooking.id,
+                note: `Khách tự hủy booking ${updatedBooking.bookingCode}`,
+            })
+        } catch (refundError) {
+            console.error('[BookingCancel] Refund failed:', refundError)
+        }
+
         // Send notification to admin
         notifyBookingCancelled(
             updatedBooking.bookingCode,
@@ -88,6 +99,7 @@ export async function POST(
                 bookingCode: updatedBooking.bookingCode,
                 status: updatedBooking.status,
             },
+            refund: refundResult,
         })
     } catch (error) {
         console.error('Error cancelling booking:', error)

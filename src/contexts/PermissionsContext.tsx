@@ -47,6 +47,10 @@ export interface StaffPermissions {
     canViewCustomers: boolean
     canManageCustomers: boolean
 
+    // Wallets
+    canViewWallets: boolean
+    canManageWallets: boolean
+
     // Nerd Coin
     canViewNerdCoin: boolean
     canManageNerdCoin: boolean
@@ -111,6 +115,8 @@ const DEFAULT_PERMISSIONS: StaffPermissions = {
     // Customers
     canViewCustomers: true,
     canManageCustomers: false,
+    canViewWallets: true,
+    canManageWallets: false,
 
     // Nerd Coin
     canViewNerdCoin: false,
@@ -158,6 +164,8 @@ const ADMIN_PERMISSIONS: StaffPermissions = {
     canManageContent: true,
     canViewCustomers: true,
     canManageCustomers: true,
+    canViewWallets: true,
+    canManageWallets: true,
     canViewNerdCoin: true,
     canManageNerdCoin: true,
     canViewStudyDate: true,
@@ -199,6 +207,8 @@ const CONTENT_EDITOR_PERMISSIONS: StaffPermissions = {
     canManageContent: true,
     canViewCustomers: false,
     canManageCustomers: false,
+    canViewWallets: false,
+    canManageWallets: false,
     canViewNerdCoin: false,
     canManageNerdCoin: false,
     canViewStudyDate: false,

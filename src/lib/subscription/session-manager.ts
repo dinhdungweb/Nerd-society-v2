@@ -1,67 +1,63 @@
-import { prisma } from '@/lib/prisma';
-import { differenceInMinutes, startOfDay, endOfDay } from 'date-fns';
-import { $Enums } from '@prisma/client';
+import { prisma } from '@/lib/prisma'
+import { applyWalletTransaction } from '@/lib/wallet-ledger'
+import { $Enums } from '@prisma/client'
+import { differenceInMinutes, startOfDay } from 'date-fns'
 
-const RATE_PER_HOUR = 15000;
-const DAILY_CAP_MIN = 480; // 8 hours
+const RATE_PER_HOUR = 15000
+const DAILY_CAP_MIN = 480
+const MIN_WALLET_BALANCE = RATE_PER_HOUR / 4
 
 export type CheckInResult = {
-    success: boolean;
-    message: string;
-    subscriberName?: string;
-    remainingMin?: number;
-    walletBalance?: number;
-    outstandingBalance?: number;
-    errorType?: 'BLOCK_DEBT' | 'BLOCK_EXPIRED' | 'BLOCK_LOW_BALANCE' | 'BLOCK_CAP_REACHED' | 'NOT_FOUND';
-};
+    success: boolean
+    message: string
+    subscriberName?: string
+    remainingMin?: number
+    walletBalance?: number
+    outstandingBalance?: number
+    errorType?: 'BLOCK_DEBT' | 'BLOCK_EXPIRED' | 'BLOCK_LOW_BALANCE' | 'BLOCK_CAP_REACHED' | 'NOT_FOUND'
+}
 
-/**
- * Xử lý Check-in khi tap thẻ
- */
 export async function handleCheckIn(cardNo: string, branch: string, customTime?: Date): Promise<CheckInResult> {
-    const now = customTime || new Date();
-    // 1. Tìm subscriber
+    const now = customTime || new Date()
     const subscriber = await prisma.subscriber.findUnique({
         where: { cardNo },
         include: {
             subscriptions: {
                 where: { status: { in: ['ACTIVE', 'PENDING_ACTIVATION'] as $Enums.SubscriptionStatus[] } },
                 orderBy: { createdAt: 'desc' },
-            }
-        }
-    });
+            },
+            user: {
+                select: {
+                    wallet: { select: { id: true, balance: true } },
+                },
+            },
+        },
+    })
 
     if (!subscriber) {
-        return { success: false, message: 'Không tìm thấy thông tin thẻ này.', errorType: 'NOT_FOUND' };
+        return { success: false, message: 'Khong tim thay thong tin the nay.', errorType: 'NOT_FOUND' }
     }
 
-    // 2. Kiểm tra nợ tồn đọng (Outstanding Balance)
     if (subscriber.outstandingBalance > 0) {
         return {
             success: false,
-            message: `Vui lòng thanh toán ${subscriber.outstandingBalance.toLocaleString()}đ phí quá giờ để tiếp tục.`,
+            message: `Vui long thanh toan ${subscriber.outstandingBalance.toLocaleString()}d phi qua gio de tiep tuc.`,
             outstandingBalance: subscriber.outstandingBalance,
-            errorType: 'BLOCK_DEBT'
-        };
+            errorType: 'BLOCK_DEBT',
+        }
     }
 
-    // 3. Ưu tiên 1: Subscription (Gói tháng)
-    const activeSub = subscriber.subscriptions[0];
+    const activeSub = subscriber.subscriptions[0]
     if (activeSub) {
-        // Kiểm tra hết hạn nếu đã kích hoạt
         if (activeSub.status === 'ACTIVE' && activeSub.endDate && activeSub.endDate < now) {
-            // Auto-expire sub
             await prisma.subscription.update({
                 where: { id: activeSub.id },
-                data: { status: 'EXPIRED' }
-            });
-            // Tiếp tục xuống kiểm tra Wallet...
+                data: { status: 'EXPIRED' },
+            })
         } else {
-            // Kích hoạt nếu là lần đầu tap
             if (activeSub.status === 'PENDING_ACTIVATION') {
-                const activationTime = now;
-                const endDate = new Date(activationTime);
-                endDate.setDate(endDate.getDate() + 30);
+                const endDate = new Date(now)
+                endDate.setDate(endDate.getDate() + 30)
 
                 await prisma.subscription.update({
                     where: { id: activeSub.id },
@@ -69,31 +65,26 @@ export async function handleCheckIn(cardNo: string, branch: string, customTime?:
                         status: 'ACTIVE',
                         activationDate: now,
                         startDate: now,
-                        endDate: endDate,
-                    }
-                });
+                        endDate,
+                    },
+                })
             }
 
-            // Tính toán Cap 8h
-            const today = startOfDay(now);
-
+            const today = startOfDay(now)
             const usageToday = await prisma.dailyUsage.findUnique({
-                where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: today } }
-            });
+                where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: today } },
+            })
 
-            const usedMin = usageToday?.totalMin || 0;
-            const remainingMin = Math.max(0, DAILY_CAP_MIN - usedMin);
-
-            // Theo spec v4: Check-in block nếu đã hết 8h
+            const usedMin = usageToday?.totalMin || 0
+            const remainingMin = Math.max(0, DAILY_CAP_MIN - usedMin)
             if (remainingMin <= 0) {
                 return {
                     success: false,
-                    message: 'Bạn đã sử dụng hết 8h miễn phí hôm nay. Vui lòng quay lại vào ngày mai hoặc dùng Wallet.',
-                    errorType: 'BLOCK_CAP_REACHED'
-                };
+                    message: 'Ban da su dung het 8h mien phi hom nay. Vui long quay lai vao ngay mai hoac dung vi.',
+                    errorType: 'BLOCK_CAP_REACHED',
+                }
             }
 
-            // Tạo Session
             await prisma.subscriptionSession.create({
                 data: {
                     subscriberId: subscriber.id,
@@ -101,150 +92,161 @@ export async function handleCheckIn(cardNo: string, branch: string, customTime?:
                     branch,
                     checkInTime: now,
                     status: 'ACTIVE' as $Enums.SessionStatus,
-                    source: 'card'
-                }
-            });
+                    source: 'card',
+                },
+            })
 
             return {
                 success: true,
-                message: `Chào ${subscriber.fullName}! Hôm nay bạn còn ${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m.`,
+                message: `Chao ${subscriber.fullName}! Hom nay ban con ${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m.`,
                 subscriberName: subscriber.fullName,
-                remainingMin
-            };
+                remainingMin,
+            }
         }
     }
 
-    // 4. Ưu tiên 2: Wallet (Ví tiền)
-    if (subscriber.walletBalance < (RATE_PER_HOUR / 4)) {
+    const walletBalance = subscriber.user?.wallet?.balance || 0
+    if (walletBalance < MIN_WALLET_BALANCE) {
         return {
             success: false,
-            message: `Số dư ví (${subscriber.walletBalance.toLocaleString()}đ) không đủ. Vui lòng nạp thêm.`,
-            walletBalance: subscriber.walletBalance,
-            errorType: 'BLOCK_LOW_BALANCE'
-        };
+            message: `So du vi (${walletBalance.toLocaleString()}d) khong du. Vui long nap them.`,
+            walletBalance,
+            errorType: 'BLOCK_LOW_BALANCE',
+        }
     }
 
-    // Tạo Session cho Wallet
     await prisma.subscriptionSession.create({
         data: {
             subscriberId: subscriber.id,
             branch,
             checkInTime: now,
             status: 'ACTIVE' as $Enums.SessionStatus,
-            source: 'card'
-        }
-    });
+            source: 'card',
+        },
+    })
 
     return {
         success: true,
-        message: `Chào ${subscriber.fullName}! Số dư ví: ${subscriber.walletBalance.toLocaleString()}đ.`,
+        message: `Chao ${subscriber.fullName}! So du vi: ${walletBalance.toLocaleString()}d.`,
         subscriberName: subscriber.fullName,
-        walletBalance: subscriber.walletBalance
-    };
+        walletBalance,
+    }
 }
 
-/**
- * Xử lý Check-out khi tap thẻ
- */
 export async function handleCheckOut(cardNo: string, customTime?: Date): Promise<CheckInResult> {
-    const now = customTime || new Date();
+    const now = customTime || new Date()
     const subscriber = await prisma.subscriber.findUnique({
         where: { cardNo },
         include: {
             sessions: {
                 where: { status: 'ACTIVE' as $Enums.SessionStatus },
                 orderBy: { checkInTime: 'desc' },
-                take: 1
-            }
-        }
-    });
+                take: 1,
+            },
+            user: {
+                select: {
+                    wallet: { select: { id: true, balance: true } },
+                },
+            },
+        },
+    })
 
     if (!subscriber || !subscriber.sessions[0]) {
-        return { success: false, message: 'Không tìm thấy phiên check-in đang hoạt động.', errorType: 'NOT_FOUND' };
+        return { success: false, message: 'Khong tim thay phien check-in dang hoat dong.', errorType: 'NOT_FOUND' }
     }
 
-    const session = subscriber.sessions[0];
-    const durationMin = differenceInMinutes(now, session.checkInTime);
+    const session = subscriber.sessions[0]
+    const durationMin = differenceInMinutes(now, session.checkInTime)
+    const roundedMin = Math.ceil(durationMin / 15) * 15
+    let message = `Tam biet ${subscriber.fullName}! Phien ngoi cua ban keo dai ${Math.floor(durationMin / 60)}h ${durationMin % 60}m.`
 
-    // Quy tắc làm tròn 15 phút (CEIL)
-    const roundedMin = Math.ceil(durationMin / 15) * 15;
-    const chargeAmountPerHour = RATE_PER_HOUR;
-
-    let message = `Tạm biệt ${subscriber.fullName}! Phiên ngồi của bạn kéo dài ${Math.floor(durationMin / 60)}h ${durationMin % 60}m.`;
-
-    // 1. Nếu là Subscription
     if (session.subscriptionId) {
-        const today = startOfDay(session.checkInTime);
+        const today = startOfDay(session.checkInTime)
         const usage = await prisma.dailyUsage.upsert({
             where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: today } },
-            create: { subscriberId: subscriber.id, subscriptionId: session.subscriptionId, usageDate: today, totalMin: durationMin },
-            update: { totalMin: { increment: durationMin } }
-        });
+            create: {
+                subscriberId: subscriber.id,
+                subscriptionId: session.subscriptionId,
+                usageDate: today,
+                totalMin: durationMin,
+            },
+            update: { totalMin: { increment: durationMin } },
+        })
 
-        // 🟢 BỔ SUNG: Cập nhật tổng số phút đã dùng vào Gói dịch vụ
         await prisma.subscription.update({
             where: { id: session.subscriptionId },
-            data: { usedHoursMin: { increment: durationMin } }
-        });
+            data: { usedHoursMin: { increment: durationMin } },
+        })
 
-        // Tính overage
-        const usedMinBefore = (usage.totalMin - durationMin);
-        const capRemaining = Math.max(0, DAILY_CAP_MIN - usedMinBefore);
-        const overageMin = Math.max(0, durationMin - capRemaining);
+        const usedMinBefore = usage.totalMin - durationMin
+        const capRemaining = Math.max(0, DAILY_CAP_MIN - usedMinBefore)
+        const overageMin = Math.max(0, durationMin - capRemaining)
 
         if (overageMin > 0) {
-            const roundedOverage = Math.ceil(overageMin / 15) * 15;
-            const overageCharge = (roundedOverage / 60) * chargeAmountPerHour;
+            const roundedOverage = Math.ceil(overageMin / 15) * 15
+            const overageCharge = Math.round((roundedOverage / 60) * RATE_PER_HOUR)
 
             await prisma.subscriber.update({
                 where: { id: subscriber.id },
-                data: { outstandingBalance: { increment: Math.round(overageCharge) } }
-            });
+                data: { outstandingBalance: { increment: overageCharge } },
+            })
 
             await prisma.transaction.create({
                 data: {
                     subscriberId: subscriber.id,
                     type: 'OVERAGE_CHARGE' as $Enums.TransactionType,
-                    amount: -Math.round(overageCharge),
-                    balanceBefore: subscriber.walletBalance,
-                    balanceAfter: subscriber.walletBalance,
+                    amount: -overageCharge,
+                    balanceBefore: subscriber.user?.wallet?.balance || 0,
+                    balanceAfter: subscriber.user?.wallet?.balance || 0,
                     reference: session.id,
-                    description: `Phí quá giờ (${overageMin}m)`
-                }
-            });
+                    description: `Phi qua gio (${overageMin}m)`,
+                },
+            })
 
-            message += ` Phí quá giờ: ${Math.round(overageCharge).toLocaleString()}đ (vui lòng TT lần sau).`;
+            message += ` Phi qua gio: ${overageCharge.toLocaleString()}d.`
         }
     } else {
-        // 2. Nếu dùng Wallet
-        const amount = (roundedMin / 60) * chargeAmountPerHour;
-        const paidAmount = Math.min(subscriber.walletBalance, amount);
-        const debtAmount = Math.max(0, amount - paidAmount);
+        const amount = Math.round((roundedMin / 60) * RATE_PER_HOUR)
+        const wallet = subscriber.user?.wallet
+        const walletBalance = wallet?.balance || 0
+        const paidAmount = Math.min(walletBalance, amount)
+        const debtAmount = Math.max(0, amount - paidAmount)
 
-        await prisma.subscriber.update({
-            where: { id: subscriber.id },
-            data: {
-                walletBalance: { decrement: paidAmount },
-                outstandingBalance: { increment: debtAmount }
-            }
-        });
+        if (wallet && paidAmount > 0) {
+            await applyWalletTransaction({
+                walletId: wallet.id,
+                type: 'SESSION_CHARGE',
+                amount: -paidAmount,
+                source: 'MONTHLY_BEAVER',
+                referenceType: 'subscription_session',
+                referenceId: session.id,
+                description: `Phi su dung Wallet (${durationMin}m)`,
+            })
+        }
+
+        if (debtAmount > 0) {
+            await prisma.subscriber.update({
+                where: { id: subscriber.id },
+                data: { outstandingBalance: { increment: debtAmount } },
+            })
+        }
 
         await prisma.transaction.create({
             data: {
                 subscriberId: subscriber.id,
                 type: 'SESSION_CHARGE' as $Enums.TransactionType,
-                amount: -Math.round(amount),
-                balanceBefore: subscriber.walletBalance,
-                balanceAfter: subscriber.walletBalance - paidAmount,
+                amount: -amount,
+                balanceBefore: walletBalance,
+                balanceAfter: walletBalance - paidAmount,
                 reference: session.id,
-                description: `Phí sử dụng Wallet (${durationMin}m)`
-            }
-        });
+                description: `Phi su dung Wallet (${durationMin}m)`,
+            },
+        })
 
         if (debtAmount > 0) {
-            message += ` Trừ ví ${paidAmount.toLocaleString()}đ và ghi nợ ${debtAmount.toLocaleString()}đ.`;
+            message += ` Tru vi ${paidAmount.toLocaleString()}d va ghi no ${debtAmount.toLocaleString()}d.`
         } else {
-            message += ` Đã trừ ${paidAmount.toLocaleString()}đ. Số dư: ${(subscriber.walletBalance - paidAmount).toLocaleString()}đ.`;
+            message += ` Da tru ${paidAmount.toLocaleString()}d. So du: ${(walletBalance - paidAmount).toLocaleString()}d.`
         }
     }
 
@@ -254,8 +256,8 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
             checkOutTime: now,
             durationMin,
             status: 'COMPLETED' as $Enums.SessionStatus,
-        }
-    });
+        },
+    })
 
-    return { success: true, message, subscriberName: subscriber.fullName };
+    return { success: true, message, subscriberName: subscriber.fullName }
 }

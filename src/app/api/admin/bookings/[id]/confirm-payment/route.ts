@@ -48,12 +48,15 @@ export async function POST(
             )
         }
 
+        const paidAt = new Date()
+
         // Update booking status to CONFIRMED and depositStatus to PAID_ONLINE
         const updatedBooking = await prisma.booking.update({
             where: { id },
             data: {
                 status: 'CONFIRMED',
                 depositStatus: 'PAID_ONLINE',
+                depositPaidAt: paidAt,
             },
             include: {
                 location: true,
@@ -62,12 +65,22 @@ export async function POST(
             },
         })
 
-        // Update payment record if exists
-        await prisma.payment.updateMany({
+        // Admin manual confirmation means staff verified a real bank transfer.
+        // Create the payment row if the customer had not selected a method first.
+        await prisma.payment.upsert({
             where: { bookingId: id },
-            data: {
+            create: {
+                bookingId: id,
+                amount: booking.depositAmount,
+                method: 'BANK_TRANSFER',
                 status: 'COMPLETED',
-                paidAt: new Date(),
+                paidAt,
+            },
+            update: {
+                amount: booking.depositAmount,
+                method: 'BANK_TRANSFER',
+                status: 'COMPLETED',
+                paidAt,
             },
         })
 

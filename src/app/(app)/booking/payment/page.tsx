@@ -13,6 +13,7 @@ import {
     MapPinIcon,
     QrCodeIcon,
     UserGroupIcon,
+    WalletIcon,
 } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -61,10 +62,15 @@ interface PaymentInfo {
     bookingId: string
 }
 
+interface WalletSummary {
+    balance: number
+    status: string
+}
+
 type PaymentMethodOption = {
     id: string
     name: string
-    description: string
+    description?: string
     icon: React.ReactNode
     disabled?: boolean
     comingSoon?: boolean
@@ -76,6 +82,11 @@ const paymentMethods: PaymentMethodOption[] = [
         name: 'Chuyển khoản (VietQR)',
         description: 'Quét mã QR bằng app ngân hàng',
         icon: <QrCodeIcon className="size-5" />,
+    },
+    {
+        id: 'WALLET',
+        name: 'Ví Nerd',
+        icon: <WalletIcon className="size-5" />,
     },
     {
         id: 'VNPAY',
@@ -116,12 +127,47 @@ const CheckoutContent = () => {
     const [selectedMethod, setSelectedMethod] = useState<string>('BANK_TRANSFER')
     const [processing, setProcessing] = useState(false)
     const [showQR, setShowQR] = useState(false)
+    const [walletSummary, setWalletSummary] = useState<WalletSummary | null>(null)
+    const [walletLoading, setWalletLoading] = useState(true)
 
     // VietQR specific state
     const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null)
     const [copied, setCopied] = useState<string | null>(null)
     const [confirming, setConfirming] = useState(false)
     const [countdown, setCountdown] = useState(5 * 60) // 5 minutes - matches API timeout
+
+    const formatCurrency = (amount: number) => `${new Intl.NumberFormat('vi-VN').format(amount)}đ`
+
+    useEffect(() => {
+        let cancelled = false
+
+        const fetchWalletSummary = async () => {
+            try {
+                const res = await fetch('/api/profile/wallet/summary')
+                if (!res.ok) return
+
+                const data = await res.json()
+                if (!cancelled && data.success) {
+                    setWalletSummary({
+                        balance: Number(data.balance) || 0,
+                        status: data.status,
+                    })
+                }
+            } catch (error) {
+                console.error('Error fetching wallet summary:', error)
+            } finally {
+                if (!cancelled) {
+                    setWalletLoading(false)
+                }
+            }
+        }
+
+        fetchWalletSummary()
+
+        return () => {
+            cancelled = true
+        }
+    }, [])
 
     useEffect(() => {
         if (!bookingId) {
@@ -241,6 +287,15 @@ const CheckoutContent = () => {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
     }
 
+    const walletBalanceLabel = () => {
+        if (walletLoading) return 'Đang tải số dư...'
+        if (!walletSummary) return 'Chưa lấy được số dư'
+        if (walletSummary.status !== 'ACTIVE') return 'Ví đang bị khóa'
+
+        const isInsufficient = bookingInfo && walletSummary.balance < bookingInfo.depositAmount
+        return `Số dư: ${formatCurrency(walletSummary.balance)}${isInsufficient ? ' - không đủ tiền cọc' : ''}`
+    }
+
     const handleProceedToPayment = async () => {
         if (!selectedMethod) {
             toast.error('Vui lòng chọn phương thức thanh toán')
@@ -249,6 +304,23 @@ const CheckoutContent = () => {
 
         setProcessing(true)
         try {
+            if (selectedMethod === 'WALLET') {
+                const walletRes = await fetch('/api/payment/wallet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bookingId }),
+                })
+
+                if (walletRes.ok) {
+                    toast.success('Thanh toán bằng Ví Nerd thành công!')
+                    router.push(`/booking/success?id=${bookingId}&payment=wallet`)
+                } else {
+                    const error = await walletRes.json()
+                    toast.error(error.error || 'Không thể thanh toán bằng ví')
+                }
+                return
+            }
+
             const res = await fetch('/api/payment/select', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -593,9 +665,16 @@ const CheckoutContent = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                                                {method.description}
-                                            </p>
+                                            {method.id !== 'WALLET' && (
+                                                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                                    {method.description}
+                                                </p>
+                                            )}
+                                            {method.id === 'WALLET' && (
+                                                <p className="mt-0.5 text-sm font-normal text-neutral-500 dark:text-neutral-400">
+                                                    {walletBalanceLabel()}
+                                                </p>
+                                            )}
                                         </div>
                                     </label>
                                 ))}

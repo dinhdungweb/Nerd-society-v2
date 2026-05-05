@@ -10,6 +10,7 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
+    "db:backfill-wallets": "tsx prisma/backfill-wallets.ts",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio"
   },

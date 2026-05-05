@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { ensureUserWalletAccount } from '@/lib/wallet-account';
 
 /**
  * API kiểm tra xem có giao dịch nạp tiền mới nhất không
@@ -14,22 +15,17 @@ export async function GET() {
     }
 
     try {
-        // Tìm subscriber liên kết với user
-        const subscriber = await prisma.subscriber.findUnique({
-            where: { userId: session.user.id },
-            select: { id: true, walletBalance: true }
-        });
-
-        if (!subscriber) {
-            return NextResponse.json({ error: 'Subscriber not found' }, { status: 404 });
+        const walletAccount = await ensureUserWalletAccount(session.user.id);
+        if (!walletAccount.success) {
+            return NextResponse.json({ error: walletAccount.message }, { status: 400 });
         }
 
         // Tìm giao dịch nạp tiền (TOPUP) mới nhất trong vòng 10 phút qua
         const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
         
-        const latestTopup = await prisma.transaction.findFirst({
+        const latestTopup = await prisma.walletTransaction.findFirst({
             where: {
-                subscriberId: subscriber.id,
+                walletId: walletAccount.wallet.id,
                 type: 'TOPUP',
                 createdAt: { gte: tenMinutesAgo }
             },
@@ -40,7 +36,7 @@ export async function GET() {
             success: true,
             hasNewTopup: !!latestTopup,
             latestTopup,
-            currentBalance: subscriber.walletBalance
+            currentBalance: walletAccount.wallet.balance
         });
 
     } catch (error: any) {

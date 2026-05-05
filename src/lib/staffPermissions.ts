@@ -45,6 +45,10 @@ export const DEFAULT_STAFF_PERMISSIONS = {
     canViewCustomers: true,
     canManageCustomers: false,
 
+    // Wallets
+    canViewWallets: true,
+    canManageWallets: false,
+
     // Nerd Coin
     canViewNerdCoin: false,
     canManageNerdCoin: false,
@@ -85,6 +89,7 @@ export const PERMISSION_ROUTE_MAP: Record<string, keyof StaffPermissions> = {
     '/admin/bookings': 'canViewBookings',
     '/admin/chat': 'canViewChat',
     '/admin/customers': 'canViewCustomers',
+    '/admin/wallets': 'canViewWallets',
     '/admin/rooms': 'canViewRooms',
     '/admin/services': 'canViewServices',
     '/admin/combos': 'canViewServices',

@@ -35,6 +35,7 @@ const paymentMethodLabels: Record<string, string> = {
     MOMO: 'MoMo',
     ZALOPAY: 'ZaloPay',
     BANK_TRANSFER: 'Chuyển khoản',
+    WALLET: 'Ví Nerd',
 }
 
 export default async function BookingDetailsPage({

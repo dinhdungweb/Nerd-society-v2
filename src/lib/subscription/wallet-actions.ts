@@ -1,139 +1,106 @@
 /**
- * Wallet Server Actions
+ * Compatibility actions for old Monthly Beaver admin components.
+ * New wallet balance lives in Wallet/WalletTransaction.
  */
-'use server';
+'use server'
 
-import { prisma } from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
-import { $Enums } from '@prisma/client';
+import { prisma } from '@/lib/prisma'
+import { applyWalletTransaction, paySubscriberDebtWithWallet } from '@/lib/wallet-ledger'
+import { revalidatePath } from 'next/cache'
 
-/**
- * Nạp tiền vào Wallet (Dùng cho Admin nạp thủ công hoặc Webhook gọi)
- */
+async function getSubscriberWallet(subscriberId: string) {
+    const subscriber = await prisma.subscriber.findUnique({
+        where: { id: subscriberId },
+        select: {
+            id: true,
+            fullName: true,
+            user: {
+                select: {
+                    wallet: {
+                        select: { id: true, balance: true },
+                    },
+                },
+            },
+        },
+    })
+
+    if (!subscriber) throw new Error('Khong tim thay hoi vien')
+    if (!subscriber.user?.wallet) throw new Error('Hoi vien chua co vi user')
+
+    return { subscriber, wallet: subscriber.user.wallet }
+}
+
 export async function topUpWallet(subscriberId: string, amount: number, reference?: string, description?: string) {
-    if (amount <= 0) throw new Error('Số tiền nạp phải lớn hơn 0');
-
     try {
-        const subscriber = await prisma.subscriber.findUnique({
-            where: { id: subscriberId }
-        });
+        if (amount <= 0) throw new Error('So tien nap phai lon hon 0')
 
-        if (!subscriber) throw new Error('Không tìm thấy hội viên');
+        const { subscriber, wallet } = await getSubscriberWallet(subscriberId)
+        const result = await applyWalletTransaction({
+            walletId: wallet.id,
+            type: 'TOPUP',
+            amount,
+            source: 'MANUAL_ADMIN',
+            referenceType: reference ? 'manual_reference' : 'subscriber',
+            referenceId: reference || subscriber.id,
+            externalTransactionId: reference,
+            description: description || 'Nap tien vao vi',
+        })
 
-        const balanceBefore = subscriber.walletBalance;
-        const balanceAfter = balanceBefore + amount;
-
-        // Cập nhật số dư và lưu Transaction theo thứ tự nguyên tử
-        const result = await prisma.$transaction([
-            prisma.subscriber.update({
-                where: { id: subscriberId },
-                data: { walletBalance: balanceAfter }
-            }),
-            prisma.transaction.create({
-                data: {
-                    subscriberId,
-                    type: 'TOPUP' as $Enums.TransactionType,
-                    amount: amount,
-                    balanceBefore,
-                    balanceAfter,
-                    reference,
-                    description: description || `Nạp tiền vào ví`
-                }
-            })
-        ]);
-
-        revalidatePath('/admin/subscriptions');
-        revalidatePath('/member/dashboard');
-        
-        return { success: true, newBalance: balanceAfter };
+        revalidatePath('/admin/subscriptions')
+        return { success: true, newBalance: result.balanceAfter }
     } catch (error: any) {
-        console.error('[Wallet] Top-up failed:', error);
-        return { success: false, error: error.message };
+        console.error('[Wallet] Top-up failed:', error)
+        return { success: false, error: error.message }
     }
 }
 
-/**
- * Thanh toán nợ quá giờ (Outstanding Balance)
- */
 export async function payOutstandingBalance(subscriberId: string, amount: number, reference?: string) {
     try {
         const subscriber = await prisma.subscriber.findUnique({
-            where: { id: subscriberId }
-        });
+            where: { id: subscriberId },
+            select: { id: true, outstandingBalance: true },
+        })
 
-        if (!subscriber) throw new Error('Không tìm thấy hội viên');
+        if (!subscriber) throw new Error('Khong tim thay hoi vien')
 
-        const payAmount = Math.min(amount, subscriber.outstandingBalance);
-        const remainingDebt = subscriber.outstandingBalance - payAmount;
+        const payAmount = Math.min(amount, subscriber.outstandingBalance)
+        const remainingDebt = subscriber.outstandingBalance - payAmount
 
-        await prisma.$transaction([
-            prisma.subscriber.update({
-                where: { id: subscriberId },
-                data: { outstandingBalance: remainingDebt }
-            }),
-            prisma.transaction.create({
-                data: {
-                    subscriberId,
-                    type: 'OVERAGE_PAYMENT' as $Enums.TransactionType,
-                    amount: payAmount,
-                    balanceBefore: subscriber.walletBalance,
-                    balanceAfter: subscriber.walletBalance,
-                    reference,
-                    description: `Thanh toán phí quá giờ`
-                }
-            })
-        ]);
+        await prisma.subscriber.update({
+            where: { id: subscriberId },
+            data: { outstandingBalance: remainingDebt },
+        })
 
-        revalidatePath('/admin/subscriptions');
-        return { success: true, remainingDebt };
+        await prisma.subscriptionAuditLog.create({
+            data: {
+                action: 'wallet_debt_cash_payment',
+                entityType: 'subscriber',
+                entityId: subscriberId,
+                performedBy: 'admin',
+                details: { amount: payAmount, reference },
+            },
+        })
+
+        revalidatePath('/admin/subscriptions')
+        revalidatePath('/admin/wallets')
+        return { success: true, remainingDebt }
     } catch (error: any) {
-        console.error('[Wallet] Payment failed:', error);
-        return { success: false, error: error.message };
+        console.error('[Wallet] Payment failed:', error)
+        return { success: false, error: error.message }
     }
 }
 
-/**
- * Tự động cấn trừ công nợ quá giờ bằng số dư ví
- */
 export async function payDebtWithWallet(subscriberId: string) {
     try {
-        const subscriber = await prisma.subscriber.findUnique({
-            where: { id: subscriberId }
-        });
-
-        if (!subscriber) throw new Error('Không tìm thấy hội viên');
-        if (subscriber.walletBalance <= 0 || subscriber.outstandingBalance <= 0) {
-            throw new Error('Số dư ví hoặc công nợ không hợp lệ để cấn trừ');
+        const result = await paySubscriberDebtWithWallet({ subscriberId })
+        revalidatePath('/admin/subscriptions')
+        return {
+            success: true,
+            newDebt: result.remainingDebt,
+            newWalletBalance: result.newWalletBalance,
         }
-
-        const payAmount = Math.min(subscriber.walletBalance, subscriber.outstandingBalance);
-        const newWalletBalance = subscriber.walletBalance - payAmount;
-        const newDebt = subscriber.outstandingBalance - payAmount;
-
-        await prisma.$transaction([
-            prisma.subscriber.update({
-                where: { id: subscriberId },
-                data: { 
-                    walletBalance: newWalletBalance,
-                    outstandingBalance: newDebt
-                }
-            }),
-            prisma.transaction.create({
-                data: {
-                    subscriberId,
-                    type: 'OVERAGE_PAYMENT' as $Enums.TransactionType,
-                    amount: payAmount,
-                    balanceBefore: subscriber.walletBalance,
-                    balanceAfter: newWalletBalance,
-                    description: `Tự động cấn trừ nợ quá giờ từ số dư ví`
-                }
-            })
-        ]);
-
-        revalidatePath('/admin/subscriptions');
-        return { success: true, newDebt, newWalletBalance };
     } catch (error: any) {
-        console.error('[Wallet] Reconcile failed:', error);
-        return { success: false, error: error.message };
+        console.error('[Wallet] Reconcile failed:', error)
+        return { success: false, error: error.message }
     }
 }

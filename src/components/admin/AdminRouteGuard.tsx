@@ -18,6 +18,7 @@ const ROUTE_PERMISSIONS: Record<string, keyof StaffPermissions> = {
     '/admin/media': 'canViewGallery',
     '/admin/content': 'canViewContent',
     '/admin/customers': 'canViewCustomers',
+    '/admin/wallets': 'canViewWallets',
     '/admin/nerdcoin': 'canViewNerdCoin',
     '/admin/settings': 'canViewSettings',
     // New routes - permission-based, not admin-only

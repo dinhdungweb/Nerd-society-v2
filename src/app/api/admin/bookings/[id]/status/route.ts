@@ -9,6 +9,7 @@ import { sendBookingCancelledEmail } from '@/lib/email'
 import { audit } from '@/lib/audit'
 import { notifyBookingCancelled, notifyCheckIn, notifyCheckOut } from '@/lib/notifications'
 import { canBooking, checkApiPermission } from '@/lib/apiPermissions'
+import { refundBookingPaymentToWallet } from '@/lib/wallet-ledger'
 
 // POST /api/admin/bookings/[id]/status (requires canCheckIn/canCheckOut/canEditBookings permission)
 export async function POST(
@@ -225,6 +226,17 @@ export async function POST(
                 }
             })
 
+            let refundResult = null
+            try {
+                refundResult = await refundBookingPaymentToWallet({
+                    bookingId: booking.id,
+                    note: cancelNote,
+                    createdById: session.user.id,
+                })
+            } catch (refundError) {
+                console.error('[AdminBookingCancel] Refund failed:', refundError)
+            }
+
             // Create notification for booking cancelled
             notifyBookingCancelled(booking.bookingCode, booking.customerName || 'Khách', booking.id).catch(console.error)
 
@@ -243,7 +255,7 @@ export async function POST(
                 { bookingCode: booking.bookingCode, customerName: booking.customerName }
             )
 
-            return NextResponse.json(updatedBooking)
+            return NextResponse.json({ ...updatedBooking, refund: refundResult })
         }
 
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

@@ -87,7 +87,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
                     {currentSub ? PLAN_LABELS[currentSub.planType] || currentSub.planType : '—'}
                   </TableCell>
                   <TableCell>
-                    {currentSub ? getStatusBadge(currentSub.status) : getStatusBadge('EXPIRED')}
+                    {currentSub ? getStatusBadge(currentSub.status) : getStatusBadge('NO_SUBSCRIPTION')}
                   </TableCell>
                   <TableCell>
                     {remaining !== null ? (

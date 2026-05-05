@@ -23,6 +23,7 @@ import {
     BriefcaseIcon,
     QrCodeIcon,
     TicketIcon,
+    WalletIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -80,6 +81,7 @@ const navigationGroups: NavGroup[] = [
         name: 'Hệ thống',
         items: [
             { name: 'Khách hàng', href: '/admin/customers', icon: UsersIcon, permissionKey: 'canViewCustomers' },
+            { name: 'Ví user', href: '/admin/wallets', icon: WalletIcon, permissionKey: 'canViewWallets' },
             { name: 'Góp ý', href: '/admin/feedback', icon: ChatBubbleLeftRightIcon, permissionKey: 'canViewFeedback' },
             { name: 'Tạo QR Code', href: '/admin/qr-generator', icon: QrCodeIcon, permissionKey: 'canViewQrGenerator' },
             { name: 'Nerd Coin', href: '/admin/nerdcoin', icon: SparklesIcon, permissionKey: 'canViewNerdCoin' },

@@ -7,6 +7,8 @@
 import { prisma } from '@/lib/prisma';
 import { importEmployee, deleteEmployee, generateNextEmployeeId } from '@/lib/mytime-api';
 import { revalidatePath } from 'next/cache';
+import { ensureUserWalletAccount } from '@/lib/wallet-account';
+import { refundRegistrationOrderToWallet } from '@/lib/wallet-ledger';
 
 // ============= REGISTRATION (Khách đăng ký online) =============
 
@@ -177,6 +179,10 @@ export async function assignCardAndCreate(orderId: string, cardNo: string, staff
   }
 
   // Tạo subscription (pending_activation)
+  if (order.userId) {
+    await ensureUserWalletAccount(order.userId);
+  }
+
   const totalMin = PLAN_HOURS_MIN[order.planType] || 0;
   const activationDeadline = new Date();
   activationDeadline.setDate(activationDeadline.getDate() + 30);
@@ -252,10 +258,20 @@ export async function assignCardAndCreate(orderId: string, cardNo: string, staff
  * Admin: Hủy đơn
  */
 export async function cancelOrder(orderId: string, reason?: string) {
-  await prisma.registrationOrder.update({
+  const order = await prisma.registrationOrder.update({
     where: { id: orderId },
     data: { orderStatus: 'CANCELLED' },
   });
+
+  let refundResult = null;
+  try {
+    refundResult = await refundRegistrationOrderToWallet({
+      orderId,
+      note: reason || `Hủy đơn ${order.orderCode}`,
+    });
+  } catch (error) {
+    console.error('[cancelOrder] Refund failed:', error);
+  }
 
   await prisma.subscriptionAuditLog.create({
     data: {
@@ -263,12 +279,12 @@ export async function cancelOrder(orderId: string, reason?: string) {
       entityType: 'registration_order',
       entityId: orderId,
       performedBy: 'admin',
-      details: { reason },
+      details: { reason, refund: refundResult },
     },
   });
 
   revalidatePath('/admin/subscriptions');
-  return { success: true };
+  return { success: true, refund: refundResult };
 }
 
 // ============= QUERY HELPERS =============
@@ -312,16 +328,32 @@ export async function getSubscribers(filters?: {
     ];
   }
 
-  return prisma.subscriber.findMany({
+  const subscribers = await prisma.subscriber.findMany({
     where,
     orderBy: { createdAt: 'desc' },
     include: {
+      user: {
+        select: {
+          wallet: {
+            select: {
+              balance: true,
+              walletCode: true,
+            },
+          },
+        },
+      },
       subscriptions: {
         orderBy: { createdAt: 'desc' },
         take: 1,
       },
     },
   });
+
+  return subscribers.map((subscriber) => ({
+    ...subscriber,
+    walletBalance: subscriber.user?.wallet?.balance || 0,
+    walletCode: subscriber.user?.wallet?.walletCode || subscriber.walletCode,
+  }));
 }
 
 /**

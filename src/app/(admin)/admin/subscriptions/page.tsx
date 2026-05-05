@@ -2,7 +2,7 @@
 
 /**
  * Admin Subscription Management (Refactored & Optimized)
- * Tab: Đơn đăng ký | Hội viên | Trực tuyến | Ví tiền | Báo cáo
+ * Tab: Đơn đăng ký | Hội viên | Trực tuyến | Báo cáo
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -12,7 +12,6 @@ import {
   ClipboardDocumentListIcon,
   UserGroupIcon,
   GlobeAltIcon,
-  WalletIcon,
   ChartBarIcon
 } from '@heroicons/react/24/outline';
 
@@ -20,7 +19,6 @@ import {
 import OrderTable from './_components/OrderTable';
 import SubscriberTable from './_components/SubscriberTable';
 import LiveSessions from './_components/LiveSessions';
-import WalletManagement from './_components/WalletManagement';
 import SubscriptionReport from './_components/SubscriptionReport';
 import OrderDetailsModal from './_components/OrderDetailsModal';
 import SessionHistoryModal from './_components/SessionHistoryModal';
@@ -47,9 +45,6 @@ export default function SubscriptionsAdminPage() {
         if (res.ok) setOrders(await res.json());
       } else if (activeTab === 'subscribers') {
         const res = await fetch(`/api/admin/subscriptions/subscribers?${searchTerm ? `search=${searchTerm}` : ''}`);
-        if (res.ok) setSubscribers(await res.json());
-      } else if (activeTab === 'wallet') {
-        const res = await fetch(`/api/admin/subscriptions/subscribers`);
         if (res.ok) setSubscribers(await res.json());
       }
     } catch (err) {
@@ -126,7 +121,6 @@ export default function SubscriptionsAdminPage() {
     { key: 'orders', label: 'Đơn đăng ký', icon: ClipboardDocumentListIcon },
     { key: 'subscribers', label: 'Hội viên', icon: UserGroupIcon },
     { key: 'live', label: 'Trực tuyến', icon: GlobeAltIcon },
-    { key: 'wallet', label: 'Ví tiền', icon: WalletIcon },
     { key: 'report', label: 'Báo cáo', icon: ChartBarIcon },
   ];
 
@@ -219,13 +213,6 @@ export default function SubscriptionsAdminPage() {
 
           {activeTab === 'live' && (
             <LiveSessions />
-          )}
-
-          {activeTab === 'wallet' && (
-            <WalletManagement 
-              subscribers={subscribers} 
-              onRefresh={fetchData} 
-            />
           )}
 
           {activeTab === 'report' && (

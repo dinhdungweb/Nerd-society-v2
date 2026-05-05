@@ -1,4 +1,4 @@
-export type TabType = 'orders' | 'subscribers' | 'live' | 'wallet' | 'report';
+export type TabType = 'orders' | 'subscribers' | 'live' | 'report';
 
 export interface RegistrationOrder {
   id: string;
@@ -29,8 +29,6 @@ export interface Subscriber {
   cardNo?: string;
   branchPrimary?: string;
   status: string;
-  walletBalance: number;
-  outstandingBalance: number;
   createdAt: string;
   subscriptions: Array<{
     id: string;
@@ -61,4 +59,5 @@ export const STATUS_LABELS: Record<string, { label: string; color: any; bg?: str
   ACTIVE: { label: 'Active', color: 'emerald' },
   EXPIRED: { label: 'Hết hạn', color: 'red' },
   RENEWED: { label: 'Đã gia hạn', color: 'blue' },
+  NO_SUBSCRIPTION: { label: 'Chưa gán thẻ', color: 'amber' },
 };

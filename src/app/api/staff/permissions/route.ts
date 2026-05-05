@@ -39,6 +39,8 @@ const DEFAULT_ROLE_PERMISSIONS = {
         // Customers
         canViewCustomers: true,
         canManageCustomers: true,
+        canViewWallets: true,
+        canManageWallets: true,
         // Nerd Coin
         canViewNerdCoin: true,
         canManageNerdCoin: true,
@@ -84,6 +86,8 @@ const DEFAULT_ROLE_PERMISSIONS = {
         // Customers
         canViewCustomers: true,
         canManageCustomers: false,
+        canViewWallets: true,
+        canManageWallets: false,
         // Nerd Coin
         canViewNerdCoin: false,
         canManageNerdCoin: false,
@@ -129,6 +133,8 @@ const DEFAULT_ROLE_PERMISSIONS = {
         // Customers
         canViewCustomers: false,
         canManageCustomers: false,
+        canViewWallets: false,
+        canManageWallets: false,
         // Nerd Coin
         canViewNerdCoin: false,
         canManageNerdCoin: false,

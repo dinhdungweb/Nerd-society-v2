@@ -1,66 +1,60 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { topUpWallet } from '@/lib/subscription/wallet-actions';
-import { verifyVietQRWebhook } from '@/lib/vietqr';
+import { verifyVietQRWebhook } from '@/lib/vietqr'
+import { processVietQRWalletTopup, recordBankTransaction } from '@/lib/wallet-ledger'
+import { NextResponse } from 'next/server'
 
-/**
- * Webhook nhận thông báo biến động số dư từ VietQR/Casso/Napas
- * POST /api/webhooks/vietqr
- */
 export async function POST(request: Request) {
-    const body = await request.json();
-    const signature = request.headers.get('x-signature');
+    const body = await request.json()
+    const signature = request.headers.get('x-signature')
 
-    // 1. Xác thực Webhook (Nếu có secret)
     if (!verifyVietQRWebhook(body, signature)) {
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
     try {
-        console.log('[Webhook] Received VietQR signal:', body);
+        const content = String(body.content || body.description || '')
+        const amount = Number(body.amount)
+        const transactionId = String(body.transactionid || body.id || body.reference || '')
 
-        // Giả sử payload từ VietQR.vn hoặc Casso có trường 'content' (nội dung ck) và 'amount'
-        // Format mong đợi: "TU NS001" (Top Up NS001)
-        const content = (body.content || body.description || '').toUpperCase();
-        const amount = Number(body.amount);
-
-        if (!content.includes('TU') || isNaN(amount) || amount <= 0) {
-            return NextResponse.json({ message: 'Ignore: Not a top-up transaction or invalid amount' });
+        if (!transactionId || !Number.isFinite(amount) || amount <= 0) {
+            return NextResponse.json({ message: 'Ignore: invalid transaction payload' })
         }
 
-        // Tìm Mã hội viên trong nội dung (ví dụ: NS001)
-        const match = content.match(/TU\s+(NS\d+)/);
-        if (!match) {
-            return NextResponse.json({ message: 'Ignore: No Subscriber ID found in content' });
+        const transactionTime = body.transactiontime ? new Date(Number(body.transactiontime)) : new Date()
+        const parsedTransactionTime = Number.isNaN(transactionTime.getTime()) ? new Date() : transactionTime
+
+        if (!content.toUpperCase().includes('VI')) {
+            await recordBankTransaction({
+                externalTransactionId: transactionId,
+                bankAccount: body.bankaccount,
+                amount: Math.round(amount),
+                transType: body.transType || 'C',
+                content,
+                transactionTime: parsedTransactionTime,
+                status: 'ERROR',
+                rawPayload: body,
+                note: 'No wallet code in transfer content',
+            })
+            return NextResponse.json({ message: 'No wallet code found' })
         }
 
-        const empId = match[1];
-        const subscriber = await prisma.subscriber.findUnique({
-            where: { mytimeEmpId: empId }
-        });
+        const result = await processVietQRWalletTopup({
+            externalTransactionId: transactionId,
+            bankAccount: body.bankaccount,
+            amount: Math.round(amount),
+            transType: body.transType || 'C',
+            content,
+            transactionTime: parsedTransactionTime,
+            rawPayload: body,
+        })
 
-        if (!subscriber) {
-            console.error(`[Webhook] Subscriber ${empId} not found for top-up`);
-            return NextResponse.json({ error: 'Subscriber not found' }, { status: 404 });
-        }
-
-        // 2. Thực hiện nạp tiền tự động
-        const result = await topUpWallet(
-            subscriber.id, 
-            amount, 
-            body.transactionid || body.id, 
-            `Nạp tiền tự động qua VietQR: ${content}`
-        );
-
-        if (result.success) {
-            console.log(`[Webhook] Successfully topped up ${amount} for ${empId}`);
-            return NextResponse.json({ success: true, newBalance: result.newBalance });
-        } else {
-            return NextResponse.json({ error: result.error }, { status: 500 });
-        }
-
+        return NextResponse.json({
+            success: result.success,
+            alreadyProcessed: result.alreadyProcessed || false,
+            message: result.message,
+            newBalance: result.newBalance,
+        })
     } catch (error: any) {
-        console.error('[Webhook] Error processing VietQR webhook:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('[Webhook] Error processing VietQR webhook:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }

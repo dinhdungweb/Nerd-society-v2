@@ -34,6 +34,8 @@ model User {
   accounts           Account[]
   bookings           Booking[]
   nerdCoinTxns       NerdCoinTransaction[]
+  wallet             Wallet?
+  createdWalletTxns  WalletTransaction[]  @relation("WalletTransactionCreator")
   posts              Post[]
   sessions           Session[]
   assignedLocation   Location?             @relation(fields: [assignedLocationId], references: [id])
@@ -463,6 +465,7 @@ enum PaymentMethod {
   MOMO
   ZALOPAY
   BANK_TRANSFER
+  WALLET
 }
 
 enum PaymentStatus {
@@ -703,6 +706,7 @@ model Subscriber {
   photoUrl        String?               // ảnh selfie khi đăng ký
   cardNo          String?  @unique      // mã thẻ proximity 125KHz
   mytimeEmpId     String?  @unique      // EmployeeID trên MyTime
+  walletCode      String?               // Mã nạp Ví Nerd legacy
   branchPrimary   String?               // 'HTM' | 'TS'
   status          SubscriberStatus @default(ACTIVE)
   walletBalance      Int      @default(0)           // số dư ví (VNĐ)
@@ -723,7 +727,81 @@ model Subscriber {
 
   @@index([phone])
   @@index([cardNo])
+  @@index([walletCode])
   @@index([status])
+}
+
+model Wallet {
+  id           String       @id @default(cuid())
+  userId       String       @unique
+  walletCode   String       @unique
+  balance      Int          @default(0)
+  status       WalletStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions     WalletTransaction[]
+  bankTransactions BankTransaction[]   @relation("BankMatchedWallet")
+
+  @@index([walletCode])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model WalletTransaction {
+  id                    String                  @id @default(cuid())
+  walletId              String
+  type                  WalletTransactionType
+  amount                Int
+  balanceBefore         Int
+  balanceAfter          Int
+  status                WalletTransactionStatus @default(COMPLETED)
+  source                WalletTransactionSource @default(SYSTEM)
+  referenceType         String?
+  referenceId           String?
+  externalTransactionId String?                 @unique
+  description           String?
+  note                  String?
+  createdById           String?
+  rawPayload            Json?
+  createdAt             DateTime                @default(now())
+
+  wallet          Wallet           @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  createdBy       User?            @relation("WalletTransactionCreator", fields: [createdById], references: [id])
+  bankTransaction BankTransaction? @relation("MatchedWalletTransaction")
+
+  @@index([walletId])
+  @@index([type])
+  @@index([status])
+  @@index([source])
+  @@index([referenceType, referenceId])
+  @@index([createdAt])
+}
+
+model BankTransaction {
+  id                   String                @id @default(cuid())
+  externalTransactionId String               @unique
+  bankAccount          String?
+  amount               Int
+  transType            String?
+  content              String?
+  transactionTime      DateTime?
+  status               BankTransactionStatus @default(PENDING)
+  matchedWalletId      String?
+  matchedTransactionId String?               @unique
+  rawPayload           Json?
+  note                 String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  matchedWallet      Wallet?            @relation("BankMatchedWallet", fields: [matchedWalletId], references: [id])
+  matchedTransaction WalletTransaction? @relation("MatchedWalletTransaction", fields: [matchedTransactionId], references: [id])
+
+  @@index([status])
+  @@index([matchedWalletId])
+  @@index([transactionTime])
+  @@index([createdAt])
 }
 
 model Subscription {
@@ -929,7 +1007,49 @@ enum TransactionType {
   TOPUP
   SESSION_CHARGE
   OVERAGE_CHARGE
+  BOOKING_PAYMENT
   SUBSCRIPTION_PURCHASE
   REFUND
   OVERAGE_PAYMENT
+}
+
+enum WalletStatus {
+  ACTIVE
+  LOCKED
+}
+
+enum WalletTransactionType {
+  TOPUP
+  DEBIT
+  ADJUSTMENT
+  REFUND
+  BOOKING_PAYMENT
+  SUBSCRIPTION_PURCHASE
+  SESSION_CHARGE
+  OVERAGE_CHARGE
+  OVERAGE_PAYMENT
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum WalletTransactionSource {
+  SYSTEM
+  VIETQR
+  MANUAL_ADMIN
+  BOOKING
+  SUBSCRIPTION
+  MONTHLY_BEAVER
+}
+
+enum BankTransactionStatus {
+  PENDING
+  MATCHED
+  DUPLICATE
+  IGNORED
+  ERROR
 }

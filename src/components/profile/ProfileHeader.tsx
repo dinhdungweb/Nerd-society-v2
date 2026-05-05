@@ -9,6 +9,7 @@ import {
     SparklesIcon,
     ChevronRightIcon,
     CreditCardIcon,
+    WalletIcon,
 } from '@heroicons/react/24/outline'
 
 interface ProfileHeaderProps {
@@ -19,13 +20,13 @@ interface ProfileHeaderProps {
         nerdCoinBalance?: number
         nerdCoinTier?: string
         walletBalance?: number
-        hasMonthlyBeaver?: boolean
     }
 }
 
 const navigation = [
     { name: 'Lịch sử đặt lịch', href: '/profile', icon: ClockIcon },
-    { name: 'Monthly Beaver & Ví', href: '/profile/monthly-beaver', icon: CreditCardIcon },
+    { name: 'Ví Nerd', href: '/profile/wallet', icon: WalletIcon },
+    { name: 'Monthly Beaver', href: '/profile/monthly-beaver', icon: CreditCardIcon },
     { name: 'Nerd Member', href: '/profile/nerdcoin', icon: SparklesIcon },
     { name: 'Cài đặt tài khoản', href: '/profile/settings', icon: Cog6ToothIcon },
 ]
@@ -87,12 +88,10 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
                                 <div className="text-lg font-bold">{user.nerdCoinBalance || 0}</div>
                                 <div className="text-xs text-white/60">Nerd Coins</div>
                             </div>
-                            {user.hasMonthlyBeaver && (
-                                <Link href="/profile/monthly-beaver" className="rounded-lg bg-white/10 px-4 py-2 backdrop-blur-sm transition-colors hover:bg-white/20">
-                                    <div className="text-lg font-bold">{(user.walletBalance || 0).toLocaleString()}đ</div>
-                                    <div className="text-xs text-white/60">Số dư Ví</div>
-                                </Link>
-                            )}
+                            <Link href="/profile/wallet" className="rounded-lg bg-white/10 px-4 py-2 backdrop-blur-sm transition-colors hover:bg-white/20">
+                                <div className="text-lg font-bold">{(user.walletBalance || 0).toLocaleString()}đ</div>
+                                <div className="text-xs text-white/60">Ví Nerd</div>
+                            </Link>
                             <Link
                                 href="/booking"
                                 className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 font-semibold text-primary-600 transition-transform hover:scale-105"

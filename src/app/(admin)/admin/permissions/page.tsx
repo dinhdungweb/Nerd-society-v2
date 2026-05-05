@@ -48,6 +48,10 @@ interface Permissions {
     canViewCustomers: boolean
     canManageCustomers: boolean
 
+    // Wallets
+    canViewWallets: boolean
+    canManageWallets: boolean
+
     // Nerd Coin
     canViewNerdCoin: boolean
     canManageNerdCoin: boolean
@@ -137,6 +141,9 @@ const permissionLabels: Record<keyof Permissions, { label: string; description: 
     canManageCustomers: { label: 'Quản lý Khách hàng', description: 'Sửa, xóa thông tin khách', group: 'Khách hàng' },
 
     // Nerd Coin
+    canViewWallets: { label: 'Xem Ví user', description: 'Xem số dư ví và lịch sử giao dịch', group: 'Khách hàng' },
+    canManageWallets: { label: 'Quản lý Ví user', description: 'Nạp, trừ, hoàn tiền và đối soát ví', group: 'Khách hàng' },
+
     canViewNerdCoin: { label: 'Xem Nerd Coin', description: 'Xem số dư Nerd Coin', group: 'Hệ thống' },
     canManageNerdCoin: { label: 'Quản lý Nerd Coin', description: 'Điều chỉnh Nerd Coin khách', group: 'Hệ thống' },
 

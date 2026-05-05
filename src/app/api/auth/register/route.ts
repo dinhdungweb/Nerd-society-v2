@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { ensureUserWalletAccount } from '@/lib/wallet-account'
 import bcrypt from 'bcryptjs'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -104,6 +105,8 @@ export async function POST(request: NextRequest) {
                 },
             })
         }
+
+        await ensureUserWalletAccount(user.id)
 
         return NextResponse.json(
             { message: 'Đăng ký thành công', user },

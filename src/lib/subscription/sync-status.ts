@@ -1,78 +1,82 @@
-import { prisma } from '@/lib/prisma';
-import { updateEmployeeStatus } from '@/lib/mytime-api';
+import { prisma } from '@/lib/prisma'
+import { updateEmployeeStatus } from '@/lib/mytime-api'
 
-/**
- * Đồng bộ trạng thái của tất cả hội viên sang máy chấm công MyTime
- */
+const MIN_WALLET_BALANCE = 3750
+
 export async function syncAllSubscribersStatus() {
-    console.log('[SyncStatus] Starting global status synchronization...');
-    
+    console.log('[SyncStatus] Starting global status synchronization...')
+
     const subscribers = await prisma.subscriber.findMany({
         where: {
-            mytimeEmpId: { not: null }
+            mytimeEmpId: { not: null },
         },
         include: {
             subscriptions: {
                 where: { status: 'ACTIVE' },
-                take: 1
-            }
-        }
-    });
+                take: 1,
+            },
+            user: {
+                select: {
+                    wallet: { select: { balance: true } },
+                },
+            },
+        },
+    })
 
     const results = {
         total: subscribers.length,
         activated: 0,
         locked: 0,
-        errors: 0
-    };
+        errors: 0,
+    }
 
     for (const sub of subscribers) {
         try {
-            const hasActiveSub = sub.subscriptions.length > 0;
-            const hasWalletBalance = sub.walletBalance >= 3750; // Đủ 15 phút
-            const isSubActive = sub.status === 'ACTIVE';
+            const hasActiveSub = sub.subscriptions.length > 0
+            const hasWalletBalance = (sub.user?.wallet?.balance || 0) >= MIN_WALLET_BALANCE
+            const isSubActive = sub.status === 'ACTIVE'
 
-            const shouldBeActive = isSubActive && (hasActiveSub || hasWalletBalance);
-            const targetStatus = shouldBeActive ? 'ACTIVE' : 'LOCKED';
+            const shouldBeActive = isSubActive && (hasActiveSub || hasWalletBalance)
+            const targetStatus = shouldBeActive ? 'ACTIVE' : 'LOCKED'
 
-            await updateEmployeeStatus(sub.mytimeEmpId!, targetStatus);
-            
-            if (shouldBeActive) results.activated++;
-            else results.locked++;
+            await updateEmployeeStatus(sub.mytimeEmpId!, targetStatus)
 
-            // Optional: Log status change if needed
+            if (shouldBeActive) results.activated += 1
+            else results.locked += 1
         } catch (error) {
-            console.error(`[SyncStatus] Failed to sync status for ${sub.mytimeEmpId}:`, error);
-            results.errors++;
+            console.error(`[SyncStatus] Failed to sync status for ${sub.mytimeEmpId}:`, error)
+            results.errors += 1
         }
     }
 
-    console.log('[SyncStatus] Synchronization completed:', results);
-    return results;
+    console.log('[SyncStatus] Synchronization completed:', results)
+    return results
 }
 
-/**
- * Đồng bộ trạng thái cho 1 hội viên cụ thể
- */
 export async function syncSubscriberStatus(subscriberId: string) {
     const sub = await prisma.subscriber.findUnique({
         where: { id: subscriberId },
         include: {
             subscriptions: {
                 where: { status: 'ACTIVE' },
-                take: 1
-            }
-        }
-    });
+                take: 1,
+            },
+            user: {
+                select: {
+                    wallet: { select: { balance: true } },
+                },
+            },
+        },
+    })
 
-    if (!sub || !sub.mytimeEmpId) return;
+    if (!sub || !sub.mytimeEmpId) return
 
-    const hasActiveSub = sub.subscriptions.length > 0;
-    const hasWalletBalance = sub.walletBalance >= 3750;
-    const isSubActive = sub.status === 'ACTIVE';
+    const hasActiveSub = sub.subscriptions.length > 0
+    const hasWalletBalance = (sub.user?.wallet?.balance || 0) >= MIN_WALLET_BALANCE
+    const isSubActive = sub.status === 'ACTIVE'
 
-    const shouldBeActive = isSubActive && (hasActiveSub || hasWalletBalance);
-    const targetStatus = shouldBeActive ? 'ACTIVE' : 'LOCKED';
+    const shouldBeActive = isSubActive && (hasActiveSub || hasWalletBalance)
+    const targetStatus = shouldBeActive ? 'ACTIVE' : 'LOCKED'
 
-    return updateEmployeeStatus(sub.mytimeEmpId, targetStatus);
+    return updateEmployeeStatus(sub.mytimeEmpId, targetStatus)
 }
