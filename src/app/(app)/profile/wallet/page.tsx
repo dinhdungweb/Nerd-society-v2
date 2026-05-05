@@ -71,16 +71,16 @@ export default async function WalletPage() {
     if (!wallet) return null
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5 sm:space-y-6">
             <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-800 to-neutral-950 p-6 text-white shadow-xl">
+                <div className="relative min-w-0 overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-800 to-neutral-950 p-5 text-white shadow-xl sm:p-6">
                     <div className="absolute right-0 top-0 -mr-10 -mt-10 size-40 rounded-full bg-white/5" />
                     <div className="relative">
                         <div className="flex items-center gap-2 text-neutral-300">
                             <WalletIcon className="size-5" />
                             <span className="text-sm font-medium">Ví Nerd</span>
                         </div>
-                        <p className="mt-3 text-4xl font-bold">
+                        <p className="mt-3 break-words text-3xl font-bold sm:text-4xl">
                             {wallet.balance.toLocaleString()}
                             <span className="ml-1 text-base font-normal text-neutral-400">đ</span>
                         </p>
@@ -109,21 +109,21 @@ export default async function WalletPage() {
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+                <div className="min-w-0 rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900 sm:p-5">
                     <div className="flex items-center gap-2 text-neutral-500">
                         <BanknotesIcon className="size-5" />
                         <span className="text-sm font-medium">Thông tin nạp tiền</span>
                     </div>
                     <div className="mt-4 space-y-3 text-sm">
-                        <div className="flex justify-between gap-4">
+                        <div className="flex items-start justify-between gap-4">
                             <span className="text-neutral-500">Mã ví</span>
-                            <span className="font-mono font-bold text-primary-600">{wallet.walletCode}</span>
+                            <span className="min-w-0 break-all text-right font-mono font-bold text-primary-600">{wallet.walletCode}</span>
                         </div>
-                        <div className="flex justify-between gap-4">
+                        <div className="flex items-start justify-between gap-4">
                             <span className="text-neutral-500">Nội dung CK</span>
-                            <span className="font-mono font-bold text-neutral-900 dark:text-white">VI {wallet.walletCode}</span>
+                            <span className="min-w-0 break-all text-right font-mono font-bold text-neutral-900 dark:text-white">VI {wallet.walletCode}</span>
                         </div>
-                        <div className="flex justify-between gap-4">
+                        <div className="flex items-start justify-between gap-4">
                             <span className="text-neutral-500">Ngân hàng</span>
                             <span className="font-medium text-neutral-900 dark:text-white">{bankConfig.bankCode}</span>
                         </div>
@@ -143,16 +143,16 @@ export default async function WalletPage() {
                             return (
                                 <div
                                     key={tx.id}
-                                    className="flex items-center justify-between rounded-xl border border-neutral-100 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
+                                    className="flex flex-col gap-3 rounded-xl border border-neutral-100 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900 sm:flex-row sm:items-center sm:justify-between"
                                 >
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex min-w-0 items-center gap-3">
                                         <div className={`flex size-9 items-center justify-center rounded-full ${isCredit
                                             ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20'
                                             : 'bg-red-50 text-red-600 dark:bg-red-900/20'
                                             }`}>
                                             {isCredit ? <ArrowDownIcon className="size-4" /> : <ArrowUpIcon className="size-4" />}
                                         </div>
-                                        <div>
+                                        <div className="min-w-0">
                                             <p className="text-sm font-medium text-neutral-900 dark:text-white">
                                                 {transactionLabels[tx.type] || tx.type}
                                             </p>
@@ -160,11 +160,11 @@ export default async function WalletPage() {
                                                 {new Date(tx.createdAt).toLocaleString('vi-VN')}
                                             </p>
                                             {tx.description && (
-                                                <p className="mt-0.5 text-xs text-neutral-500">{descriptionLabels[tx.description] || tx.description}</p>
+                                                <p className="mt-0.5 break-words text-xs text-neutral-500">{descriptionLabels[tx.description] || tx.description}</p>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="shrink-0 text-left sm:text-right">
                                         <p className={`text-sm font-bold ${isCredit ? 'text-emerald-600' : 'text-red-600'}`}>
                                             {isCredit ? '+' : '-'}{Math.abs(tx.amount).toLocaleString()}đ
                                         </p>

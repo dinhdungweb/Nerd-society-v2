@@ -91,7 +91,7 @@ export default async function MonthlyBeaverPage() {
             return (
                 <div className="space-y-6">
                     {/* Banner thông báo */}
-                    <div className="flex items-start gap-4 rounded-2xl border border-blue-200 bg-blue-50/50 p-5 dark:border-blue-800 dark:bg-blue-900/10">
+                    <div className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-800 dark:bg-blue-900/10 sm:gap-4 sm:p-5">
                         <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30">
                             <SparklesIcon className="size-7" />
                         </div>
@@ -110,8 +110,8 @@ export default async function MonthlyBeaverPage() {
                             const status = orderStatusLabels[order.orderStatus] || { label: order.orderStatus, style: 'bg-neutral-100 text-neutral-600', Icon: ClipboardDocumentIcon }
                             return (
                                 <div key={order.id} className={`rounded-xl border p-4 ${status.style}`}>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="flex min-w-0 items-center gap-3">
                                             <div className="flex size-10 items-center justify-center rounded-lg bg-white/50 dark:bg-black/20">
                                                 <status.Icon className="size-6" />
                                             </div>
@@ -122,7 +122,7 @@ export default async function MonthlyBeaverPage() {
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="text-right">
+                                        <div className="text-left sm:text-right">
                                             <p className="text-xs font-medium uppercase">{status.label}</p>
                                             <p className="text-xs opacity-70 mt-0.5">
                                                 {new Date(order.createdAt).toLocaleDateString('vi-VN')}
@@ -135,7 +135,7 @@ export default async function MonthlyBeaverPage() {
                     </div>
 
                     {/* Hướng dẫn */}
-                    <div className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900 sm:p-5">
                         <h3 className="font-bold text-neutral-900 dark:text-white">Bước tiếp theo</h3>
                         <div className="mt-3 space-y-3">
                             <div className="flex items-start gap-3">
@@ -158,7 +158,7 @@ export default async function MonthlyBeaverPage() {
 
         // Chưa có đơn hàng nào → hiển thị CTA đăng ký
         return (
-            <div className="flex flex-col items-center py-12 text-center">
+            <div className="flex flex-col items-center rounded-2xl bg-white px-4 py-10 text-center dark:bg-neutral-900 sm:bg-transparent sm:px-0 sm:py-12 sm:dark:bg-transparent">
                 <div className="mb-4 flex size-20 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-900/20">
                     <CreditCardIcon className="size-10 text-primary-500" />
                 </div>
@@ -196,22 +196,22 @@ export default async function MonthlyBeaverPage() {
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-5 sm:space-y-8">
             <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
                 <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_340px]">
-                    <div className="bg-gradient-to-br from-primary-50 to-white p-6 dark:from-primary-950/30 dark:to-neutral-900 sm:p-7">
+                    <div className="min-w-0 bg-gradient-to-br from-primary-50 to-white p-4 dark:from-primary-950/30 dark:to-neutral-900 sm:p-7">
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="flex size-11 items-center justify-center rounded-xl bg-primary-500 text-white">
                                 <BoltIcon className="size-6" />
                             </div>
                             <div>
                                 <p className="text-sm font-semibold text-primary-700 dark:text-primary-300">Monthly Beaver</p>
-                                <h2 className="text-2xl font-bold text-neutral-950 dark:text-white">
+                                <h2 className="text-xl font-bold text-neutral-950 dark:text-white sm:text-2xl">
                                     {activeSub ? (planLabels[activeSub.planType] || activeSub.planType) : 'Chưa có gói hoạt động'}
                                 </h2>
                             </div>
                             {activeSub && (
-                                <span className={`ml-auto inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${subStatusLabels[activeSub.status]?.style || 'bg-neutral-100 text-neutral-600'}`}>
+                                <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium sm:ml-auto ${subStatusLabels[activeSub.status]?.style || 'bg-neutral-100 text-neutral-600'}`}>
                                     {activeSub.status === 'ACTIVE' && <CheckCircleIcon className="size-3.5" />}
                                     {subStatusLabels[activeSub.status]?.label || activeSub.status}
                                 </span>
@@ -279,7 +279,7 @@ export default async function MonthlyBeaverPage() {
                         )}
                     </div>
 
-                    <aside className="border-t border-neutral-200 bg-neutral-50 p-6 dark:border-neutral-800 dark:bg-neutral-950 lg:border-l lg:border-t-0">
+                    <aside className="min-w-0 border-t border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-950 sm:p-6 lg:border-l lg:border-t-0">
                         <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
                             <IdentificationIcon className="size-5" />
                             <span className="text-sm font-semibold">Thông tin hội viên</span>
@@ -291,7 +291,7 @@ export default async function MonthlyBeaverPage() {
                                     {subscriber.mytimeEmpId || '—'}
                                 </p>
                             </div>
-                            <div className="relative flex aspect-[1.58/1] min-h-[178px] flex-col justify-between overflow-hidden rounded-2xl border border-primary-200 bg-neutral-950 p-5 text-white dark:border-primary-800">
+                            <div className="relative flex aspect-[1.58/1] min-h-[164px] flex-col justify-between overflow-hidden rounded-2xl border border-primary-200 bg-neutral-950 p-4 text-white dark:border-primary-800 sm:min-h-[178px] sm:p-5">
                                 <div className="absolute inset-x-0 top-0 h-1 bg-primary-400" />
 
                                 <div className="flex items-start justify-between gap-4">
@@ -351,7 +351,7 @@ export default async function MonthlyBeaverPage() {
                         {subscriber.sessions.map((s: any, index: number) => (
                             <div
                                 key={s.id}
-                                className={`flex items-center justify-between gap-4 bg-white p-4 dark:bg-neutral-900 ${index > 0 ? 'border-t border-neutral-100 dark:border-neutral-800' : ''}`}
+                                className={`flex flex-col gap-3 bg-white p-4 dark:bg-neutral-900 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${index > 0 ? 'border-t border-neutral-100 dark:border-neutral-800' : ''}`}
                             >
                                 <div className="flex min-w-0 items-center gap-3">
                                     <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">

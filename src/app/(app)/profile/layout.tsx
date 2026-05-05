@@ -99,7 +99,7 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                     )}
 
                     {/* Page Content */}
-                    <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm dark:bg-neutral-800">
+                    <div className="mt-6">
                         {children}
                     </div>
                 </div>
