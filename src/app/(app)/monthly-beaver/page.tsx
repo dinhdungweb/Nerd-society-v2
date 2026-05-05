@@ -733,8 +733,8 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
 
   return (
     <div className="text-center">
-      {cameraError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+      {cameraError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 mb-4">
           <p className="text-sm font-medium text-red-600 mb-4">{cameraError}</p>
           <div className="flex items-center justify-center gap-3">
             <button
@@ -762,7 +762,31 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
             </label>
           </div>
         </div>
-      ) : !streaming ? (
+      )}
+
+      {/* Container video (luôn render để videoRef.current có giá trị) */}
+      <div className={(!streaming || cameraError) ? "hidden" : "block"}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="mx-auto h-48 w-48 rounded-2xl object-cover border-2 border-primary-300 shadow-sm"
+        />
+        <div className="mt-3 flex justify-center gap-2">
+          <button
+            onClick={capture}
+            className="inline-flex items-center gap-2 rounded-full bg-primary-500 px-8 py-2 text-sm font-medium text-white shadow-lg shadow-primary-500/25 hover:bg-primary-600 transition-colors"
+          >
+            <CameraIcon className="h-4 w-4" />
+            Chụp
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-neutral-400">Nhìn thẳng vào camera · Đủ ánh sáng · Không đeo khẩu trang</p>
+      </div>
+
+      {/* Button Mở camera nếu chưa streaming và không có lỗi */}
+      {!streaming && !cameraError && (
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={startCamera}
@@ -787,26 +811,6 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
               }}
             />
           </label>
-        </div>
-      ) : (
-        <div>
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="mx-auto h-48 w-48 rounded-2xl object-cover border-2 border-primary-300 shadow-sm"
-          />
-          <div className="mt-3 flex justify-center gap-2">
-            <button
-              onClick={capture}
-              className="inline-flex items-center gap-2 rounded-full bg-primary-500 px-8 py-2 text-sm font-medium text-white shadow-lg shadow-primary-500/25 hover:bg-primary-600 transition-colors"
-            >
-              <CameraIcon className="h-4 w-4" />
-              Chụp
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-neutral-400">Nhìn thẳng vào camera · Đủ ánh sáng · Không đeo khẩu trang</p>
         </div>
       )}
     </div>
