@@ -670,27 +670,32 @@ function SelfieCapture({ onCapture }: { onCapture: (url: string, blob: Blob) => 
     setCameraError('');
     
     // Kiểm tra Secure Context (Camera yêu cầu HTTPS hoặc localhost)
-    if (!window.isSecureContext) {
-      setCameraError('Trình duyệt yêu cầu kết nối bảo mật (HTTPS) để truy cập camera. Vui lòng kiểm tra lại URL.');
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError('Trình duyệt chặn mở camera do kết nối không bảo mật (yêu cầu HTTPS). Vui lòng dùng nút "Chọn ảnh".');
       return;
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          width: { ideal: 500 }, 
-          height: { ideal: 500 }, 
-          facingMode: 'user' 
-        },
-      });
+      // Thử mở camera trước, bỏ qua width/height vì một số ĐT bị lỗi OverconstrainedError
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user' },
+        });
+      } catch (fallbackErr) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // Bắt buộc gọi play() để fix lỗi màn hình đen trên iOS Safari
+        videoRef.current.play().catch(e => console.error("Video play error:", e));
         setStreaming(true);
       }
     } catch (err: any) {
       console.error('Camera Error:', err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setCameraError('Bạn đã chặn quyền truy cập camera. Vui lòng bấm vào biểu tượng ổ khóa trên thanh địa chỉ để cấp quyền lại.');
+        setCameraError('Bạn đã chặn quyền truy cập camera. Vui lòng cấp quyền lại trong cài đặt trình duyệt.');
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         setCameraError('Không tìm thấy thiết bị camera trên máy của bạn.');
       } else {
