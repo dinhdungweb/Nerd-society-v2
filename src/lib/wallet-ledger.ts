@@ -23,7 +23,7 @@ type ApplyWalletTransactionInput = {
     allowNegativeBalance?: boolean
 }
 
-async function applyWalletTransactionInTx(
+export async function applyWalletTransactionInTx(
     tx: Prisma.TransactionClient,
     input: ApplyWalletTransactionInput
 ) {
@@ -239,8 +239,9 @@ export async function refundRegistrationOrderToWallet(input: {
         return { refunded: false, reason: 'ORDER_NOT_PAID' }
     }
 
-    if (order.paymentMethod && order.paymentMethod !== 'online') {
-        return { refunded: false, reason: 'NON_ONLINE_PAYMENT' }
+    const refundableMethods = new Set(['online', 'wallet'])
+    if (order.paymentMethod && !refundableMethods.has(order.paymentMethod)) {
+        return { refunded: false, reason: 'NON_REFUNDABLE_PAYMENT_METHOD' }
     }
 
     const amount = Math.round(order.amount || 0)

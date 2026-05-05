@@ -8,7 +8,9 @@ import { prisma } from '@/lib/prisma';
 import { importEmployee, deleteEmployee, generateNextEmployeeId } from '@/lib/mytime-api';
 import { revalidatePath } from 'next/cache';
 import { ensureUserWalletAccount } from '@/lib/wallet-account';
-import { refundRegistrationOrderToWallet } from '@/lib/wallet-ledger';
+import { applyWalletTransactionInTx, refundRegistrationOrderToWallet } from '@/lib/wallet-ledger';
+import { authOptions } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
 import {
   sendAdminNewSubscriptionOrderEmail,
   sendSubscriptionOrderEmail,
@@ -121,6 +123,155 @@ export async function createRegistrationOrder(data: {
   };
 }
 
+export async function payRegistrationOrderWithWallet(orderId: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return { success: false, error: 'Vui lòng đăng nhập để thanh toán bằng Ví Nerd' };
+  }
+
+  const [order, user] = await Promise.all([
+    prisma.registrationOrder.findUnique({ where: { id: orderId } }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, email: true, phone: true },
+    }),
+  ]);
+
+  if (!order || !user) return { success: false, error: 'Không tìm thấy đơn đăng ký' };
+  if (order.orderStatus === 'CANCELLED') return { success: false, error: 'Đơn đăng ký đã bị hủy' };
+
+  const canPayOrder =
+    order.userId === user.id ||
+    (!order.userId && (
+      (!!order.email && order.email.toLowerCase() === user.email.toLowerCase()) ||
+      (!!user.phone && order.phone === user.phone)
+    ));
+
+  if (!canPayOrder) {
+    return { success: false, error: 'Bạn không có quyền thanh toán đơn đăng ký này' };
+  }
+
+  if (order.orderStatus === 'PAID') {
+    const walletAccount = await ensureUserWalletAccount(user.id);
+    return {
+      success: true,
+      order,
+      currentBalance: walletAccount.success ? walletAccount.wallet.balance : undefined,
+      message: 'Đơn đăng ký đã được thanh toán',
+    };
+  }
+
+  if (order.orderStatus !== 'PENDING_PAYMENT') {
+    return { success: false, error: 'Không thể thanh toán đơn đăng ký ở trạng thái hiện tại' };
+  }
+
+  const amount = Math.round(order.amount || 0);
+  if (amount <= 0) return { success: false, error: 'Số tiền thanh toán không hợp lệ' };
+
+  const walletAccount = await ensureUserWalletAccount(user.id);
+  if (!walletAccount.success) {
+    return { success: false, error: walletAccount.message };
+  }
+
+  if (walletAccount.wallet.balance < amount) {
+    return {
+      success: false,
+      error: `Số dư Ví Nerd không đủ. Cần ${amount.toLocaleString()}đ, hiện có ${walletAccount.wallet.balance.toLocaleString()}đ.`,
+      currentBalance: walletAccount.wallet.balance,
+    };
+  }
+
+  const paidAt = new Date();
+  const externalTransactionId = `WALLET-MB-${order.id}`;
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const freshOrder = await tx.registrationOrder.findUnique({
+        where: { id: order.id },
+      });
+
+      if (!freshOrder) throw new Error('Không tìm thấy đơn đăng ký');
+      if (freshOrder.orderStatus === 'PAID') {
+        const existing = await tx.walletTransaction.findUnique({
+          where: { externalTransactionId },
+        });
+        return {
+          order: freshOrder,
+          walletTransaction: existing,
+          currentBalance: walletAccount.wallet.balance,
+        };
+      }
+      if (freshOrder.orderStatus !== 'PENDING_PAYMENT') {
+        throw new Error('Không thể thanh toán đơn đăng ký ở trạng thái hiện tại');
+      }
+
+      const walletResult = await applyWalletTransactionInTx(tx, {
+        walletId: walletAccount.wallet.id,
+        type: 'SUBSCRIPTION_PURCHASE',
+        amount: -amount,
+        source: 'MONTHLY_BEAVER',
+        referenceType: 'registration_order',
+        referenceId: freshOrder.id,
+        externalTransactionId,
+        description: `Thanh toán gói Monthly Beaver ${freshOrder.orderCode}`,
+      });
+
+      const updatedOrder = await tx.registrationOrder.update({
+        where: { id: freshOrder.id },
+        data: {
+          orderStatus: 'PAID',
+          paidAt,
+          paymentMethod: 'wallet',
+          paymentRef: walletResult.transaction.id,
+          userId: freshOrder.userId || user.id,
+        },
+      });
+
+      await tx.subscriptionAuditLog.create({
+        data: {
+          action: 'payment_confirmed_wallet',
+          entityType: 'registration_order',
+          entityId: freshOrder.id,
+          performedBy: 'customer',
+          details: {
+            orderCode: freshOrder.orderCode,
+            walletTransactionId: walletResult.transaction.id,
+            amount,
+          },
+        },
+      });
+
+      return {
+        order: updatedOrder,
+        walletTransaction: walletResult.transaction,
+        currentBalance: walletResult.balanceAfter,
+      };
+    });
+
+    try {
+      await sendSubscriptionPaidEmail(result.order);
+    } catch (emailError) {
+      console.error('[payRegistrationOrderWithWallet] Subscription email error:', emailError);
+    }
+
+    revalidatePath('/profile/wallet');
+    revalidatePath('/profile/monthly-beaver');
+    revalidatePath('/admin/subscriptions');
+    revalidatePath('/admin/wallets');
+
+    return {
+      success: true,
+      order: result.order,
+      currentBalance: result.currentBalance,
+      walletTransaction: result.walletTransaction,
+      message: 'Thanh toán bằng Ví Nerd thành công',
+    };
+  } catch (error: any) {
+    console.error('[payRegistrationOrderWithWallet] Error:', error);
+    return { success: false, error: error.message || 'Không thể thanh toán bằng Ví Nerd' };
+  }
+}
+
 /**
  * Admin: Xác nhận thanh toán đơn
  */
@@ -143,6 +294,12 @@ export async function confirmPayment(orderId: string, paymentRef?: string) {
       details: { paymentRef, orderCode: order.orderCode },
     },
   });
+
+  try {
+    await sendSubscriptionPaidEmail(order);
+  } catch (emailError) {
+    console.error('[confirmPayment] Subscription email error:', emailError);
+  }
 
   revalidatePath('/admin/subscriptions');
   return { success: true, order };
@@ -294,12 +451,6 @@ export async function cancelOrder(orderId: string, reason?: string) {
       details: { reason, refund: refundResult },
     },
   });
-
-  try {
-    await sendSubscriptionPaidEmail(order);
-  } catch (emailError) {
-    console.error('[confirmPayment] Subscription email error:', emailError);
-  }
 
   revalidatePath('/admin/subscriptions');
   return { success: true, refund: refundResult };

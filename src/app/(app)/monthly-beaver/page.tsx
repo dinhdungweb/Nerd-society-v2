@@ -18,6 +18,7 @@ import {
   MapPinIcon,
   ArrowRightIcon,
   CreditCardIcon,
+  WalletIcon,
   BuildingStorefrontIcon,
   LightBulbIcon,
   CheckCircleIcon,
@@ -30,7 +31,7 @@ import {
   CheckIcon as CheckSolidIcon,
   SparklesIcon as SparklesSolidIcon,
 } from '@heroicons/react/24/solid';
-import { createRegistrationOrder } from '@/actions/subscription-actions';
+import { createRegistrationOrder, payRegistrationOrderWithWallet } from '@/actions/subscription-actions';
 import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
@@ -39,6 +40,12 @@ import { useEffect } from 'react';
 // ======================== TYPES ========================
 
 type PlanType = 'WEEKLY_LIMITED' | 'MONTHLY_LIMITED' | 'MONTHLY_UNLIMITED';
+
+type WalletSummary = {
+  balance: number;
+  status: string;
+  walletCode: string;
+};
 
 interface PlanInfo {
   type: PlanType;
@@ -104,6 +111,9 @@ export default function MonthlyBeaverPage() {
   const [orderResult, setOrderResult] = useState<{ id: string; orderCode: string } | null>(null);
   const [qrUrl, setQrUrl] = useState<string>('');
   const [bankInfo, setBankInfo] = useState<{ bankCode: string; accountNumber: string; accountName: string } | null>(null);
+  const [walletInfo, setWalletInfo] = useState<WalletSummary | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletPaying, setWalletPaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -128,6 +138,35 @@ export default function MonthlyBeaverPage() {
     }
     return () => clearInterval(interval);
   }, [step, orderResult]);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+
+    let mounted = true;
+    setWalletLoading(true);
+
+    fetch('/api/profile/wallet/summary', { cache: 'no-store' })
+      .then(async (res) => {
+        const data = await res.json();
+        if (mounted && res.ok && data.success) {
+          setWalletInfo({
+            balance: data.balance,
+            status: data.status,
+            walletCode: data.walletCode,
+          });
+        }
+      })
+      .catch((err) => {
+        console.error('Wallet summary error:', err);
+      })
+      .finally(() => {
+        if (mounted) setWalletLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [status]);
 
   // Function to create order when moving to payment step
   const handleProceedToPayment = async () => {
@@ -171,6 +210,35 @@ export default function MonthlyBeaverPage() {
       setError('Lỗi kết nối, vui lòng thử lại');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleWalletPayment = async () => {
+    if (!orderResult?.id) {
+      setError('Không tìm thấy đơn đăng ký để thanh toán');
+      return;
+    }
+
+    setWalletPaying(true);
+    setError('');
+
+    try {
+      const result = await payRegistrationOrderWithWallet(orderResult.id);
+      if (result.success) {
+        if (typeof result.currentBalance === 'number') {
+          setWalletInfo((prev) => prev ? { ...prev, balance: result.currentBalance as number } : prev);
+        }
+        toast.success(result.message || 'Thanh toán bằng Ví Nerd thành công');
+        setStep(4);
+      } else {
+        setError(result.error || 'Không thể thanh toán bằng Ví Nerd');
+        toast.error(result.error || 'Không thể thanh toán bằng Ví Nerd');
+      }
+    } catch (err) {
+      setError('Lỗi kết nối, vui lòng thử lại');
+      toast.error('Lỗi kết nối, vui lòng thử lại');
+    } finally {
+      setWalletPaying(false);
     }
   };
 
@@ -433,35 +501,37 @@ export default function MonthlyBeaverPage() {
 
   // ======================== STEP 3: THANH TOÁN ========================
   if (step === 3 && selectedPlan) {
-    const orderCodePreview = `MB-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-XXX`;
+    const walletBalance = walletInfo?.balance ?? 0;
+    const walletCanPay = !!walletInfo && walletInfo.status === 'ACTIVE' && walletBalance >= selectedPlan.priceNum;
+    const walletBalanceAfter = walletBalance - selectedPlan.priceNum;
 
     return (
-      <div className="bg-neutral-50 pt-24 pb-12 px-4">
-        <div className="mx-auto max-w-lg">
-          <button onClick={() => setStep(2)} className="mb-6 flex items-center gap-1.5 text-sm text-neutral-500 hover:text-primary-600 transition-colors">
+      <div className="bg-neutral-50 px-4 pb-12 pt-24">
+        <div className="mx-auto max-w-md">
+          <button onClick={() => setStep(2)} className="mb-4 flex items-center gap-1.5 text-sm text-neutral-500 transition-colors hover:text-primary-600">
             <ArrowLeftIcon className="h-4 w-4" />
             Quay lại
           </button>
 
-          <div className="rounded-3xl border border-neutral-200 bg-white p-7 shadow-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <CreditCardIcon className="h-6 w-6 text-primary-600" />
-              <h2 className="text-2xl font-bold text-neutral-900">Thanh toán</h2>
+          <div className="rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <CreditCardIcon className="h-5 w-5 text-primary-600" />
+              <h2 className="text-xl font-bold text-neutral-900">Thanh toán</h2>
             </div>
 
             {/* Order summary */}
-            <div className="mb-6 flex items-center justify-between rounded-2xl bg-primary-50 border border-primary-200/50 p-4">
+            <div className="mb-4 flex items-center justify-between rounded-2xl border border-primary-200/50 bg-primary-50 p-3.5">
               <div>
-                <p className="text-sm text-neutral-500">Gói đã chọn</p>
+                <p className="text-xs text-neutral-500">Gói đã chọn</p>
                 <p className="font-semibold text-neutral-900">{selectedPlan.name}</p>
               </div>
-              <span className="text-xl font-bold text-primary-700">{selectedPlan.price}</span>
+              <span className="text-lg font-bold text-primary-700">{selectedPlan.price}</span>
             </div>
 
             {/* Payment methods */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <label
-                className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition-all ${
+                className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3.5 transition-all ${
                   paymentMethod === 'online_transfer'
                     ? 'border-primary-400 bg-primary-50/50'
                     : 'border-neutral-200 hover:border-neutral-300'
@@ -479,8 +549,8 @@ export default function MonthlyBeaverPage() {
               </label>
 
               {paymentMethod === 'online_transfer' && (
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-center">
-                  <div className="mx-auto mb-3 flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-white border border-neutral-200 shadow-sm relative group">
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3.5 text-center">
+                  <div className="relative mx-auto mb-3 flex aspect-square w-full max-w-[260px] items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-white">
                     {qrUrl ? (
                       <img 
                         src={qrUrl}
@@ -496,13 +566,13 @@ export default function MonthlyBeaverPage() {
                   </div>
 
                   {bankInfo && (
-                    <div className="mt-4 space-y-2 text-left bg-white rounded-2xl border border-neutral-200 p-4">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-neutral-400">Ngân hàng:</span>
+                    <div className="mt-3 space-y-1.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left">
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-neutral-400">Ngân hàng</span>
                         <span className="font-semibold text-neutral-900">{bankInfo.bankCode}</span>
                       </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-neutral-400">Số tài khoản:</span>
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-neutral-400">Số tài khoản</span>
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-bold text-primary-700">{bankInfo.accountNumber}</span>
                           <button 
@@ -516,12 +586,12 @@ export default function MonthlyBeaverPage() {
                           </button>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-neutral-400">Chủ tài khoản:</span>
-                        <span className="font-medium text-neutral-900 uppercase">{bankInfo.accountName}</span>
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-neutral-400">Chủ tài khoản</span>
+                        <span className="text-right font-medium uppercase text-neutral-900">{bankInfo.accountName}</span>
                       </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-neutral-400">Nội dung CK:</span>
+                      <div className="flex items-center justify-between gap-3 border-t border-neutral-100 pt-1.5 text-xs">
+                        <span className="text-neutral-400">Nội dung CK</span>
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-bold text-primary-700">{orderResult?.orderCode}</span>
                           <button 
@@ -544,7 +614,57 @@ export default function MonthlyBeaverPage() {
               )}
 
               <label
-                className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition-all ${
+                className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3.5 transition-all ${
+                  paymentMethod === 'wallet'
+                    ? 'border-primary-400 bg-primary-50/50'
+                    : 'border-neutral-200 hover:border-neutral-300'
+                }`}
+                onClick={() => setPaymentMethod('wallet')}
+              >
+                <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'wallet' ? 'border-primary-500' : 'border-neutral-300'}`}>
+                  {paymentMethod === 'wallet' && <div className="h-2.5 w-2.5 rounded-full bg-primary-500" />}
+                </div>
+                <WalletIcon className="h-5 w-5 text-neutral-500" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-neutral-900">Ví Nerd</p>
+                  <p className="text-xs text-neutral-400">
+                    {walletLoading
+                      ? 'Đang tải số dư ví...'
+                      : walletInfo
+                        ? `Số dư: ${walletBalance.toLocaleString()}đ`
+                        : 'Không tải được số dư ví'}
+                  </p>
+                </div>
+              </label>
+
+              {paymentMethod === 'wallet' && (
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3.5">
+                  <div className="space-y-1.5 rounded-2xl border border-neutral-200 bg-white p-3 text-xs">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-neutral-400">Số dư hiện tại</span>
+                      <span className="font-semibold text-neutral-900">{walletBalance.toLocaleString()}đ</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-neutral-400">Cần thanh toán</span>
+                      <span className="font-semibold text-primary-700">{selectedPlan.priceNum.toLocaleString()}đ</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 border-t border-neutral-100 pt-2">
+                      <span className="text-neutral-400">Sau thanh toán</span>
+                      <span className={`font-semibold ${walletCanPay ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {walletInfo ? `${walletBalanceAfter.toLocaleString()}đ` : '—'}
+                      </span>
+                    </div>
+                  </div>
+                  {!walletLoading && walletInfo && !walletCanPay && (
+                    <p className="mt-3 rounded-xl border border-red-100 bg-red-50 p-3 text-xs font-medium text-red-600">
+                      Số dư Ví Nerd không đủ để mua gói này. Vui lòng nạp thêm hoặc chọn VietQR.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <label
+                className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3.5 transition-all ${
                   paymentMethod === 'at_counter'
                     ? 'border-primary-400 bg-primary-50/50'
                     : 'border-neutral-200 hover:border-neutral-300'
@@ -562,22 +682,43 @@ export default function MonthlyBeaverPage() {
               </label>
             </div>
 
-              {paymentMethod === 'at_counter' ? (
+            {error && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
+              {paymentMethod === 'wallet' ? (
+                <button
+                  onClick={handleWalletPayment}
+                  disabled={walletPaying || walletLoading || !walletCanPay}
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-neutral-900 py-3.5 font-bold text-white shadow-xl transition-all hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]"
+                >
+                  {walletPaying ? (
+                    <>
+                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                      Đang thanh toán...
+                    </>
+                  ) : (
+                    <>Thanh toán bằng Ví Nerd</>
+                  )}
+                </button>
+              ) : paymentMethod === 'at_counter' ? (
                 <button 
                   onClick={() => setStep(4)}
-                  className="mt-8 w-full rounded-full bg-neutral-900 py-4 font-bold text-white shadow-xl hover:bg-neutral-800 transition-all active:scale-[0.98]"
+                  className="mt-5 w-full rounded-full bg-neutral-900 py-3.5 font-bold text-white shadow-xl transition-all hover:bg-neutral-800 active:scale-[0.98]"
                 >
                   Hoàn tất đặt đơn
                 </button>
               ) : (
                 <>
-                  <div className="mt-8 flex flex-col items-center gap-4">
-                    <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-primary-50 border border-primary-100 animate-pulse">
+                  <div className="mt-5 flex flex-col items-center gap-3">
+                    <div className="flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50 px-3 py-1.5">
                       <div className="h-2 w-2 rounded-full bg-primary-500" />
-                      <span className="text-sm font-medium text-primary-700 italic">Hệ thống đang chờ lệnh chuyển tiền...</span>
+                      <span className="text-xs font-medium text-primary-700 italic">Đang chờ lệnh chuyển tiền...</span>
                     </div>
                     
-                    <p className="text-[11px] text-neutral-400 text-center max-w-[280px]">
+                    <p className="max-w-[280px] text-center text-[11px] text-neutral-400">
                       Trang sẽ tự động chuyển sang bước xác nhận ngay sau khi giao dịch thành công. Đừng đóng trình duyệt nhé!
                     </p>
                   </div>
