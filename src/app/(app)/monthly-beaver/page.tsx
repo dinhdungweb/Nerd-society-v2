@@ -442,15 +442,8 @@ export default function MonthlyBeaverPage() {
                   <h3 className="text-lg font-semibold text-neutral-900">Xác thực khuôn mặt</h3>
                 </div>
                 
-                {/* Selfie Note */}
-                <div className="mb-4 rounded-xl bg-amber-50/60 p-3.5 border border-amber-200/50">
-                  <p className="text-[13px] text-amber-900 leading-relaxed">
-                    📸 <strong>Vì sao cần selfie?</strong> Thẻ chỉ dùng cho riêng bạn. Ảnh giúp nhân viên nhận ra bạn khi đến quán. Ảnh chỉ lưu nội bộ.
-                  </p>
-                </div>
-
-                <p className="mb-4 text-sm text-neutral-500">
-                  Ảnh này dùng để nhân viên xác nhận khi bạn check-in. Chỉ NV Nerd Society thấy.
+                <p className="mb-4 text-[13px] text-amber-700 bg-amber-50/50 p-3 rounded-xl border border-amber-100">
+                  📸 <strong>Vì sao cần selfie?</strong> Thẻ chỉ dùng cho riêng bạn. Ảnh giúp nhân viên nhận ra bạn khi đến quán. Ảnh chỉ lưu nội bộ và chỉ nhân viên Nerd Society mới nhìn thấy để xác nhận khi bạn check-in.
                 </p>
 
                 {selfieUrl ? (
