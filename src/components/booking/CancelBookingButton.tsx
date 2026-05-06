@@ -56,13 +56,18 @@ export default function CancelBookingButton({
 
     return (
         <>
-            <button
-                onClick={() => setIsOpen(true)}
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
-            >
-                <XMarkIcon className="size-4" />
-                Hủy đặt lịch
-            </button>
+            <div className="space-y-2">
+                <button
+                    onClick={() => setIsOpen(true)}
+                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+                >
+                    <XMarkIcon className="size-4" />
+                    Hủy đặt lịch
+                </button>
+                <p className="text-center text-[10px] text-neutral-400 dark:text-neutral-500 italic">
+                    * Tiền cọc sẽ được hoàn trả vào Ví Nerd
+                </p>
+            </div>
 
             {/* Cancel Confirmation Modal */}
             {isOpen && (
@@ -78,12 +83,12 @@ export default function CancelBookingButton({
                         </p>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-                            <p className="font-semibold text-blue-800 dark:text-blue-300">Chính sách hoàn hủy:</p>
+                            <p className="font-semibold text-blue-800 dark:text-blue-300">Chính sách hoàn tiền:</p>
                             <p className="mt-2 text-sm text-blue-700 dark:text-blue-400">
                                 Bạn đang thực hiện hủy <strong>trước giờ bắt đầu 2 tiếng</strong>.
                             </p>
-                            <p className="mt-1 text-sm text-blue-700 dark:text-blue-400">
-                                Vui lòng liên hệ Fanpage để được hỗ trợ <strong>lưu cọc</strong> cho lần sử dụng sau.
+                            <p className="mt-1 text-sm font-medium text-blue-800 dark:text-blue-300">
+                                Tiền cọc của bạn sẽ được tự động hoàn trả vào <strong>Ví Nerd</strong> sau khi xác nhận hủy.
                             </p>
                         </div>
 

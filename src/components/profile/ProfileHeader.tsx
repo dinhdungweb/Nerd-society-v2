@@ -17,8 +17,6 @@ interface ProfileHeaderProps {
         name: string | null
         email: string | null
         avatar: string | null
-        nerdCoinBalance?: number
-        nerdCoinTier?: string
         walletBalance?: number
     }
 }
@@ -27,19 +25,11 @@ const navigation = [
     { name: 'Lịch sử đặt lịch', href: '/profile', icon: ClockIcon },
     { name: 'Ví Nerd', href: '/profile/wallet', icon: WalletIcon },
     { name: 'Monthly Beaver', href: '/profile/monthly-beaver', icon: CreditCardIcon },
-    { name: 'Nerd Member', href: '/profile/nerdcoin', icon: SparklesIcon },
     { name: 'Cài đặt tài khoản', href: '/profile/settings', icon: Cog6ToothIcon },
 ]
 
-const tierColors: Record<string, string> = {
-    BRONZE: 'from-amber-600 to-amber-800',
-    SILVER: 'from-slate-400 to-slate-600',
-    GOLD: 'from-yellow-400 to-yellow-600',
-}
-
 export default function ProfileHeader({ user }: ProfileHeaderProps) {
     const pathname = usePathname()
-    const tier = user.nerdCoinTier || 'BRONZE'
 
     return (
         <div className="space-y-6">
@@ -67,10 +57,6 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
                                 <UserCircleIcon className="size-full text-white/70" />
                             )}
                         </div>
-                        {/* Tier Badge */}
-                        <div className={`absolute -bottom-1 -right-1 rounded-full bg-gradient-to-r ${tierColors[tier]} px-2 py-0.5 text-xs font-bold shadow-lg`}>
-                            {tier}
-                        </div>
                     </div>
 
                     {/* Info */}
@@ -84,10 +70,6 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
 
                         {/* Stats */}
                         <div className="mt-4 flex flex-wrap justify-center gap-3 sm:justify-start">
-                            <div className="rounded-lg bg-white/10 px-4 py-2 backdrop-blur-sm">
-                                <div className="text-lg font-bold">{user.nerdCoinBalance || 0}</div>
-                                <div className="text-xs text-white/60">Nerd Coins</div>
-                            </div>
                             <Link href="/profile/wallet" className="rounded-lg bg-white/10 px-4 py-2 backdrop-blur-sm transition-colors hover:bg-white/20">
                                 <div className="text-lg font-bold">{(user.walletBalance || 0).toLocaleString()}đ</div>
                                 <div className="text-xs text-white/60">Ví Nerd</div>

@@ -171,15 +171,6 @@ export default async function BookingDetailsPage({
                                 </span>
                             </div>
 
-                            {/* Nerd Coin */}
-                            {booking.nerdCoinIssued > 0 && (
-                                <div className="flex items-center justify-between text-sm border-t border-neutral-200 pt-3 dark:border-neutral-700">
-                                    <span className="text-neutral-600 dark:text-neutral-400">Nerd Coin</span>
-                                    <span className="flex items-center gap-1 font-medium text-yellow-600">
-                                        +{booking.nerdCoinIssued} <CurrencyDollarIcon className="size-4" />
-                                    </span>
-                                </div>
-                            )}
 
                             {/* Show Payment Button if pending and not cancelled and not reported yet */}
                             {booking.status !== 'CANCELLED' && booking.payment?.status === 'PENDING' && !booking.depositPaidAt && (

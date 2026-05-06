@@ -466,6 +466,12 @@ export default function MonthlyBeaverPage() {
                     }}
                   />
                 )}
+
+                <div className="mt-4 rounded-2xl bg-primary-50/50 p-4 border border-primary-100/50">
+                  <p className="text-xs text-neutral-600 leading-relaxed">
+                    📸 <strong>Vì sao cần selfie?</strong> Thẻ chỉ dùng cho riêng bạn. Ảnh giúp NV nhận ra bạn khi đến quán. Ảnh lưu nội bộ.
+                  </p>
+                </div>
               </div>
             </div>
 

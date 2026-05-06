@@ -162,7 +162,7 @@ export function initCronJobs() {
     // Run every minute - for pending bookings and overtime check
     cron.schedule('* * * * *', () => {
         cancelPendingBookings()
-        checkOvertimeBookings()
+        // checkOvertimeBookings()
         pollAttendanceRecords()
     })
 
@@ -179,7 +179,7 @@ export function initCronJobs() {
 
     // Run once immediately on startup
     cancelPendingBookings()
-    checkOvertimeBookings()
+    // checkOvertimeBookings()
 }
 
 /**

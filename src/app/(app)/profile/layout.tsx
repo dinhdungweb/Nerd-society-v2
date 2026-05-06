@@ -69,8 +69,6 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                             name: user?.name || null,
                             email: user?.email || null,
                             avatar: user?.avatar || null,
-                            nerdCoinBalance: user?.nerdCoinBalance || 0,
-                            nerdCoinTier: user?.nerdCoinTier || 'BRONZE',
                             walletBalance: user?.wallet?.balance || subscriber?.walletBalance || 0,
                         }}
                     />
