@@ -96,6 +96,11 @@ export default function MonthlyBeaverPage() {
   });
   const { data: session, status } = useSession();
 
+  // DEBUG LOG
+  React.useEffect(() => {
+    console.log("--- NEW CODE LOADED V2 ---");
+  }, []);
+
   // Pre-fill form when session is available
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
@@ -279,7 +284,7 @@ export default function MonthlyBeaverPage() {
               MONTHLY BEAVER
             </span>
             <h1 className="mt-5 text-4xl font-bold text-neutral-900 md:text-5xl">
-              Gói Thành Viên
+              Gói Thành Viên (V2)
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-500">
               Đăng ký Monthly Beaver để check-in nhanh bằng thẻ, hưởng ưu đãi đặc biệt tại không gian Nerd Society.
