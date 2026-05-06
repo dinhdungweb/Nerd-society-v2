@@ -7,6 +7,8 @@
  */
 
 import React, { useState } from 'react';
+
+export const dynamic = 'force-dynamic';
 import {
   BoltIcon,
   CheckIcon,
