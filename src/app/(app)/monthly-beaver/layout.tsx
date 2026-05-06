@@ -2,6 +2,8 @@ import { HeaderNerd, FooterNerd } from '@/components/landing'
 import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
     title: 'Monthly Beaver — Gói Thành Viên | Nerd Society',
     description: 'Đăng ký gói thành viên Monthly Beaver để check-in nhanh bằng thẻ, hưởng ưu đãi đặc biệt tại Nerd Society.',
