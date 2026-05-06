@@ -722,34 +722,85 @@ export async function sendSubscriptionPaidEmail(order: any) {
     if (!recipientEmail) return;
 
     const customerName = order.fullName || 'Quý khách';
-    const planName = order.planType === 'MONTHLY_UNLIMITED' ? 'Gói Tháng Unlimited' : 
-                     order.planType === 'MONTHLY_LIMITED' ? 'Gói Tháng Limited' : 
-                     'Gói Tuần Limited';
-    
     const amount = order.amount || 0;
     const formattedAmount = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    const branchName = order.branchPrimary === 'TS' ? 'Tây Sơn' : 'Hồ Tùng Mậu';
+    const purchaseDate = new Date(order.createdAt || new Date()).toLocaleDateString('vi-VN');
 
-    const subject = `[Nerd Society] Xác nhận thanh toán Monthly Beaver #${order.orderCode}`;
+    const subject = `Cảm ơn bạn đã trở thành Charter Member của Nerd Society 🦫`;
     
+    // Preview text can be hacked in HTML via a hidden div at the top of the body
+    const previewText = `<div style="display: none; max-height: 0px; overflow: hidden;">Mọi thông tin để bắt đầu hành trình Monthly Beaver của bạn</div>`;
+
     const content = `
-        <h1 class="h1">${ICONS.check}Thanh toán thành công!</h1>
-        <p class="p">Chào <strong>${customerName}</strong>, chúng tôi đã nhận được thanh toán cho đăng ký Monthly Beaver của bạn.</p>
+        ${previewText}
+        <h1 class="h1" style="font-size: 20px;">Chào ${customerName},</h1>
+        <p class="p">Cảm ơn bạn đã chọn Monthly Beaver — gói thành viên của Nerd Society. Bạn đã chính thức là một trong những charter member đầu tiên của chúng mình.</p>
         
         <div class="info-box">
-            <div class="info-header">${ICONS.info}Thông tin đơn hàng</div>
+            <div class="info-header">${ICONS.info}Đơn của bạn</div>
             <div class="info-item"><span class="info-label">Mã đơn</span><span class="info-value">#${order.orderCode}</span></div>
-            <div class="info-item"><span class="info-label">Gói đăng ký</span><span class="info-value">${planName}</span></div>
-            <div class="info-item"><span class="info-label">Số tiền</span><span class="info-value" style="color: #9B7850; font-weight: 700;">${formattedAmount}</span></div>
-            <div class="info-item"><span class="info-label">Trạng thái</span><span class="info-value" style="color: #10b981;">Đã thanh toán</span></div>
+            <div class="info-item"><span class="info-label">Gói</span><span class="info-value">Monthly Beaver — ${formattedAmount}</span></div>
+            <div class="info-item"><span class="info-label">Cơ sở đăng ký</span><span class="info-value">${branchName}</span></div>
+            <div class="info-item"><span class="info-label">Ngày mua</span><span class="info-value">${purchaseDate}</span></div>
         </div>
 
-        <div style="background-color: #FFFBEB; border-radius: 14px; padding: 20px; border: 1px solid #FEF3C7; margin-bottom: 24px;">
-            <p class="p" style="margin-bottom: 0; font-size: 15px; color: #92400E;">
-                <strong>Bước tiếp theo:</strong> Vui lòng đến quầy tại cơ sở <strong>${order.branchPrimary === 'TS' ? 'Tây Sơn' : 'Hồ Tùng Mậu'}</strong> để nhận thẻ thành viên vật lý và kích hoạt gói nhé!
-            </p>
+        <h2 style="color: #9B7850; font-size: 16px; margin-top: 32px; margin-bottom: 16px;">5 bước để bắt đầu dùng gói</h2>
+
+        <p class="p"><strong>Bước 1 — Đến Nerd nhận thẻ</strong><br/>
+        Trong vòng 7 ngày kể từ hôm nay, bạn ghé Nerd Society ${branchName} vào bất kỳ giờ nào để nhận thẻ Monthly Beaver. Nói với nhân viên: "Em mua gói Monthly Beaver" + đọc tên hoặc số điện thoại đăng ký.</p>
+
+        <p class="p"><strong>Bước 2 — Nhận welcome packet</strong><br/>
+        Bạn sẽ nhận được:<br/>
+        🦫 Thẻ ZKTeco màu đen — thẻ thành viên của bạn<br/>
+        ☕ 4 voucher đồ uống dùng trong tháng này (hết tháng vứt nha)<br/>
+        🔑 Chìa khóa locker riêng (nếu bạn chọn dùng locker khi đăng ký)<br/>
+        💌 Thư chào mừng với lời cảm ơn từ Nerd</p>
+
+        <p class="p"><strong>Bước 3 — Tap thẻ để kích hoạt</strong><br/>
+        Lần đầu tap thẻ vào máy đọc = thời điểm kích hoạt gói. Gói có hiệu lực 30 ngày tính từ lúc này, KHÔNG phải từ ngày bạn mua. Nên nếu bạn chưa rảnh dùng ngay, bạn cứ giữ thẻ — kích hoạt khi sẵn sàng.</p>
+
+        <p class="p"><strong>Bước 4 — Mỗi lần đến</strong><br/>
+        • Tap thẻ vào → ngồi luôn, không cần đến quầy<br/>
+        • Tap thẻ ra khi về<br/>
+        • Tối đa 8 giờ/ngày — vượt thì tính 15.000đ/giờ qua link Zalo</p>
+
+        <p class="p"><strong>Bước 5 — Cuối tháng</strong><br/>
+        Trước hết hạn 7 ngày, Nerd sẽ nhắn Zalo nhắc bạn. Nếu muốn gia hạn → chuyển khoản 549k → cộng thêm 30 ngày, locker và benefit giữ nguyên.</p>
+
+        <div style="background-color: #FFFBEB; border-radius: 14px; padding: 20px; border: 1px solid #FEF3C7; margin-top: 32px; margin-bottom: 32px;">
+            <h3 style="color: #92400E; font-size: 15px; margin-top: 0; margin-bottom: 12px;">Quyền lợi của bạn</h3>
+            <ul style="margin: 0; padding-left: 20px; color: #92400E; font-size: 15px; line-height: 1.6;">
+                <li style="margin-bottom: 4px;">Đến thoải mái cả 2 cơ sở Nerd (HTM + TS), không cần đặt trước</li>
+                <li style="margin-bottom: 4px;">Tủ riêng giữ đồ (nếu bạn chọn locker — và còn slot khi đăng ký)</li>
+                <li style="margin-bottom: 4px;">Tap vào, ngồi luôn — không phải đến quầy mỗi lần</li>
+                <li style="margin-bottom: 4px;">4 voucher đồ uống physical mỗi tháng</li>
+                <li style="margin-bottom: 4px;">Giảm 50% khi book Pod hoặc Meeting Room</li>
+                <li style="margin-bottom: 4px;">Nhân viên nhớ tên + góc ngồi quen của bạn</li>
+            </ul>
         </div>
 
-        <p class="p" style="font-size: 14px; text-align: center; color: #A09081;">Hẹn gặp bạn tại Nerd Society!</p>
+        <h2 style="color: #9B7850; font-size: 16px; margin-bottom: 16px;">Một số điều cần biết</h2>
+        <ul class="p" style="padding-left: 20px; margin-bottom: 32px; line-height: 1.6;">
+            <li style="margin-bottom: 8px;"><strong>Daily cap 8 giờ:</strong> Bạn có thể đến nhiều lần trong ngày, nhưng tổng cộng tối đa 8 giờ. Vượt sẽ tính giờ lẻ 15k/h, hệ thống tự gửi link thanh toán.</li>
+            <li style="margin-bottom: 8px;"><strong>Locker:</strong> Tủ riêng của bạn cố định trong suốt thời gian bạn là member. Khi gói hết hạn, Nerd giữ thêm 7 ngày để bạn lấy đồ.</li>
+            <li style="margin-bottom: 8px;"><strong>Voucher đồ uống:</strong> 4 voucher/tháng, không cộng dồn. Hết tháng có voucher mới khi gia hạn.</li>
+            <li style="margin-bottom: 8px;"><strong>Refund:</strong> Nếu chưa tap kích hoạt + trong 7 ngày từ ngày mua → refund 100%. Nếu đã kích hoạt → không refund.</li>
+            <li style="margin-bottom: 8px;"><strong>Mất thẻ:</strong> Báo quầy bất kỳ lúc nào, Nerd sẽ cấp thẻ mới (50k).</li>
+        </ul>
+
+        <h2 style="color: #9B7850; font-size: 16px; margin-bottom: 16px;">Cần hỗ trợ?</h2>
+        <p class="p">
+            Nhắn Zalo OA Nerd Society: <a href="https://zalo.me/0368483689" style="color: #9B7850; text-decoration: none; font-weight: 500;">zalo.me/0368483689</a><br/>
+            Hoặc trực tiếp tại quầy 2 cơ sở:<br/>
+            • Hồ Tùng Mậu: Tập thể trường múa, Khu Văn hóa & Nghệ Thuật<br/>
+            • Tây Sơn: Tầng 2, 3 ngõ 167 Tây Sơn
+        </p>
+
+        <p class="p" style="margin-top: 32px;">
+            Hẹn gặp bạn sớm tại Nerd 🦫<br/>
+            <strong>— Team Nerd Society</strong>
+        </p>
     `;
 
     const html = getBaseTemplate(content, subject);
