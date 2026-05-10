@@ -36,7 +36,14 @@ import {
 import { createRegistrationOrder, payRegistrationOrderWithWallet } from '@/actions/subscription-actions';
 import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+
+// Landing Page Components
+import HeroSection from '@/components/monthly-beaver/HeroSection';
+import FeaturesSection from '@/components/monthly-beaver/FeaturesSection';
+import ComparisonSection from '@/components/monthly-beaver/ComparisonSection';
+import StepsSection from '@/components/monthly-beaver/StepsSection';
+import FAQSection from '@/components/monthly-beaver/FAQSection';
 
 
 // ======================== TYPES ========================
@@ -95,6 +102,11 @@ export default function MonthlyBeaverPage() {
     branchPrimary: 'HTM',
   });
   const { data: session, status } = useSession();
+  const formRef = useRef<HTMLDivElement>(null);
+
+  const scrollToForm = () => {
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Pre-fill form when session is available
   useEffect(() => {
@@ -267,10 +279,18 @@ export default function MonthlyBeaverPage() {
     );
   }
 
-  // ======================== STEP 1: CHỌN GÓI ========================
+  // ======================== STEP 1: LANDING PAGE + CHỌN GÓI ========================
   if (step === 1) {
     return (
-      <div className="bg-neutral-50 pt-24 pb-16 px-4">
+      <div className="bg-white">
+        {/* Landing Sections */}
+        <HeroSection onRegisterClick={scrollToForm} />
+        <FeaturesSection />
+        <ComparisonSection />
+        <StepsSection />
+        <FAQSection />
+
+        <div ref={formRef} className="pt-24 pb-16 px-4">
         <div className="mx-auto max-w-5xl">
           {/* Header */}
           <div className="mb-14 text-center">
@@ -292,9 +312,9 @@ export default function MonthlyBeaverPage() {
               {PLANS.map((plan) => (
               <div
                 key={plan.type}
-                className={`group relative overflow-hidden rounded-3xl border bg-white transition-all duration-300 hover:shadow-lg ${
+                className={`group relative overflow-hidden rounded-3xl border bg-white transition-all duration-300 ${
                   plan.popular
-                    ? 'border-primary-400 shadow-md shadow-primary-500/10'
+                    ? 'border-primary-400'
                     : 'border-neutral-200 hover:border-primary-300'
                 }`}
               >
@@ -336,7 +356,7 @@ export default function MonthlyBeaverPage() {
                     }}
                     className={`w-full rounded-full py-3.5 text-sm font-semibold transition-all duration-200 ${
                       plan.popular
-                        ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25 hover:bg-primary-600'
+                        ? 'bg-primary-500 text-white hover:bg-primary-600'
                         : 'border border-neutral-300 bg-white text-neutral-800 hover:border-primary-400 hover:bg-primary-50'
                     }`}
                   >
@@ -357,6 +377,7 @@ export default function MonthlyBeaverPage() {
           </div>
         </div>
       </div>
+    </div>
     );
   }
 
@@ -370,7 +391,7 @@ export default function MonthlyBeaverPage() {
             Quay lại chọn gói
           </button>
 
-          <div className="rounded-3xl border border-neutral-200 bg-white p-7 shadow-sm">
+          <div className="rounded-3xl border border-neutral-200 bg-white p-7">
             <div className="mb-6">
               <span className="inline-flex items-center gap-2 rounded-full bg-primary-100 px-4 py-1.5 text-xs font-semibold text-primary-700">
                 {selectedPlan.icon}

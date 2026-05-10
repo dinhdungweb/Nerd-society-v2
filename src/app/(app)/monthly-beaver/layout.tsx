@@ -26,8 +26,8 @@ export default async function NerdPassLayout({ children }: { children: React.Rea
 
     return (
         <>
-            <HeaderNerd logoUrl={settings.siteLogo} logoLightUrl={settings.siteLogoLight} />
-            <main>{children}</main>
+            <HeaderNerd logoUrl={settings.siteLogo} logoLightUrl={settings.siteLogoLight} transparent={false} />
+            <main className="pt-20">{children}</main>
             <FooterNerd logoUrl={settings.siteLogoLight || settings.siteLogo} />
         </>
     )

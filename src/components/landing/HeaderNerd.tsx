@@ -43,7 +43,7 @@ const CoffeeIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 )
 
-export default function HeaderNerd({ logoUrl, logoLightUrl }: { logoUrl?: string, logoLightUrl?: string }) {
+export default function HeaderNerd({ logoUrl, logoLightUrl, transparent = true }: { logoUrl?: string, logoLightUrl?: string, transparent?: boolean }) {
     const [isScrolled, setIsScrolled] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
@@ -67,7 +67,7 @@ export default function HeaderNerd({ logoUrl, logoLightUrl }: { logoUrl?: string
 
     return (
         <header
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled
+            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled || !transparent
                 ? 'bg-white/95 shadow-md backdrop-blur-xl dark:bg-neutral-900/95'
                 : 'bg-transparent'
                 }`}
