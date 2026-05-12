@@ -16,7 +16,7 @@ const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick }) => {
       {/* Background Image */}
       <div className="absolute inset-0">
         <Image
-          src="/hero-beaver.png"
+          src="/hero-banner-beaver.JPG"
           alt="Nerd Society Space"
           fill
           className="object-cover"
