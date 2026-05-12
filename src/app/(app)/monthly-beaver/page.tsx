@@ -337,10 +337,6 @@ export default function MonthlyBeaverPage() {
 
                   <button
                     onClick={() => {
-                      if (status !== 'authenticated') {
-                        window.location.href = `/login?callbackUrl=/monthly-beaver`;
-                        return;
-                      }
                       setSelectedPlan(plan);
                       setStep(2);
                     }}
