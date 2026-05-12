@@ -256,25 +256,11 @@ export default function MonthlyBeaverPage() {
     }
   };
 
-  // ======================== LOADING / AUTH CHECK ========================
+  // ======================== LOADING CHECK ========================
   if (status === 'loading') {
-    return <div className="flex min-h-screen items-center justify-center bg-neutral-50"><ArrowPathIcon className="h-8 w-8 animate-spin text-primary-500" /></div>;
-  }
-
-  if (status === 'unauthenticated') {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 px-4 py-24 text-center">
-        <div className="mb-6 rounded-3xl bg-white p-8 shadow-sm border border-neutral-200 max-w-md">
-           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
-             <ExclamationCircleIcon className="h-8 w-8 text-amber-500" />
-           </div>
-           <h2 className="mb-3 text-2xl font-bold text-neutral-900">Yêu cầu đăng nhập</h2>
-           <p className="mb-6 text-neutral-500">Để đăng ký Monthly Beaver và quản lý quyền lợi hội viên, bạn cần có tài khoản Nerd Society trước.</p>
-           <div className="flex flex-col gap-3">
-             <a href="/login?callbackUrl=/monthly-beaver" className="w-full rounded-full bg-primary-500 py-3 font-semibold text-white shadow-lg hover:bg-primary-600 transition-all">Đăng nhập ngay</a>
-             <a href="/signup?callbackUrl=/monthly-beaver" className="w-full rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700 hover:bg-neutral-50 transition-all">Đăng ký tài khoản mới</a>
-           </div>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-neutral-50">
+        <ArrowPathIcon className="h-8 w-8 animate-spin text-primary-500" />
       </div>
     );
   }
@@ -351,6 +337,10 @@ export default function MonthlyBeaverPage() {
 
                   <button
                     onClick={() => {
+                      if (status !== 'authenticated') {
+                        window.location.href = `/login?callbackUrl=/monthly-beaver`;
+                        return;
+                      }
                       setSelectedPlan(plan);
                       setStep(2);
                     }}
@@ -380,6 +370,26 @@ export default function MonthlyBeaverPage() {
     </div>
     );
   }
+
+  // ======================== AUTH CHECK FOR STEPS 2+ ========================
+  if (status === 'unauthenticated') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 px-4 py-24 text-center">
+        <div className="mb-6 rounded-3xl bg-white p-8 shadow-sm border border-neutral-200 max-w-md">
+           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
+             <ExclamationCircleIcon className="h-8 w-8 text-amber-500" />
+           </div>
+           <h2 className="mb-3 text-2xl font-bold text-neutral-900">Yêu cầu đăng nhập</h2>
+           <p className="mb-6 text-neutral-500">Để đăng ký Monthly Beaver và quản lý quyền lợi hội viên, bạn cần có tài khoản Nerd Society trước.</p>
+           <div className="flex flex-col gap-3">
+             <a href="/login?callbackUrl=/monthly-beaver" className="w-full rounded-full bg-primary-500 py-3 font-semibold text-white shadow-lg hover:bg-primary-600 transition-all">Đăng nhập ngay</a>
+             <a href="/signup?callbackUrl=/monthly-beaver" className="w-full rounded-full border border-neutral-300 py-3 font-semibold text-neutral-700 hover:bg-neutral-50 transition-all">Đăng ký tài khoản mới</a>
+           </div>
+        </div>
+      </div>
+    );
+  }
+
 
   // ======================== STEP 2: THÔNG TIN + SELFIE ========================
   if (step === 2 && selectedPlan) {
