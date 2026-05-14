@@ -98,7 +98,17 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
                         </span>
                       </div>
                     ) : currentSub?.dailyLimitMin ? (
-                      <Badge color="blue">{currentSub.dailyLimitMin / 60}h/ngày</Badge>
+                      (() => {
+                        const rem = currentSub.dailyLimitMin - (sub.todayUsedMin || 0);
+                        if (rem <= 0) return <Badge color="red">Hết giờ hôm nay</Badge>;
+                        const h = Math.floor(rem / 60);
+                        const m = rem % 60;
+                        return (
+                          <Badge color="blue">
+                            Còn {h > 0 ? `${h}h ` : ''}{m}p hôm nay
+                          </Badge>
+                        );
+                      })()
                     ) : currentSub?.planType === 'MONTHLY_UNLIMITED' ? (
                       <Badge color="emerald">Không giới hạn tổng</Badge>
                     ) : (
