@@ -497,6 +497,9 @@ export async function getSubscribers(filters?: {
     ];
   }
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const subscribers = await prisma.subscriber.findMany({
     where,
     orderBy: { createdAt: 'desc' },
@@ -514,15 +517,28 @@ export async function getSubscribers(filters?: {
       subscriptions: {
         orderBy: { createdAt: 'desc' },
         take: 1,
+        include: {
+          dailyUsages: {
+            where: {
+              usageDate: today
+            }
+          }
+        }
       },
     },
   });
 
-  return subscribers.map((subscriber) => ({
-    ...subscriber,
-    walletBalance: subscriber.user?.wallet?.balance || 0,
-    walletCode: subscriber.user?.wallet?.walletCode || subscriber.walletCode,
-  }));
+  return subscribers.map((subscriber) => {
+    const currentSub = subscriber.subscriptions[0];
+    const todayUsage = currentSub?.dailyUsages?.[0]?.totalMin || 0;
+
+    return {
+      ...subscriber,
+      walletBalance: subscriber.user?.wallet?.balance || 0,
+      walletCode: subscriber.user?.wallet?.walletCode || subscriber.walletCode,
+      todayUsedMin: todayUsage,
+    };
+  });
 }
 
 /**

@@ -29,6 +29,7 @@ export interface Subscriber {
   cardNo?: string;
   branchPrimary?: string;
   status: string;
+  todayUsedMin?: number;
   createdAt: string;
   subscriptions: Array<{
     id: string;
