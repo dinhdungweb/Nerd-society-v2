@@ -5,26 +5,23 @@ import {
   LockClosedIcon,
   IdentificationIcon,
   TicketIcon,
+  BriefcaseIcon,
 } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
-import Image from 'next/image'
 
 const features = [
   {
     icon: LockClosedIcon,
-    image: '/images/beaver-locker.png',
     title: 'Tủ riêng cho bạn',
     desc: 'Slot cố định gắn với tên bạn — 12 charter member đầu tiên tại HTM, 6 tại Tây Sơn',
   },
   {
     icon: IdentificationIcon,
-    image: '/images/beaver-checkin.png',
     title: 'Tap thẻ, ngồi luôn',
     desc: 'Không cần đến quầy mỗi lần. Không thanh toán từng buổi. Nhân viên nhớ tên + góc quen',
   },
   {
     icon: TicketIcon,
-    image: '/images/beaver-coffee.png',
     title: '4 voucher đồ uống/tháng',
     desc: 'Đồ uống cơ bản miễn phí, dùng bất kỳ lúc nào trong tháng',
   },
@@ -67,7 +64,7 @@ const FeaturesSection: FC = () => {
         </div>
 
         {/* Features Grid */}
-        <div className="mt-16 grid gap-8 md:grid-cols-1">
+        <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => {
             const IconComponent = feature.icon
             return (
@@ -77,32 +74,17 @@ const FeaturesSection: FC = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className={`group relative flex flex-col md:flex-row overflow-hidden rounded-3xl border border-neutral-200 bg-white transition-all hover:border-primary-200 dark:border-neutral-700 dark:bg-neutral-800/50 dark:hover:border-primary-700 ${
-                  index % 2 === 1 ? 'md:flex-row-reverse' : ''
-                }`}
+                className="group rounded-3xl border border-neutral-200 bg-white p-8 transition-all hover:border-primary-200 dark:border-neutral-700 dark:bg-neutral-800/50 dark:hover:border-primary-700"
               >
-                {/* Image side */}
-                <div className="relative h-64 w-full md:h-80 md:w-1/2">
-                  <Image
-                    src={feature.image}
-                    alt={feature.title}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+                <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-primary-100 dark:bg-primary-900/50">
+                  <IconComponent className="size-6 text-primary-600 dark:text-primary-400" />
                 </div>
-
-                {/* Content side */}
-                <div className="flex flex-1 flex-col justify-center p-8 lg:p-12">
-                  <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-primary-100 dark:bg-primary-900/50">
-                    <IconComponent className="size-6 text-primary-600 dark:text-primary-400" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-neutral-900 dark:text-white">
-                    {feature.title}
-                  </h3>
-                  <p className="mt-4 text-lg text-neutral-600 dark:text-neutral-400">
-                    {feature.desc}
-                  </p>
-                </div>
+                <h3 className="text-xl font-semibold text-neutral-900 dark:text-white">
+                  {feature.title}
+                </h3>
+                <p className="mt-2 text-neutral-600 dark:text-neutral-400">
+                  {feature.desc}
+                </p>
               </motion.div>
             )
           })}

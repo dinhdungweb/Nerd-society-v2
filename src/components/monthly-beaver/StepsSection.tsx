@@ -9,44 +9,38 @@ import {
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
-import Image from 'next/image'
 
 const steps = [
   {
     title: 'Đăng ký online',
     desc: 'Điền form ngay tại trang này. Chuyển khoản 549k qua VietQR. Mất khoảng 2 phút.',
     icon: CursorArrowRaysIcon,
-    image: '/images/step-1.png'
   },
   {
     title: 'Đến Nerd nhận thẻ',
     desc: 'Ghé cơ sở đã đăng ký để nhận thẻ ZKTeco, voucher đồ uống, chìa khóa locker.',
     icon: MapPinIcon,
-    image: '/images/step-2.png'
   },
   {
     title: 'Tap thẻ kích hoạt',
     desc: 'Lần đầu tap = gói có hiệu lực. 30 ngày tính từ tap đầu, bạn chủ động chọn.',
     icon: BoltIcon,
-    image: '/images/beaver-checkin.png'
   },
   {
     title: 'Mỗi lần đến',
     desc: 'Tap vào → ngồi. Tap ra khi về. Không xếp hàng, không thanh toán từng buổi.',
     icon: UserGroupIcon,
-    image: '/images/beaver-checkin.png'
   },
   {
     title: 'Gia hạn cuối tháng',
     desc: 'Nerd nhắn Zalo trước 7 ngày. Gia hạn để giữ nguyên locker và quyền lợi.',
     icon: CalendarDaysIcon,
-    image: '/images/step-5.png'
   },
 ]
 
 const StepsSection: FC = () => {
   return (
-    <section className="bg-neutral-50 py-20 lg:py-28 dark:bg-neutral-800/50">
+    <section className="bg-white py-20 lg:py-28 dark:bg-neutral-900">
       <div className="container">
         {/* Header */}
         <div className="mx-auto max-w-2xl text-center">
@@ -80,63 +74,37 @@ const StepsSection: FC = () => {
           </motion.p>
         </div>
 
-        {/* Steps Timeline */}
-        <div className="mt-20 relative">
-          {/* Vertical line for desktop */}
-          <div className="absolute left-1/2 top-0 hidden h-full w-0.5 -translate-x-1/2 bg-neutral-200 dark:bg-neutral-700 lg:block" />
-
-          <div className="space-y-16 lg:space-y-24">
-            {steps.map((step, index) => {
-              const IconComponent = step.icon
-              const isEven = index % 2 === 0
-
-              return (
-                <div key={step.title} className="relative flex flex-col lg:flex-row items-center">
-                  {/* Content side */}
-                  <motion.div
-                    initial={{ opacity: 0, x: isEven ? -50 : 50 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    className={`w-full lg:w-1/2 ${isEven ? 'lg:pr-20 text-right' : 'lg:pl-20 order-2'}`}
-                  >
-                    <div className={`flex flex-col ${isEven ? 'items-end' : 'items-start'}`}>
-                      <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary-500 text-white shadow-lg shadow-primary-500/20">
-                        <IconComponent className="size-6" />
-                      </div>
-                      <h3 className="text-2xl font-bold text-neutral-900 dark:text-white">
-                        {index + 1}. {step.title}
-                      </h3>
-                      <p className="mt-4 text-lg text-neutral-600 dark:text-neutral-400">
-                        {step.desc}
-                      </p>
-                    </div>
-                  </motion.div>
-
-                  {/* Circle indicator on line */}
-                  <div className="absolute left-1/2 top-0 hidden -translate-x-1/2 rounded-full border-4 border-white bg-primary-500 p-1 dark:border-neutral-900 lg:block">
-                    <div className="size-3 rounded-full bg-white" />
-                  </div>
-
-                  {/* Image side */}
-                  <motion.div
-                    initial={{ opacity: 0, x: isEven ? 50 : -50 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    className={`mt-8 w-full lg:mt-0 lg:w-1/2 ${isEven ? 'order-2 lg:pl-20' : 'lg:pr-20'}`}
-                  >
-                    <div className="relative aspect-video overflow-hidden rounded-3xl shadow-xl">
-                      <Image
-                        src={step.image}
-                        alt={step.title}
-                        fill
-                        className="object-cover transition-transform duration-500 hover:scale-105"
-                      />
-                    </div>
-                  </motion.div>
+        {/* Steps Grid */}
+        <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
+          {steps.map((step, index) => {
+            const IconComponent = step.icon
+            return (
+              <motion.div
+                key={step.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="group relative rounded-3xl border border-neutral-200 bg-white p-8 text-center transition-all hover:border-primary-200 dark:border-neutral-700 dark:bg-neutral-800/50 dark:hover:border-primary-700"
+              >
+                {/* Step Number */}
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary-500 px-3 py-0.5 text-xs font-bold text-white">
+                  {index + 1}
                 </div>
-              )
-            })}
-          </div>
+
+                <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-primary-100 dark:bg-primary-900/50">
+                  <IconComponent className="size-6 text-primary-600 dark:text-primary-400" />
+                </div>
+
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                  {step.desc}
+                </p>
+              </motion.div>
+            )
+          })}
         </div>
       </div>
     </section>
