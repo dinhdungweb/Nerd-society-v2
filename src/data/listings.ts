@@ -1,11 +1,11 @@
-import avatars1 from '@/images/avatars/Image-1.png'
-import avatars2 from '@/images/avatars/Image-2.png'
-import avatars3 from '@/images/avatars/Image-3.png'
-import avatars4 from '@/images/avatars/Image-4.png'
-import avatars5 from '@/images/avatars/Image-5.png'
-import avatars6 from '@/images/avatars/Image-6.png'
-import avatars7 from '@/images/avatars/Image-7.png'
-import avatars8 from '@/images/avatars/Image-8.png'
+const avatars1 = { src: 'https://ui-avatars.com/api/?name=1&background=random' };
+const avatars2 = { src: 'https://ui-avatars.com/api/?name=2&background=random' };
+const avatars3 = { src: 'https://ui-avatars.com/api/?name=3&background=random' };
+const avatars4 = { src: 'https://ui-avatars.com/api/?name=4&background=random' };
+const avatars5 = { src: 'https://ui-avatars.com/api/?name=5&background=random' };
+const avatars6 = { src: 'https://ui-avatars.com/api/?name=6&background=random' };
+const avatars7 = { src: 'https://ui-avatars.com/api/?name=7&background=random' };
+const avatars8 = { src: 'https://ui-avatars.com/api/?name=8&background=random' };
 
 //  STAY LISTING  //
 export async function getStayListings() {

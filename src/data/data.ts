@@ -1,7 +1,7 @@
-import avatarImage1 from '@/images/avatars/Image-1.png'
-import avatarImage2 from '@/images/avatars/Image-2.png'
-import avatarImage3 from '@/images/avatars/Image-3.png'
-import avatarImage4 from '@/images/avatars/Image-4.png'
+const avatarImage1 = { src: 'https://ui-avatars.com/api/?name=1&background=random', width: 100, height: 100 };
+const avatarImage2 = { src: 'https://ui-avatars.com/api/?name=2&background=random', width: 100, height: 100 };
+const avatarImage3 = { src: 'https://ui-avatars.com/api/?name=3&background=random', width: 100, height: 100 };
+const avatarImage4 = { src: 'https://ui-avatars.com/api/?name=4&background=random', width: 100, height: 100 };
 
 export async function getListingReviews(handle: string) {
   return [

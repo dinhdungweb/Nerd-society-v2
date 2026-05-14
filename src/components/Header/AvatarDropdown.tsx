@@ -1,6 +1,7 @@
 'use client'
 
-import avatarImage from '@/images/avatars/Image-1.png'
+// import avatarImage from '@/images/avatars/Image-1.png'
+const avatarImage = { src: 'https://ui-avatars.com/api/?name=User&background=random' }
 import Avatar from '@/shared/Avatar'
 import { Divider } from '@/shared/divider'
 import { Link } from '@/shared/link'

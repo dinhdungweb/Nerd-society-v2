@@ -1,4 +1,4 @@
-import stayCategoryCoverImage from '@/images/hero-right-2.png'
+const stayCategoryCoverImage = { src: 'https://images.pexels.com/photos/6129967/pexels-photo-6129967.jpeg', width: 1200, height: 800 };
 
 // stay categories --------
 export async function getStayCategories() {
