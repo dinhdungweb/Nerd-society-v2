@@ -268,7 +268,6 @@ export default function MonthlyBeaverPage() {
       <div className="bg-white">
         {/* Landing Sections */}
         <HeroSection onRegisterClick={scrollToForm} />
-        <ShowcaseSection />
         <FeaturesSection />
         <ComparisonSection />
         <StepsSection />
