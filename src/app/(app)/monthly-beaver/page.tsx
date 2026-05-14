@@ -40,7 +40,6 @@ import { useEffect, useRef } from 'react';
 
 // Landing Page Components
 import HeroSection from '@/components/monthly-beaver/HeroSection';
-import ShowcaseSection from '@/components/monthly-beaver/ShowcaseSection';
 import FeaturesSection from '@/components/monthly-beaver/FeaturesSection';
 import ComparisonSection from '@/components/monthly-beaver/ComparisonSection';
 import StepsSection from '@/components/monthly-beaver/StepsSection';
