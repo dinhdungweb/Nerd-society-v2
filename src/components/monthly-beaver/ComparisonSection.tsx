@@ -6,12 +6,10 @@ import { motion } from 'framer-motion'
 
 const comparisonData = [
   { benefit: 'Wifi + ổ cắm', combo: true, beaver: true },
-  { benefit: 'Nước tự pha', combo: true, beaver: true },
   { benefit: 'Mượn laptop stand', combo: true, beaver: true },
   { benefit: 'Locker', combo: 'Dùng chung', beaver: 'Tủ riêng cố định' },
   { benefit: 'Check-in', combo: 'Đến quầy, thanh toán', beaver: 'Tap thẻ, ngồi luôn' },
   { benefit: 'Voucher đồ uống', combo: false, beaver: '4 voucher/tháng' },
-  { benefit: 'Nhân viên nhớ tên', combo: false, beaver: true },
 ]
 
 const ComparisonSection: FC = () => {

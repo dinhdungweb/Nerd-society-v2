@@ -235,7 +235,9 @@ export default async function MonthlyBeaverPage() {
                                     </div>
                                 ) : (
                                     <div className="rounded-xl bg-white/70 p-4 text-sm text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300">
-                                        Gói không giới hạn giờ theo tháng. Hệ thống vẫn theo dõi giới hạn sử dụng trong ngày nếu có.
+                                        {activeSub.dailyLimitMin
+                                            ? `Giới hạn ${activeSub.dailyLimitMin / 60}h/ngày. Không giới hạn tổng giờ theo tháng.`
+                                            : 'Gói không giới hạn giờ. Hệ thống vẫn theo dõi giới hạn sử dụng trong ngày nếu có.'}
                                     </div>
                                 )}
 

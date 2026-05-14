@@ -30,7 +30,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
             <TableHeader>Liên hệ</TableHeader>
             <TableHeader>Gói hiện tại</TableHeader>
             <TableHeader>Trạng thái</TableHeader>
-            <TableHeader>Thời lượng còn lại</TableHeader>
+            <TableHeader>Giới hạn</TableHeader>
             <TableHeader className="pr-8 text-right">Thao tác</TableHeader>
           </TableRow>
         </TableHead>
@@ -94,9 +94,11 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
                       <div className="flex items-center gap-1.5">
                         <ClockIcon className={`h-4 w-4 ${remaining <= 300 ? 'text-red-500' : 'text-neutral-400'}`} />
                         <span className={`text-sm font-medium ${remaining <= 300 ? 'text-red-600 dark:text-red-400' : 'text-neutral-600 dark:text-neutral-400'}`}>
-                          {Math.round(remaining / 60)}h
+                          {Math.round(remaining / 60)}h còn lại
                         </span>
                       </div>
+                    ) : currentSub?.dailyLimitMin ? (
+                      <Badge color="blue">{currentSub.dailyLimitMin / 60}h/ngày</Badge>
                     ) : currentSub?.planType === 'MONTHLY_UNLIMITED' ? (
                       <Badge color="emerald">Vô hạn</Badge>
                     ) : (

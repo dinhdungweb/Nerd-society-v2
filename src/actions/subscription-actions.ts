@@ -27,7 +27,7 @@ const PLAN_PRICES: Record<string, number> = {
 
 const PLAN_HOURS_MIN: Record<string, number> = {
   WEEKLY_LIMITED: 15 * 60,
-  MONTHLY_LIMITED: 50 * 60,
+  MONTHLY_LIMITED: 0, // Không giới hạn tổng giờ/tháng, chỉ có daily cap 8h
   MONTHLY_UNLIMITED: 0,
 };
 
@@ -363,7 +363,7 @@ export async function assignCardAndCreate(orderId: string, cardNo: string, staff
       pricePaid: order.amount,
       status: 'PENDING_ACTIVATION',
       totalHoursMin: totalMin > 0 ? totalMin : null,
-      dailyLimitMin: order.planType === 'MONTHLY_UNLIMITED' ? 480 : null,
+      dailyLimitMin: (order.planType === 'MONTHLY_LIMITED' || order.planType === 'MONTHLY_UNLIMITED') ? 480 : null, // Daily cap 8h
       paymentMethod: order.paymentMethod,
       paymentRef: order.paymentRef,
       cardAssigned: cardNo,

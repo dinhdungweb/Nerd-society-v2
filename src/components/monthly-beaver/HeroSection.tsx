@@ -61,7 +61,7 @@ const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick }) => {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="mt-6 max-w-lg text-lg text-neutral-300"
             >
-              Gói thành viên cho những ai xem Nerd như không gian thứ hai. Tủ riêng cố định, tap thẻ vào ngồi luôn, voucher đồ uống mỗi tháng và đặc quyền ưu tiên.
+              Gói thành viên cho những ai xem Nerd như không gian thứ hai. Tap thẻ vào ngồi luôn, voucher đồ uống mỗi tháng và đặc quyền ưu tiên.
             </motion.p>
 
             {/* Price pills */}
@@ -97,14 +97,13 @@ const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick }) => {
               </Button>
             </motion.div>
 
-            {/* Scarcity */}
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.8 }}
               className="mt-4 text-sm text-neutral-400"
             >
-              ✨ 12 charter slot tại HTM · 6 charter slot tại Tây Sơn
+              Kích hoạt khi bạn tap thẻ lần đầu
             </motion.p>
 
             {/* Stats */}
@@ -136,53 +135,74 @@ const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick }) => {
             transition={{ duration: 0.8, delay: 0.3 }}
             className="relative hidden lg:flex lg:items-center lg:justify-center"
           >
+            {/* Priority Check-in */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
-              className="absolute left-10 top-[20%] rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105"
+              transition={{ duration: 0.6, delay: 0.7 }}
+              className="absolute -left-4 top-[15%] rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105"
             >
               <div className="flex items-center gap-3">
                 <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white text-2xl">
-                  🦫
+                  ⚡
                 </div>
                 <div>
-                  <p className="font-semibold text-white">Tủ riêng cố định</p>
-                  <p className="text-sm text-neutral-300">Gắn tên bạn</p>
+                  <p className="font-semibold text-white">Priority Check-in</p>
+                  <p className="text-sm text-neutral-300">Tap thẻ, ngồi luôn</p>
                 </div>
               </div>
             </motion.div>
 
+            {/* Inspiration Space */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.9 }}
-              className="absolute right-0 top-[45%] rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105"
+              transition={{ duration: 0.6, delay: 0.8 }}
+              className="absolute -right-4 top-[35%] rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105"
             >
               <div className="flex items-center gap-3">
                 <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white text-2xl">
-                  🪪
+                  🏠
                 </div>
                 <div>
-                  <p className="font-semibold text-white">Tap thẻ, ngồi luôn</p>
-                  <p className="text-sm text-neutral-300">Không chờ đợi</p>
+                  <p className="font-semibold text-white">Inspiration Space</p>
+                  <p className="text-sm text-neutral-300">Có chỗ tại 2 cơ sở</p>
                 </div>
               </div>
             </motion.div>
 
+            {/* Nerd Drinks */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 1 }}
-              className="absolute bottom-[15%] left-[20%] rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.9 }}
+              className="absolute bottom-[25%] left-10 rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105"
             >
               <div className="flex items-center gap-3">
                 <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white text-2xl">
                   ☕
                 </div>
                 <div>
-                  <p className="font-semibold text-white">4 voucher/tháng</p>
-                  <p className="text-sm text-neutral-300">Đồ uống miễn phí</p>
+                  <p className="font-semibold text-white">Nerd Drinks</p>
+                  <p className="text-sm text-neutral-300">4 voucher mỗi tháng</p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* The Essentials */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 1 }}
+              className="absolute bottom-[5%] right-4 rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white text-2xl">
+                  🔌
+                </div>
+                <div>
+                  <p className="font-semibold text-white">The Essentials</p>
+                  <p className="text-sm text-neutral-300">Wifi, Locker, 24/7</p>
                 </div>
               </div>
             </motion.div>

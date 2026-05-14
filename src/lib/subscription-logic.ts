@@ -8,9 +8,9 @@ import { getBranchFromDevice } from '@/lib/mytime-api';
 
 // Hằng số
 const ROUND_UP_MINUTES = 15;   // Làm tròn lên 15 phút
-const AUTO_CHECKOUT_HOURS = 12; // Auto checkout sau 12h
-const UNLIMITED_DAILY_LIMIT = 480; // 8h = 480 phút
-const UNLIMITED_WARNING_MIN = 450; // 7h30 = cảnh báo
+const AUTO_CHECKOUT_HOURS = 10; // Auto checkout sau 10h (spec: quên checkout → force close)
+const DAILY_CAP_MIN = 480; // 8h = 480 phút — daily cap cho MONTHLY_LIMITED & UNLIMITED
+const DAILY_WARNING_MIN = 450; // 7h30 = cảnh báo gần hết daily cap
 const DOUBLE_TAP_SECONDS = 300; // 5 phút = chống double-tap
 const PLAN_DURATION: Record<string, number> = {
   WEEKLY_LIMITED: 7,
@@ -19,9 +19,12 @@ const PLAN_DURATION: Record<string, number> = {
 };
 const PLAN_HOURS_MIN: Record<string, number> = {
   WEEKLY_LIMITED: 15 * 60,   // 15h = 900 min
-  MONTHLY_LIMITED: 50 * 60,  // 50h = 3000 min
+  MONTHLY_LIMITED: 0,        // Không giới hạn tổng giờ/tháng, chỉ có daily cap 8h
   MONTHLY_UNLIMITED: 0,     // unlimited
 };
+
+// Các gói có daily cap 8h/ngày
+const PLANS_WITH_DAILY_CAP = ['MONTHLY_LIMITED', 'MONTHLY_UNLIMITED'];
 
 /**
  * Làm tròn lên bội số 15 phút
@@ -215,22 +218,22 @@ async function performCheckIn(
     };
   }
 
-  // Kiểm tra giờ còn lại (Limited)
-  if (subscription.planType !== 'MONTHLY_UNLIMITED') {
-    const total = (subscription.totalHoursMin || 0) + subscription.carriedHoursMin;
+  // Kiểm tra giờ còn lại theo tổng tháng (WEEKLY_LIMITED)
+  if (subscription.totalHoursMin && subscription.totalHoursMin > 0) {
+    const total = subscription.totalHoursMin + subscription.carriedHoursMin;
     const remaining = total - subscription.usedHoursMin;
     if (remaining <= 0) {
       return { type: 'NO_HOURS', message: 'HẾT GIỜ', subscriber, remaining: 0 };
     }
   }
 
-  // Kiểm tra daily limit (Unlimited)
-  if (subscription.planType === 'MONTHLY_UNLIMITED') {
+  // Kiểm tra daily cap 8h/ngày (MONTHLY_LIMITED & MONTHLY_UNLIMITED)
+  if (PLANS_WITH_DAILY_CAP.includes(subscription.planType)) {
     const today = new Date(attTime.toISOString().split('T')[0]);
     const dailyUsage = await prisma.dailyUsage.findUnique({
       where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: today } },
     });
-    if (dailyUsage && dailyUsage.totalMin >= UNLIMITED_DAILY_LIMIT) {
+    if (dailyUsage && dailyUsage.totalMin >= DAILY_CAP_MIN) {
       return { type: 'DAILY_LIMIT', message: 'ĐÃ HẾT 8H HÔM NAY', subscriber };
     }
   }
@@ -256,9 +259,10 @@ async function performCheckIn(
     },
   });
 
-  const remaining = subscription.planType === 'MONTHLY_UNLIMITED'
-    ? null
-    : (subscription.totalHoursMin || 0) + subscription.carriedHoursMin - subscription.usedHoursMin;
+  // Tính giờ còn lại: nếu có tổng giờ → trả remaining, nếu daily cap → trả null (UI hiển thị daily cap)
+  const remaining = (subscription.totalHoursMin && subscription.totalHoursMin > 0)
+    ? subscription.totalHoursMin + subscription.carriedHoursMin - subscription.usedHoursMin
+    : null;
 
   return {
     type: 'CHECK_IN',
@@ -298,15 +302,15 @@ async function performCheckOut(
       data: { usedHoursMin: { increment: durationMin } },
     });
 
-    // Cập nhật daily usage (cho Unlimited)
-    if (subscription.planType === 'MONTHLY_UNLIMITED') {
-      const today = new Date(attTime.toISOString().split('T')[0]);
+    // Cập nhật daily usage (cho tất cả gói có daily cap)
+    if (PLANS_WITH_DAILY_CAP.includes(subscription.planType)) {
+      const checkInDay = new Date(session.checkInTime.toISOString().split('T')[0]); // Tính vào ngày check-in (spec)
       await prisma.dailyUsage.upsert({
-        where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: today } },
+        where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: checkInDay } },
         create: {
           subscriberId: session.subscriberId,
           subscriptionId: subscription.id,
-          usageDate: today,
+          usageDate: checkInDay,
           totalMin: durationMin,
         },
         update: { totalMin: { increment: durationMin } },
@@ -332,7 +336,7 @@ async function performCheckOut(
     subscriber: await prisma.subscriber.findUnique({ where: { id: session.subscriberId } }),
     subscription: updatedSub,
     durationMin,
-    remainingMin: updatedSub && updatedSub.totalHoursMin
+    remainingMin: (updatedSub && updatedSub.totalHoursMin && updatedSub.totalHoursMin > 0)
       ? (updatedSub.totalHoursMin + updatedSub.carriedHoursMin - updatedSub.usedHoursMin)
       : null,
   };
@@ -352,7 +356,9 @@ export async function autoCheckOutStaleSessions() {
 
   const results = [];
   for (const session of staleSessions) {
-    const result = await performCheckOut(session.id, session.subscription, new Date());
+    // Force close: cap duration ở 8h theo spec (check_out = check_in + 8h)
+    const forceCheckOutTime = new Date(session.checkInTime.getTime() + DAILY_CAP_MIN * 60 * 1000);
+    const result = await performCheckOut(session.id, session.subscription, forceCheckOutTime);
     results.push({ ...result, type: 'AUTO_CHECKOUT' });
 
     await prisma.subscriptionAuditLog.create({
@@ -461,15 +467,15 @@ export async function getWarnings() {
   const nearLimitUsages = await prisma.dailyUsage.findMany({
     where: {
       usageDate: today,
-      totalMin: { gte: UNLIMITED_WARNING_MIN },
+      totalMin: { gte: DAILY_WARNING_MIN },
     },
     include: { subscriber: true },
   });
   for (const u of nearLimitUsages) {
     warnings.push({
       type: 'NEAR_DAILY_LIMIT',
-      severity: u.totalMin >= UNLIMITED_DAILY_LIMIT ? 'error' : 'warning',
-      message: `${u.subscriber.fullName} đã dùng ${Math.round(u.totalMin / 60)}h/${UNLIMITED_DAILY_LIMIT / 60}h hôm nay`,
+      severity: u.totalMin >= DAILY_CAP_MIN ? 'error' : 'warning',
+      message: `${u.subscriber.fullName} đã dùng ${Math.round(u.totalMin / 60)}h/${DAILY_CAP_MIN / 60}h hôm nay`,
     });
   }
 

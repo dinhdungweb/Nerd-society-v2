@@ -56,7 +56,8 @@ export async function GET(request: Request) {
         remainingMin: s.subscription?.totalHoursMin
           ? s.subscription.totalHoursMin + s.subscription.carriedHoursMin - s.subscription.usedHoursMin
           : null,
-        isUnlimited: s.subscription?.planType === 'MONTHLY_UNLIMITED',
+        dailyLimitMin: s.subscription?.dailyLimitMin || null,
+        isUnlimited: !s.subscription?.totalHoursMin,
         staffVerified: s.staffVerified,
         needsVerification: s.subscription?.planType === 'MONTHLY_UNLIMITED' && !s.staffVerified,
       })),
@@ -122,15 +123,16 @@ export async function POST(request: Request) {
             data: { usedHoursMin: { increment: durationMin } },
           });
 
-          // Update daily usage for unlimited
-          if (session.subscription?.planType === 'MONTHLY_UNLIMITED') {
-            const today = new Date(new Date().toISOString().split('T')[0]);
+          // Update daily usage for plans with daily cap (MONTHLY_LIMITED & MONTHLY_UNLIMITED)
+          const plansWithDailyCap = ['MONTHLY_LIMITED', 'MONTHLY_UNLIMITED'];
+          if (session.subscription?.planType && plansWithDailyCap.includes(session.subscription.planType)) {
+            const checkInDay = new Date(session.checkInTime.toISOString().split('T')[0]);
             await prisma.dailyUsage.upsert({
-              where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: today } },
+              where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: checkInDay } },
               create: {
                 subscriberId: session.subscriberId,
                 subscriptionId: session.subscriptionId,
-                usageDate: today,
+                usageDate: checkInDay,
                 totalMin: durationMin,
               },
               update: { totalMin: { increment: durationMin } },
