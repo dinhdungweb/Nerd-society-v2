@@ -209,7 +209,9 @@ export default function SessionHistoryModal({
               </TableHeader>
               <TableHeader>Cơ sở</TableHeader>
               <TableHeader>Thời lượng</TableHeader>
-              <TableHeader className="pr-4">Trạng thái</TableHeader>
+              <TableHeader>Quá giờ</TableHeader>
+              <TableHeader className="text-right">Phí</TableHeader>
+              <TableHeader className="pr-4 text-right">Trạng thái</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -221,12 +223,14 @@ export default function SessionHistoryModal({
                   <TableCell><div className="h-4 w-14 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                   <TableCell><div className="h-4 w-10 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                   <TableCell><div className="h-4 w-12 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
+                  <TableCell><div className="h-4 w-10 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
+                  <TableCell><div className="h-4 w-12 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                   <TableCell className="pr-4"><div className="h-5 w-16 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 </TableRow>
               ))
             ) : sessions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-12 text-center">
+                <TableCell colSpan={8} className="py-12 text-center">
                   <div className="flex flex-col items-center gap-2 text-neutral-400">
                     <ClockIcon className="h-8 w-8" />
                     <p>Không có lịch sử check-in nào</p>
@@ -265,26 +269,38 @@ export default function SessionHistoryModal({
                   </TableCell>
                   <TableCell>
                     {s.durationMin ? (
-                      <span className="text-sm font-mono font-medium text-primary-600 dark:text-primary-400">
+                      <span className="text-sm font-mono font-medium text-neutral-700 dark:text-neutral-300">
                         {formatDuration(s.durationMin)}
                       </span>
                     ) : (
                       <span className="text-xs text-neutral-400">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="pr-4">
+                  <TableCell>
+                    {s.overageMin > 0 ? (
+                      <span className="text-xs font-medium text-amber-600">
+                        +{s.overageMin}p
+                      </span>
+                    ) : (
+                      <span className="text-xs text-neutral-400">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {s.amountCharged > 0 ? (
+                      <span className="text-sm font-bold text-red-600">
+                        {s.amountCharged.toLocaleString()}đ
+                      </span>
+                    ) : (
+                      <span className="text-xs text-neutral-400">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="pr-4 text-right">
                     {s.status === 'ACTIVE' ? (
                       <Badge color="emerald">
-                        <span className="flex items-center gap-1">
-                          <span className="relative flex h-1.5 w-1.5">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          </span>
-                          Đang ngồi
-                        </span>
+                        Đang ngồi
                       </Badge>
                     ) : s.status === 'COMPLETED' ? (
-                      <Badge color="zinc">Hoàn thành</Badge>
+                      <Badge color="zinc">Xong</Badge>
                     ) : (
                       <Badge color="amber">{s.status}</Badge>
                     )}

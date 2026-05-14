@@ -1,10 +1,9 @@
 'use client';
 
 import React from 'react';
-import { UserIcon, TrashIcon, ClockIcon, ListBulletIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, ClockIcon, ListBulletIcon } from '@heroicons/react/24/outline';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/table';
 import { Badge } from '@/shared/Badge';
-import { Button } from '@/shared/Button';
 import { Subscriber, PLAN_LABELS, STATUS_LABELS } from './constants';
 
 interface SubscriberTableProps {
@@ -31,6 +30,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
             <TableHeader>Gói hiện tại</TableHeader>
             <TableHeader>Trạng thái</TableHeader>
             <TableHeader>Giới hạn</TableHeader>
+            <TableHeader className="text-right">Công nợ</TableHeader>
             <TableHeader className="pr-8 text-right">Thao tác</TableHeader>
           </TableRow>
         </TableHead>
@@ -48,12 +48,13 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
                 <TableCell><div className="h-4 w-24 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 <TableCell><div className="h-6 w-16 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 <TableCell><div className="h-4 w-12 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
+                <TableCell><div className="h-4 w-12 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 <TableCell className="pr-8"><div className="ml-auto h-8 w-8 animate-pulse rounded-lg bg-neutral-200 dark:bg-neutral-800" /></TableCell>
               </TableRow>
             ))
           ) : subscribers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="py-12 text-center text-neutral-400">Không tìm thấy hội viên nào</TableCell>
+              <TableCell colSpan={7} className="py-12 text-center text-neutral-400">Không tìm thấy hội viên nào</TableCell>
             </TableRow>
           ) : (
             subscribers.map((sub) => {
@@ -114,6 +115,11 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
                     ) : (
                       <span className="text-neutral-400">—</span>
                     )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <span className={`text-sm font-bold ${sub.outstandingBalance > 0 ? 'text-red-600 dark:text-red-400' : 'text-neutral-600 dark:text-neutral-400'}`}>
+                      {sub.outstandingBalance > 0 ? `${sub.outstandingBalance.toLocaleString()}đ` : '—'}
+                    </span>
                   </TableCell>
                   <TableCell className="pr-8 text-right">
                     <div className="flex items-center justify-end gap-1">

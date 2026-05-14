@@ -30,6 +30,7 @@ export interface Subscriber {
   branchPrimary?: string;
   status: string;
   todayUsedMin?: number;
+  outstandingBalance: number;
   createdAt: string;
   subscriptions: Array<{
     id: string;
