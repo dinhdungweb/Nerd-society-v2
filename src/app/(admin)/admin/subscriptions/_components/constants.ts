@@ -35,6 +35,7 @@ export interface Subscriber {
     planType: string;
     status: string;
     totalHoursMin?: number;
+    dailyLimitMin?: number;
     usedHoursMin: number;
     carriedHoursMin: number;
     endDate?: string;
