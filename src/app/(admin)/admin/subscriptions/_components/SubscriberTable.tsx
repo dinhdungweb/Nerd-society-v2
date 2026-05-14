@@ -100,7 +100,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
                     ) : currentSub?.dailyLimitMin ? (
                       <Badge color="blue">{currentSub.dailyLimitMin / 60}h/ngày</Badge>
                     ) : currentSub?.planType === 'MONTHLY_UNLIMITED' ? (
-                      <Badge color="emerald">Vô hạn</Badge>
+                      <Badge color="emerald">Không giới hạn tổng</Badge>
                     ) : (
                       <span className="text-neutral-400">—</span>
                     )}
