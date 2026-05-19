@@ -66,6 +66,7 @@ interface PlanInfo {
   features: string[];
   popular?: boolean;
   icon: React.ReactNode;
+  image?: string;
 }
 
 const PLANS: PlanInfo[] = [
@@ -78,6 +79,7 @@ const PLANS: PlanInfo[] = [
     hours: 'Max 8h/ngày',
     popular: true,
     icon: <SparklesSolidIcon className="h-5 w-5 text-primary-600" />,
+    image: '/hero-banner-beaver.JPG',
     features: [
       'Priority Check-in (Tap thẻ, ngồi luôn)',
       'Inspiration Space (Có chỗ tại 2 cơ sở)',
@@ -310,8 +312,12 @@ export default function MonthlyBeaverPage() {
 
                 <div className="p-7">
                   <div className="mb-3 flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-100">
-                      {plan.icon}
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-100 overflow-hidden">
+                      {plan.image ? (
+                        <img src={plan.image} alt={plan.name} className="h-full w-full object-cover" />
+                      ) : (
+                        plan.icon
+                      )}
                     </div>
                     <div>
                       <h3 className="text-lg font-bold text-neutral-900">{plan.name}</h3>
