@@ -31,6 +31,7 @@ interface GeneralSettings {
     emailPasswordReset: boolean
     emailBookingCancelled: boolean
     emailCheckinReminder: boolean
+    emailApplicationReceived: boolean
     // SMTP configuration
     smtpHost: string
     smtpPort: string
@@ -39,6 +40,9 @@ interface GeneralSettings {
     smtpFrom: string
     // Admin Notification
     adminNotificationEmail: string
+    adminEmailNewBooking: boolean
+    adminEmailNewSubscription: boolean
+    adminEmailNewApplication: boolean
     // Page Backgrounds
     recruitmentHeroImage?: string
     feedbackHeroImage?: string
@@ -81,6 +85,7 @@ export default function AdminSettingsPage() {
         emailPasswordReset: true,
         emailBookingCancelled: true,
         emailCheckinReminder: true,
+        emailApplicationReceived: true,
         // SMTP defaults
         smtpHost: '',
         smtpPort: '587',
@@ -88,6 +93,9 @@ export default function AdminSettingsPage() {
         smtpPass: '',
         smtpFrom: '',
         adminNotificationEmail: '',
+        adminEmailNewBooking: true,
+        adminEmailNewSubscription: true,
+        adminEmailNewApplication: true,
         recruitmentHeroImage: '',
         feedbackHeroImage: '',
     })
@@ -102,7 +110,19 @@ export default function AdminSettingsPage() {
             const data = await res.json()
             if (res.ok && Object.keys(data).length > 0) {
                 // Convert string booleans to actual booleans
-                const booleanKeys = ['emailBookingConfirmation', 'emailBookingPending', 'emailSubscriptionPending', 'emailSubscriptionPaid', 'emailPasswordReset', 'emailBookingCancelled', 'emailCheckinReminder']
+                const booleanKeys = [
+                    'emailBookingConfirmation',
+                    'emailBookingPending',
+                    'emailSubscriptionPending',
+                    'emailSubscriptionPaid',
+                    'emailPasswordReset',
+                    'emailBookingCancelled',
+                    'emailCheckinReminder',
+                    'emailApplicationReceived',
+                    'adminEmailNewBooking',
+                    'adminEmailNewSubscription',
+                    'adminEmailNewApplication'
+                ]
                 const processedData = { ...data }
                 booleanKeys.forEach(key => {
                     if (key in processedData) {
@@ -535,140 +555,224 @@ export default function AdminSettingsPage() {
                         </div>
                     </div>
 
-                    <div className="space-y-4">
-                        {/* Admin Notification Email */}
-                        <div className="mb-6 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                                Email nhận thông báo (Admin/Chủ quán)
-                            </label>
-                            <input
-                                type="text"
-                                value={settings.adminNotificationEmail}
-                                onChange={e => handleChange('adminNotificationEmail', e.target.value)}
-                                className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-600 dark:bg-neutral-900 dark:text-white"
-                                placeholder="admin@a.com, staff@b.com"
-                            />
-                            <p className="mt-1 text-xs text-neutral-500">
-                                Nhập email để nhận thông báo (ngăn cách nhiều email bằng dấu phẩy). Ví dụ: admin@a.com, staff@b.com
-                            </p>
+                    <div className="space-y-6">
+                        {/* Admin Notification Settings Group */}
+                        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 space-y-4 dark:border-neutral-700 dark:bg-neutral-800">
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                                    Email nhận thông báo (Admin/Chủ quán)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={settings.adminNotificationEmail}
+                                    onChange={e => handleChange('adminNotificationEmail', e.target.value)}
+                                    className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-600 dark:bg-neutral-900 dark:text-white"
+                                    placeholder="admin@a.com, staff@b.com"
+                                />
+                                <p className="mt-1 text-xs text-neutral-500">
+                                    Nhập email để nhận thông báo (ngăn cách nhiều email bằng dấu phẩy). Ví dụ: admin@a.com, staff@b.com
+                                </p>
+                            </div>
+
+                            <div className="border-t border-neutral-200 pt-4 dark:border-neutral-700 space-y-3">
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+                                    Bật/tắt Email thông báo cho Admin
+                                </h3>
+                                
+                                {/* adminEmailNewBooking */}
+                                <div className="flex items-center justify-between rounded-xl bg-white border border-neutral-100 p-3.5 dark:bg-neutral-900 dark:border-neutral-800">
+                                    <div>
+                                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Thông báo Đặt lịch mới</p>
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Gửi khi có khách hàng tạo booking mới</p>
+                                    </div>
+                                    <label className="relative inline-flex cursor-pointer items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={settings.adminEmailNewBooking}
+                                            onChange={(e) => handleChange('adminEmailNewBooking', e.target.checked)}
+                                            className="peer sr-only"
+                                        />
+                                        <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                                    </label>
+                                </div>
+
+                                {/* adminEmailNewSubscription */}
+                                <div className="flex items-center justify-between rounded-xl bg-white border border-neutral-100 p-3.5 dark:bg-neutral-900 dark:border-neutral-800">
+                                    <div>
+                                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Thông báo đăng ký Monthly Beaver mới</p>
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Gửi khi có khách hàng đăng ký Monthly Beaver mới</p>
+                                    </div>
+                                    <label className="relative inline-flex cursor-pointer items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={settings.adminEmailNewSubscription}
+                                            onChange={(e) => handleChange('adminEmailNewSubscription', e.target.checked)}
+                                            className="peer sr-only"
+                                        />
+                                        <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                                    </label>
+                                </div>
+
+                                {/* adminEmailNewApplication */}
+                                <div className="flex items-center justify-between rounded-xl bg-white border border-neutral-100 p-3.5 dark:bg-neutral-900 dark:border-neutral-800">
+                                    <div>
+                                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Thông báo Hồ sơ ứng tuyển mới</p>
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Gửi khi có ứng viên nộp CV tuyển dụng mới</p>
+                                    </div>
+                                    <label className="relative inline-flex cursor-pointer items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={settings.adminEmailNewApplication}
+                                            onChange={(e) => handleChange('adminEmailNewApplication', e.target.checked)}
+                                            className="peer sr-only"
+                                        />
+                                        <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Booking Confirmation */}
-                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
-                            <div>
-                                <p className="font-medium text-neutral-900 dark:text-white">Xác nhận đặt lịch (đã cọc)</p>
-                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi booking được xác nhận</p>
-                            </div>
-                            <label className="relative inline-flex cursor-pointer items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={settings.emailBookingConfirmation}
-                                    onChange={(e) => handleChange('emailBookingConfirmation', e.target.checked)}
-                                    className="peer sr-only"
-                                />
-                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
-                            </label>
-                        </div>
+                        {/* Customer Email Settings Group */}
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 pt-2 pb-1">
+                                Bật/tắt Email gửi cho Khách hàng
+                            </h3>
 
-                        {/* Booking Pending */}
-                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
-                            <div>
-                                <p className="font-medium text-neutral-900 dark:text-white">Tiếp nhận đặt lịch (chờ cọc)</p>
-                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi tạo booking mới</p>
+                            {/* Booking Confirmation */}
+                            <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                                <div>
+                                    <p className="font-medium text-neutral-900 dark:text-white">Xác nhận đặt lịch (đã cọc)</p>
+                                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi booking được xác nhận</p>
+                                </div>
+                                <label className="relative inline-flex cursor-pointer items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.emailBookingConfirmation}
+                                        onChange={(e) => handleChange('emailBookingConfirmation', e.target.checked)}
+                                        className="peer sr-only"
+                                    />
+                                    <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                                </label>
                             </div>
-                            <label className="relative inline-flex cursor-pointer items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={settings.emailBookingPending}
-                                    onChange={(e) => handleChange('emailBookingPending', e.target.checked)}
-                                    className="peer sr-only"
-                                />
-                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
-                            </label>
-                        </div>
 
-                        {/* Monthly Beaver Pending */}
-                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
-                            <div>
-                                <p className="font-medium text-neutral-900 dark:text-white">Tiếp nhận đăng ký Monthly Beaver</p>
-                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi khách tạo đơn đăng ký Monthly Beaver mới</p>
+                            {/* Booking Pending */}
+                            <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                                <div>
+                                    <p className="font-medium text-neutral-900 dark:text-white">Tiếp nhận đặt lịch (chờ cọc)</p>
+                                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi tạo booking mới</p>
+                                </div>
+                                <label className="relative inline-flex cursor-pointer items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.emailBookingPending}
+                                        onChange={(e) => handleChange('emailBookingPending', e.target.checked)}
+                                        className="peer sr-only"
+                                    />
+                                    <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                                </label>
                             </div>
-                            <label className="relative inline-flex cursor-pointer items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={settings.emailSubscriptionPending}
-                                    onChange={(e) => handleChange('emailSubscriptionPending', e.target.checked)}
-                                    className="peer sr-only"
-                                />
-                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
-                            </label>
-                        </div>
 
-                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
-                            <div>
-                                <p className="font-medium text-neutral-900 dark:text-white">Xác nhận thanh toán Monthly Beaver</p>
-                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi đơn Monthly Beaver đã thanh toán</p>
+                            {/* Monthly Beaver Pending */}
+                            <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                                <div>
+                                    <p className="font-medium text-neutral-900 dark:text-white">Tiếp nhận đăng ký Monthly Beaver</p>
+                                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi khách tạo đơn đăng ký Monthly Beaver mới</p>
+                                </div>
+                                <label className="relative inline-flex cursor-pointer items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.emailSubscriptionPending}
+                                        onChange={(e) => handleChange('emailSubscriptionPending', e.target.checked)}
+                                        className="peer sr-only"
+                                    />
+                                    <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                                </label>
                             </div>
-                            <label className="relative inline-flex cursor-pointer items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={settings.emailSubscriptionPaid}
-                                    onChange={(e) => handleChange('emailSubscriptionPaid', e.target.checked)}
-                                    className="peer sr-only"
-                                />
-                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
-                            </label>
-                        </div>
 
-                        {/* Password Reset */}
-                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
-                            <div>
-                                <p className="font-medium text-neutral-900 dark:text-white">Đặt lại mật khẩu</p>
-                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi user yêu cầu reset password</p>
+                            {/* Monthly Beaver Paid */}
+                            <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                                <div>
+                                    <p className="font-medium text-neutral-900 dark:text-white">Xác nhận thanh toán Monthly Beaver</p>
+                                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi đơn Monthly Beaver đã thanh toán</p>
+                                </div>
+                                <label className="relative inline-flex cursor-pointer items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.emailSubscriptionPaid}
+                                        onChange={(e) => handleChange('emailSubscriptionPaid', e.target.checked)}
+                                        className="peer sr-only"
+                                    />
+                                    <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                                </label>
                             </div>
-                            <label className="relative inline-flex cursor-pointer items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={settings.emailPasswordReset}
-                                    onChange={(e) => handleChange('emailPasswordReset', e.target.checked)}
-                                    className="peer sr-only"
-                                />
-                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
-                            </label>
-                        </div>
 
-                        {/* Booking Cancelled */}
-                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
-                            <div>
-                                <p className="font-medium text-neutral-900 dark:text-white">Hủy đặt lịch</p>
-                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi booking bị hủy</p>
+                            {/* Password Reset */}
+                            <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                                <div>
+                                    <p className="font-medium text-neutral-900 dark:text-white">Đặt lại mật khẩu</p>
+                                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi user yêu cầu reset password</p>
+                                </div>
+                                <label className="relative inline-flex cursor-pointer items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.emailPasswordReset}
+                                        onChange={(e) => handleChange('emailPasswordReset', e.target.checked)}
+                                        className="peer sr-only"
+                                    />
+                                    <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                                </label>
                             </div>
-                            <label className="relative inline-flex cursor-pointer items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={settings.emailBookingCancelled}
-                                    onChange={(e) => handleChange('emailBookingCancelled', e.target.checked)}
-                                    className="peer sr-only"
-                                />
-                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
-                            </label>
-                        </div>
 
-                        {/* Check-in Reminder */}
-                        <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
-                            <div>
-                                <p className="font-medium text-neutral-900 dark:text-white">Nhắc check-in</p>
-                                <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi 1 giờ trước giờ check-in</p>
+                            {/* Booking Cancelled */}
+                            <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                                <div>
+                                    <p className="font-medium text-neutral-900 dark:text-white">Hủy đặt lịch</p>
+                                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi khi booking bị hủy</p>
+                                </div>
+                                <label className="relative inline-flex cursor-pointer items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.emailBookingCancelled}
+                                        onChange={(e) => handleChange('emailBookingCancelled', e.target.checked)}
+                                        className="peer sr-only"
+                                    />
+                                    <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                                </label>
                             </div>
-                            <label className="relative inline-flex cursor-pointer items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={settings.emailCheckinReminder}
-                                    onChange={(e) => handleChange('emailCheckinReminder', e.target.checked)}
-                                    className="peer sr-only"
-                                />
-                                <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
-                            </label>
+
+                            {/* Check-in Reminder */}
+                            <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                                <div>
+                                    <p className="font-medium text-neutral-900 dark:text-white">Nhắc check-in</p>
+                                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi 1 giờ trước giờ check-in</p>
+                                </div>
+                                <label className="relative inline-flex cursor-pointer items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.emailCheckinReminder}
+                                        onChange={(e) => handleChange('emailCheckinReminder', e.target.checked)}
+                                        className="peer sr-only"
+                                    />
+                                    <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                                </label>
+                            </div>
+
+                            {/* Application Received */}
+                            <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                                <div>
+                                    <p className="font-medium text-neutral-900 dark:text-white">Xác nhận ứng tuyển</p>
+                                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Gửi cho ứng viên khi nộp hồ sơ tuyển dụng thành công</p>
+                                </div>
+                                <label className="relative inline-flex cursor-pointer items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.emailApplicationReceived}
+                                        onChange={(e) => handleChange('emailApplicationReceived', e.target.checked)}
+                                        className="peer sr-only"
+                                    />
+                                    <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>

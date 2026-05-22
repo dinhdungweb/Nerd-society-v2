@@ -496,6 +496,9 @@ export async function sendCheckinReminderEmail(booking: any) {
 
 
 export async function sendAdminNewBookingEmail(booking: any) {
+    const enabled = await isEmailEnabled('adminEmailNewBooking')
+    if (!enabled) return
+
     // 1. Get Admin Email from settings
     const adminEmail = await getSmtpSetting('adminNotificationEmail', undefined)
 
@@ -615,6 +618,9 @@ export async function sendSubscriptionOrderEmail(order: any) {
 }
 
 export async function sendAdminNewSubscriptionOrderEmail(order: any) {
+    const enabled = await isEmailEnabled('adminEmailNewSubscription')
+    if (!enabled) return
+
     const adminEmail = await getSmtpSetting('adminNotificationEmail', undefined)
     if (!adminEmail) return
 
@@ -681,6 +687,9 @@ export async function sendApplicationEmail(application: any) {
 }
 
 export async function sendAdminNewApplicationEmail(application: any) {
+    const enabled = await isEmailEnabled('adminEmailNewApplication')
+    if (!enabled) return
+
     const adminEmail = await getSmtpSetting('adminNotificationEmail', undefined)
     if (!adminEmail) return
 
