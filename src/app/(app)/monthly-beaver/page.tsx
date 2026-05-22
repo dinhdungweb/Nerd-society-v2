@@ -21,7 +21,6 @@ import {
   ArrowRightIcon,
   CreditCardIcon,
   WalletIcon,
-  BuildingStorefrontIcon,
   LightBulbIcon,
   CheckCircleIcon,
   ClipboardDocumentListIcon,
@@ -118,6 +117,11 @@ export default function MonthlyBeaverPage() {
       }));
     }
   }, [session, status]);
+
+  // Scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
   const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
   const [selfieBlob, setSelfieBlob] = useState<Blob | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('online_transfer');
@@ -695,24 +699,6 @@ export default function MonthlyBeaverPage() {
                   )}
                 </div>
               )}
-
-              <label
-                className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3.5 transition-all ${
-                  paymentMethod === 'at_counter'
-                    ? 'border-primary-400 bg-primary-50/50'
-                    : 'border-neutral-200 hover:border-neutral-300'
-                }`}
-                onClick={() => setPaymentMethod('at_counter')}
-              >
-                <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'at_counter' ? 'border-primary-500' : 'border-neutral-300'}`}>
-                  {paymentMethod === 'at_counter' && <div className="h-2.5 w-2.5 rounded-full bg-primary-500" />}
-                </div>
-                <BuildingStorefrontIcon className="h-5 w-5 text-neutral-500" />
-                <div>
-                  <p className="font-medium text-neutral-900">Thanh toán tại quầy</p>
-                  <p className="text-xs text-neutral-400">Đơn sẽ được giữ 7 ngày</p>
-                </div>
-              </label>
             </div>
 
             {error && (
@@ -735,13 +721,6 @@ export default function MonthlyBeaverPage() {
                   ) : (
                     <>Thanh toán bằng Ví Nerd</>
                   )}
-                </button>
-              ) : paymentMethod === 'at_counter' ? (
-                <button 
-                  onClick={() => setStep(4)}
-                  className="mt-5 w-full rounded-full bg-neutral-900 py-3.5 font-bold text-white shadow-xl transition-all hover:bg-neutral-800 active:scale-[0.98]"
-                >
-                  Hoàn tất đặt đơn
                 </button>
               ) : (
                 <>
