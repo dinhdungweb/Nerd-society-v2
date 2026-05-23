@@ -1,9 +1,5 @@
-/**
- * API Route: Admin Subscribers List
- */
-
 import { NextResponse } from 'next/server';
-import { getSubscribers, deleteSubscriber } from '@/actions/subscription-actions';
+import { getSubscribers, deleteSubscriber, reassignSubscriberCard } from '@/actions/subscription-actions';
 
 export async function GET(request: Request) {
   try {
@@ -15,6 +11,21 @@ export async function GET(request: Request) {
     return NextResponse.json(subscribers);
   } catch (err) {
     console.error('[Admin Subscribers GET]', err);
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const { subscriberId, newCardNo } = await request.json();
+    if (!subscriberId || !newCardNo) {
+      return NextResponse.json({ error: 'Thiếu thông tin bắt buộc (subscriberId, newCardNo)' }, { status: 400 });
+    }
+
+    const result = await reassignSubscriberCard(subscriberId, newCardNo, 'admin');
+    return NextResponse.json(result);
+  } catch (err) {
+    console.error('[Admin Subscribers PUT]', err);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
@@ -33,3 +44,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
+

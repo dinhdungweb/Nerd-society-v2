@@ -117,6 +117,27 @@ export default function SubscriptionsAdminPage() {
     setActionLoading(false);
   };
 
+  const handleReassignCard = async (sub: Subscriber, newCardNo: string) => {
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/admin/subscriptions/subscribers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriberId: sub.id, newCardNo }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Gán lại thẻ thành công!');
+        fetchData();
+      } else {
+        alert('Lỗi: ' + (data.error || 'Không thể gán lại thẻ'));
+      }
+    } catch (err) {
+      alert('Có lỗi xảy ra khi gán lại thẻ');
+    }
+    setActionLoading(false);
+  };
+
   const tabs: Array<{ key: TabType, label: string, icon: any }> = [
     { key: 'orders', label: 'Đơn đăng ký', icon: ClipboardDocumentListIcon },
     { key: 'subscribers', label: 'Hội viên', icon: UserGroupIcon },
@@ -207,6 +228,7 @@ export default function SubscriptionsAdminPage() {
               loading={loading} 
               onDelete={handleDeleteSubscriber}
               onViewHistory={(sub) => setHistorySubscriber({ id: sub.id, name: sub.fullName })}
+              onReassignCard={handleReassignCard}
               actionLoading={actionLoading}
             />
           )}

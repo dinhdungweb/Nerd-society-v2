@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { TrashIcon, ClockIcon, ListBulletIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, ClockIcon, ListBulletIcon, CreditCardIcon } from '@heroicons/react/24/outline';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/table';
 import { Badge } from '@/shared/Badge';
 import { Subscriber, PLAN_LABELS, STATUS_LABELS } from './constants';
@@ -11,10 +11,11 @@ interface SubscriberTableProps {
   loading: boolean;
   onDelete: (sub: Subscriber) => Promise<void>;
   onViewHistory: (sub: Subscriber) => void;
+  onReassignCard?: (sub: Subscriber, newCardNo: string) => Promise<void>;
   actionLoading: boolean;
 }
 
-export default function SubscriberTable({ subscribers, loading, onDelete, onViewHistory, actionLoading }: SubscriberTableProps) {
+export default function SubscriberTable({ subscribers, loading, onDelete, onViewHistory, onReassignCard, actionLoading }: SubscriberTableProps) {
   const getStatusBadge = (status: string) => {
     const s = STATUS_LABELS[status] || { label: status, color: 'zinc' };
     return <Badge color={s.color}>{s.label}</Badge>;
@@ -123,6 +124,23 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
                   </TableCell>
                   <TableCell className="pr-8 text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newCardNo = prompt(`Nhập mã thẻ vật lý mới cho hội viên "${sub.fullName}":`, sub.cardNo || '');
+                          if (newCardNo === null) return;
+                          if (!newCardNo.trim()) {
+                            alert('Mã thẻ không được để trống');
+                            return;
+                          }
+                          onReassignCard?.(sub, newCardNo.trim());
+                        }}
+                        disabled={actionLoading}
+                        className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-emerald-50 hover:text-emerald-500 dark:hover:bg-emerald-900/20 disabled:opacity-50"
+                        title="Gán lại thẻ"
+                      >
+                        <CreditCardIcon className="h-5 w-5" />
+                      </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); onViewHistory(sub); }}
                         className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/20"
