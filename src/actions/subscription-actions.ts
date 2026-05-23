@@ -650,3 +650,94 @@ export async function deleteSubscriber(id: string) {
     return { success: false, error: 'Không thể xóa hội viên. Có lỗi xảy ra.' };
   }
 }
+
+/**
+ * Admin: Gán lại thẻ (đổi thẻ mới) cho hội viên hiện tại
+ */
+export async function reassignSubscriberCard(subscriberId: string, newCardNo: string, staffName: string) {
+  try {
+    // 1. Kiểm tra hội viên tồn tại
+    const subscriber = await prisma.subscriber.findUnique({
+      where: { id: subscriberId },
+      include: {
+        subscriptions: {
+          where: { status: { in: ['ACTIVE', 'PENDING_ACTIVATION'] } },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        },
+        user: {
+          select: {
+            dateOfBirth: true,
+            gender: true
+          }
+        }
+      }
+    });
+
+    if (!subscriber) return { success: false, error: 'Hội viên không tồn tại' };
+
+    // 2. Kiểm tra xem thẻ mới đã có người khác sử dụng chưa
+    const existingCard = await prisma.subscriber.findFirst({
+      where: {
+        cardNo: newCardNo,
+        id: { not: subscriberId }
+      }
+    });
+    if (existingCard) return { success: false, error: 'Thẻ này đã được gán cho hội viên khác' };
+
+    const oldCardNo = subscriber.cardNo;
+
+    // 3. Cập nhật thẻ mới cho hội viên và subscription đang hoạt động
+    await prisma.$transaction(async (tx) => {
+      await tx.subscriber.update({
+        where: { id: subscriberId },
+        data: { cardNo: newCardNo }
+      });
+
+      if (subscriber.subscriptions.length > 0) {
+        await tx.subscription.update({
+          where: { id: subscriber.subscriptions[0].id },
+          data: { cardAssigned: newCardNo }
+        });
+      }
+
+      await tx.subscriptionAuditLog.create({
+        data: {
+          action: 'card_reassigned',
+          entityType: 'subscriber',
+          entityId: subscriberId,
+          performedBy: staffName,
+          details: { oldCardNo, newCardNo, subscriberName: subscriber.fullName, empId: subscriber.mytimeEmpId }
+        }
+      });
+    });
+
+    // 4. Đồng bộ đổi thẻ sang MyTime PC app
+    if (subscriber.mytimeEmpId) {
+      const planType = subscriber.subscriptions[0]?.planType || 'WEEKLY_LIMITED';
+      try {
+        await importEmployee({
+          employeeId: subscriber.mytimeEmpId,
+          fullName: subscriber.fullName,
+          planType,
+          accId: subscriber.mytimeEmpId.replace('NS', ''),
+          cardNo: newCardNo,
+          birthday: subscriber.user?.dateOfBirth || undefined,
+          gender: (subscriber.user?.gender?.toLowerCase() === 'male' || subscriber.user?.gender?.toLowerCase() === 'nam') ? 'male' : 
+                  (subscriber.user?.gender?.toLowerCase() === 'female' || subscriber.user?.gender?.toLowerCase() === 'nữ') ? 'female' : undefined,
+          branch: subscriber.branchPrimary || 'HTM',
+        });
+      } catch (err) {
+        console.error('[reassignSubscriberCard] MyTime Sync Error (non-fatal):', err);
+        // Non-fatal: PostgreSQL đã lưu thẻ mới, chạy sync sau
+      }
+    }
+
+    revalidatePath('/admin/subscriptions');
+    return { success: true };
+  } catch (err) {
+    console.error('[reassignSubscriberCard] Error:', err);
+    return { success: false, error: 'Không thể gán lại thẻ. Có lỗi xảy ra.' };
+  }
+}
+
