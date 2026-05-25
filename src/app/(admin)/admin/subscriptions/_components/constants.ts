@@ -27,6 +27,7 @@ export interface Subscriber {
   email?: string;
   photoUrl?: string;
   cardNo?: string;
+  mytimeEmpId?: string | null;
   branchPrimary?: string;
   status: string;
   todayUsedMin?: number;

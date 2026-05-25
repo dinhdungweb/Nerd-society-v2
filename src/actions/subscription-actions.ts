@@ -494,6 +494,7 @@ export async function getSubscribers(filters?: {
     where.OR = [
       { fullName: { contains: filters.search, mode: 'insensitive' } },
       { phone: { contains: filters.search } },
+      { mytimeEmpId: { contains: filters.search, mode: 'insensitive' } },
     ];
   }
 

@@ -27,6 +27,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
         <TableHead>
           <TableRow>
             <TableHeader className="pl-8 text-sm">Thành viên</TableHeader>
+            <TableHeader>Mã NV</TableHeader>
             <TableHeader>Liên hệ</TableHeader>
             <TableHeader>Gói hiện tại</TableHeader>
             <TableHeader>Trạng thái</TableHeader>
@@ -45,6 +46,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
                     <div className="h-4 w-24 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" />
                   </div>
                 </TableCell>
+                <TableCell><div className="h-4 w-16 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 <TableCell><div className="h-4 w-20 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 <TableCell><div className="h-4 w-24 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" /></TableCell>
                 <TableCell><div className="h-6 w-16 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-800" /></TableCell>
@@ -55,7 +57,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
             ))
           ) : subscribers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="py-12 text-center text-neutral-400">Không tìm thấy hội viên nào</TableCell>
+              <TableCell colSpan={8} className="py-12 text-center text-neutral-400">Không tìm thấy hội viên nào</TableCell>
             </TableRow>
           ) : (
             subscribers.map((sub) => {
@@ -78,6 +80,11 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
                       />
                       <span className="text-sm font-semibold text-neutral-900 dark:text-white">{sub.fullName}</span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-mono text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                      {sub.mytimeEmpId || '—'}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-neutral-500">
