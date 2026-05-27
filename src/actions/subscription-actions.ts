@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache';
 import { ensureUserWalletAccount } from '@/lib/wallet-account';
 import { applyWalletTransactionInTx, refundRegistrationOrderToWallet } from '@/lib/wallet-ledger';
 import { authOptions } from '@/lib/auth';
+import { businessDateOnly } from '@/lib/subscription/date-utils';
 import { getServerSession } from 'next-auth';
 import {
   sendAdminNewSubscriptionOrderEmail,
@@ -498,8 +499,7 @@ export async function getSubscribers(filters?: {
     ];
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = businessDateOnly();
 
   const subscribers = await prisma.subscriber.findMany({
     where,
@@ -546,7 +546,7 @@ export async function getSubscribers(filters?: {
  * Lấy danh sách sessions đang mở (đang ngồi)
  */
 export async function getActiveSessions(branch?: string) {
-  const where: Record<string, unknown> = { checkOutTime: null };
+  const where: Record<string, unknown> = { checkOutTime: null, status: 'ACTIVE' };
   if (branch) where.branch = branch;
 
   return prisma.subscriptionSession.findMany({

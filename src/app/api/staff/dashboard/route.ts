@@ -7,6 +7,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { manualCheckIn, verifySession, getWarnings } from '@/lib/subscription-logic';
+import { localStartOfDay, splitMinutesByLocalDay } from '@/lib/subscription/date-utils';
 
 export async function GET(request: Request) {
   try {
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
 
     // 1. Active sessions (đang ngồi)
     const activeSessions = await prisma.subscriptionSession.findMany({
-      where: { checkOutTime: null },
+      where: { checkOutTime: null, status: 'ACTIVE' },
       orderBy: { checkInTime: 'desc' },
       include: {
         subscriber: true,
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
     const activeCount = activeSessions.length;
     const todayCheckIns = await prisma.subscriptionSession.count({
       where: {
-        checkInTime: { gte: new Date(new Date().toISOString().split('T')[0]) },
+        checkInTime: { gte: localStartOfDay() },
       },
     });
 
@@ -109,12 +110,13 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: 'Session không hợp lệ' }, { status: 400 });
         }
 
-        const durationRaw = (Date.now() - session.checkInTime.getTime()) / (1000 * 60);
-        const durationMin = Math.ceil(durationRaw / 15) * 15;
+        const checkOutTime = new Date();
+        const durationRaw = (checkOutTime.getTime() - session.checkInTime.getTime()) / (1000 * 60);
+        const durationMin = Math.ceil(Math.max(1, durationRaw) / 15) * 15;
 
         await prisma.subscriptionSession.update({
           where: { id: sessionId },
-          data: { checkOutTime: new Date(), durationMin, source: 'manual' },
+          data: { checkOutTime, durationMin, source: 'manual', status: 'COMPLETED' },
         });
 
         if (session.subscriptionId) {
@@ -126,17 +128,20 @@ export async function POST(request: Request) {
           // Update daily usage for plans with daily cap (MONTHLY_LIMITED & MONTHLY_UNLIMITED)
           const plansWithDailyCap = ['MONTHLY_LIMITED', 'MONTHLY_UNLIMITED'];
           if (session.subscription?.planType && plansWithDailyCap.includes(session.subscription.planType)) {
-            const checkInDay = new Date(session.checkInTime.toISOString().split('T')[0]);
-            await prisma.dailyUsage.upsert({
-              where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: checkInDay } },
-              create: {
-                subscriberId: session.subscriberId,
-                subscriptionId: session.subscriptionId,
-                usageDate: checkInDay,
-                totalMin: durationMin,
-              },
-              update: { totalMin: { increment: durationMin } },
-            });
+            const segments = splitMinutesByLocalDay(session.checkInTime, checkOutTime, durationMin);
+
+            for (const segment of segments) {
+              await prisma.dailyUsage.upsert({
+                where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: segment.usageDate } },
+                create: {
+                  subscriberId: session.subscriberId,
+                  subscriptionId: session.subscriptionId,
+                  usageDate: segment.usageDate,
+                  totalMin: segment.minutes,
+                },
+                update: { totalMin: { increment: segment.minutes } },
+              });
+            }
           }
         }
 

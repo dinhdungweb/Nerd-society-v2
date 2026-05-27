@@ -5,6 +5,12 @@
 
 import { prisma } from '@/lib/prisma';
 import { getBranchFromDevice } from '@/lib/mytime-api';
+import {
+  businessDateOnly,
+  localDateOnly,
+  parseAttendanceDateTime,
+  splitMinutesByLocalDay,
+} from '@/lib/subscription/date-utils';
 
 // Hằng số
 const ROUND_UP_MINUTES = 15;   // Làm tròn lên 15 phút
@@ -33,6 +39,42 @@ function roundUpMinutes(minutes: number): number {
   return Math.ceil(minutes / ROUND_UP_MINUTES) * ROUND_UP_MINUTES;
 }
 
+function getAttendanceAuditDetails(record?: unknown) {
+  if (!record || typeof record !== 'object') return {};
+  const data = record as { AttTime?: string; EmployeeID?: string; MachineAlias?: string; sn?: string };
+  const details: Record<string, string> = {};
+
+  if (data.AttTime) details.attTime = data.AttTime;
+  if (data.EmployeeID) details.employeeId = data.EmployeeID;
+  if (data.MachineAlias) details.machineAlias = data.MachineAlias;
+  if (data.sn) details.sn = data.sn;
+
+  return details;
+}
+
+async function incrementDailyUsageBySession(
+  subscriberId: string,
+  subscriptionId: string,
+  start: Date,
+  end: Date,
+  durationMin: number,
+) {
+  const segments = splitMinutesByLocalDay(start, end, durationMin);
+
+  for (const segment of segments) {
+    await prisma.dailyUsage.upsert({
+      where: { subscriberId_usageDate: { subscriberId, usageDate: segment.usageDate } },
+      create: {
+        subscriberId,
+        subscriptionId,
+        usageDate: segment.usageDate,
+        totalMin: segment.minutes,
+      },
+      update: { totalMin: { increment: segment.minutes } },
+    });
+  }
+}
+
 /**
  * Xử lý 1 bản ghi attendance mới từ MyTime polling
  */
@@ -43,7 +85,8 @@ export async function processAttendanceRecord(record: {
   MachineAlias: string;
   sn: string;
 }) {
-  const attTime = new Date(record.AttTime);
+  const attTime = parseAttendanceDateTime(record.AttTime);
+  const attDate = localDateOnly(attTime);
   const branch = getBranchFromDevice(record.sn || record.MachineAlias);
 
   // 1. Tìm subscriber
@@ -86,7 +129,7 @@ export async function processAttendanceRecord(record: {
   }
 
   // 4. Kiểm tra gói hết hạn
-  if (subscription.endDate && new Date(subscription.endDate) < new Date(attTime.toISOString().split('T')[0])) {
+  if (subscription.endDate && new Date(subscription.endDate) < attDate) {
     await prisma.subscription.update({
       where: { id: subscription.id },
       data: { status: 'EXPIRED' },
@@ -99,17 +142,18 @@ export async function processAttendanceRecord(record: {
     where: {
       subscriberId: subscriber.id,
       checkOutTime: null,
+      status: 'ACTIVE',
     },
   });
 
   if (openSession) {
     // Quẹt tại CS khác khi đang có session mở → check-out CS cũ + check-in CS mới
     if (openSession.branch !== branch) {
-      await performCheckOut(openSession.id, subscription, attTime);
+      await performCheckOut(openSession.id, subscription, attTime, record);
       return await performCheckIn(subscriber, subscription, attTime, branch, record);
     }
     // Check-out bình thường
-    return await performCheckOut(openSession.id, subscription, attTime);
+    return await performCheckOut(openSession.id, subscription, attTime, record);
   } else {
     // Check-in
     return await performCheckIn(subscriber, subscription, attTime, branch, record);
@@ -126,7 +170,7 @@ async function activateSubscription(
   branch: string,
   record: unknown,
 ) {
-  const today = new Date(attTime.toISOString().split('T')[0]);
+  const today = localDateOnly(attTime);
   const subscription = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
   if (!subscription) throw new Error('Subscription not found');
 
@@ -171,7 +215,7 @@ async function activateSubscription(
       entityType: 'subscription',
       entityId: subscriptionId,
       performedBy: 'system',
-      details: { branch, attTime: attTime.toISOString() },
+      details: { branch, attTime: attTime.toISOString(), ...getAttendanceAuditDetails(record) },
     },
   });
 
@@ -229,7 +273,7 @@ async function performCheckIn(
 
   // Kiểm tra daily cap 8h/ngày (MONTHLY_LIMITED & MONTHLY_UNLIMITED)
   if (PLANS_WITH_DAILY_CAP.includes(subscription.planType)) {
-    const today = new Date(attTime.toISOString().split('T')[0]);
+    const today = localDateOnly(attTime);
     const dailyUsage = await prisma.dailyUsage.findUnique({
       where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: today } },
     });
@@ -255,7 +299,7 @@ async function performCheckIn(
       entityType: 'session',
       entityId: session.id,
       performedBy: 'system',
-      details: { branch },
+      details: { branch, attTime: attTime.toISOString(), ...getAttendanceAuditDetails(record) },
     },
   });
 
@@ -282,6 +326,7 @@ async function performCheckOut(
   sessionId: string,
   subscription: { id: string; planType: string; usedHoursMin: number } | null,
   attTime: Date,
+  record?: unknown,
 ) {
   const session = await prisma.subscriptionSession.findUnique({ where: { id: sessionId } });
   if (!session) throw new Error('Session not found');
@@ -292,7 +337,7 @@ async function performCheckOut(
   // Cập nhật session
   await prisma.subscriptionSession.update({
     where: { id: sessionId },
-    data: { checkOutTime: attTime, durationMin },
+    data: { checkOutTime: attTime, durationMin, status: 'COMPLETED' },
   });
 
   if (subscription) {
@@ -304,17 +349,13 @@ async function performCheckOut(
 
     // Cập nhật daily usage (cho tất cả gói có daily cap)
     if (PLANS_WITH_DAILY_CAP.includes(subscription.planType)) {
-      const checkInDay = new Date(session.checkInTime.toISOString().split('T')[0]); // Tính vào ngày check-in (spec)
-      await prisma.dailyUsage.upsert({
-        where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: checkInDay } },
-        create: {
-          subscriberId: session.subscriberId,
-          subscriptionId: subscription.id,
-          usageDate: checkInDay,
-          totalMin: durationMin,
-        },
-        update: { totalMin: { increment: durationMin } },
-      });
+      await incrementDailyUsageBySession(
+        session.subscriberId,
+        subscription.id,
+        session.checkInTime,
+        attTime,
+        durationMin,
+      );
     }
   }
 
@@ -324,7 +365,7 @@ async function performCheckOut(
       entityType: 'session',
       entityId: sessionId,
       performedBy: 'system',
-      details: { durationMin },
+      details: { durationMin, checkOutTime: attTime.toISOString(), ...getAttendanceAuditDetails(record) },
     },
   });
 
@@ -350,7 +391,7 @@ export async function autoCheckOutStaleSessions() {
   cutoff.setHours(cutoff.getHours() - AUTO_CHECKOUT_HOURS);
 
   const staleSessions = await prisma.subscriptionSession.findMany({
-    where: { checkOutTime: null, checkInTime: { lt: cutoff } },
+    where: { checkOutTime: null, status: 'ACTIVE', checkInTime: { lt: cutoff } },
     include: { subscription: true },
   });
 
@@ -447,6 +488,7 @@ export async function getWarnings() {
   const longSessions = await prisma.subscriptionSession.findMany({
     where: {
       checkOutTime: null,
+      status: 'ACTIVE',
       checkInTime: {
         lt: new Date(Date.now() - 8 * 60 * 60 * 1000),
       },
@@ -463,7 +505,7 @@ export async function getWarnings() {
   }
 
   // Unlimited gần 8h/ngày
-  const today = new Date(new Date().toISOString().split('T')[0]);
+  const today = businessDateOnly();
   const nearLimitUsages = await prisma.dailyUsage.findMany({
     where: {
       usageDate: today,

@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { getAttendanceList } from '@/lib/mytime-api';
 import { processAttendanceRecord, autoCheckOutStaleSessions } from '@/lib/subscription-logic';
 import { prisma } from '@/lib/prisma';
+import { formatBusinessDate } from '@/lib/subscription/date-utils';
 
 // Store processed attendance times to avoid duplicates
 // In production, use Redis or DB-backed cache
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatBusinessDate();
 
     // 1. Fetch attendance from MyTime
     let records: Array<{

@@ -3,6 +3,7 @@ import { handleCheckIn, handleCheckOut } from './session-manager';
 import { prisma } from '@/lib/prisma';
 import { sendZaloNotification } from '@/lib/external/zalo-oa';
 import { format } from 'date-fns';
+import { parseAttendanceDateTime } from './date-utils';
 
 /**
  * Service xử lý dữ liệu quẹt thẻ từ ZKTeco
@@ -67,7 +68,7 @@ async function processTapRecord(record: any) {
         where: { mytimeEmpId: record.EmployeeID },
         include: {
             sessions: {
-                where: { status: 'ACTIVE' },
+                where: { status: 'ACTIVE', checkOutTime: null },
                 orderBy: { checkInTime: 'desc' },
                 take: 1
             }
@@ -80,7 +81,7 @@ async function processTapRecord(record: any) {
     }
 
     const branch = getBranchFromDevice(record.sn || record.MachineAlias);
-    const attTime = new Date(record.AttTime);
+    const attTime = parseAttendanceDateTime(record.AttTime);
 
     // [DEBOUNCE] Kiểm tra quẹt thẻ kép trong vòng 60 giây
     const lastLog = await prisma.subscriptionAuditLog.findFirst({

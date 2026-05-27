@@ -110,7 +110,7 @@ export default function SessionHistoryModal({
       formatDateTime(s.checkInTime),
       s.checkOutTime ? formatDateTime(s.checkOutTime) : 'Đang ngồi',
       s.durationMin?.toString() || '',
-      s.status === 'ACTIVE' ? 'Đang ngồi' : s.status === 'COMPLETED' ? 'Hoàn thành' : s.status,
+      s.checkOutTime ? 'Hoàn thành' : s.status === 'ACTIVE' ? 'Đang ngồi' : s.status,
       s.overageMin.toString(),
       s.amountCharged.toString(),
       s.source,
@@ -295,12 +295,12 @@ export default function SessionHistoryModal({
                     )}
                   </TableCell>
                   <TableCell className="pr-4 text-right">
-                    {s.status === 'ACTIVE' ? (
+                    {s.checkOutTime ? (
+                      <Badge color="zinc">Xong</Badge>
+                    ) : s.status === 'ACTIVE' ? (
                       <Badge color="emerald">
                         Đang ngồi
                       </Badge>
-                    ) : s.status === 'COMPLETED' ? (
-                      <Badge color="zinc">Xong</Badge>
                     ) : (
                       <Badge color="amber">{s.status}</Badge>
                     )}

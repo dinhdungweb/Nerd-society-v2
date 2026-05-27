@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma'
+import { localDateOnly, splitMinutesByLocalDay } from '@/lib/subscription/date-utils'
 import { applyWalletTransaction } from '@/lib/wallet-ledger'
 import { $Enums } from '@prisma/client'
-import { differenceInMinutes, startOfDay } from 'date-fns'
+import { differenceInMinutes } from 'date-fns'
 
 const RATE_PER_HOUR = 15000
 const DAILY_CAP_MIN = 480
@@ -70,7 +71,7 @@ export async function handleCheckIn(cardNo: string, branch: string, customTime?:
                 })
             }
 
-            const today = startOfDay(now)
+            const today = localDateOnly(now)
             const usageToday = await prisma.dailyUsage.findUnique({
                 where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: today } },
             })
@@ -139,7 +140,7 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
         where: { cardNo },
         include: {
             sessions: {
-                where: { status: 'ACTIVE' as $Enums.SessionStatus },
+                where: { status: 'ACTIVE' as $Enums.SessionStatus, checkOutTime: null },
                 orderBy: { checkInTime: 'desc' },
                 take: 1,
             },
@@ -156,31 +157,35 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
     }
 
     const session = subscriber.sessions[0]
-    const durationMin = differenceInMinutes(now, session.checkInTime)
+    const durationMin = Math.max(1, differenceInMinutes(now, session.checkInTime))
     const roundedMin = Math.ceil(durationMin / 15) * 15
     let message = `Tam biet ${subscriber.fullName}! Phien ngoi cua ban keo dai ${Math.floor(durationMin / 60)}h ${durationMin % 60}m.`
 
     if (session.subscriptionId) {
-        const today = startOfDay(session.checkInTime)
-        const usage = await prisma.dailyUsage.upsert({
-            where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: today } },
-            create: {
-                subscriberId: subscriber.id,
-                subscriptionId: session.subscriptionId,
-                usageDate: today,
-                totalMin: durationMin,
-            },
-            update: { totalMin: { increment: durationMin } },
-        })
+        const usageSegments = splitMinutesByLocalDay(session.checkInTime, now, durationMin)
+        let overageMin = 0
+
+        for (const segment of usageSegments) {
+            const usage = await prisma.dailyUsage.upsert({
+                where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: segment.usageDate } },
+                create: {
+                    subscriberId: subscriber.id,
+                    subscriptionId: session.subscriptionId,
+                    usageDate: segment.usageDate,
+                    totalMin: segment.minutes,
+                },
+                update: { totalMin: { increment: segment.minutes } },
+            })
+
+            const usedMinBefore = usage.totalMin - segment.minutes
+            const capRemaining = Math.max(0, DAILY_CAP_MIN - usedMinBefore)
+            overageMin += Math.max(0, segment.minutes - capRemaining)
+        }
 
         await prisma.subscription.update({
             where: { id: session.subscriptionId },
             data: { usedHoursMin: { increment: durationMin } },
         })
-
-        const usedMinBefore = usage.totalMin - durationMin
-        const capRemaining = Math.max(0, DAILY_CAP_MIN - usedMinBefore)
-        const overageMin = Math.max(0, durationMin - capRemaining)
 
         if (overageMin > 0) {
             const roundedOverage = Math.ceil(overageMin / 15) * 15
