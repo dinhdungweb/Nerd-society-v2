@@ -7,6 +7,12 @@
 const MYTIME_ENDPOINT = process.env.MYTIME_BASE_URL || process.env.MYTIME_URL_HTM || 'http://htm.vietjewelers.com:7900/api/hpa/Paradise';
 const MYTIME_USER = 'admin';
 const MYTIME_PASS = '123';
+const DEFAULT_MYTIME_TIMEOUT_MS = 15000;
+
+function getMytimeTimeoutMs(): number {
+  const timeout = Number(process.env.MYTIME_TIMEOUT_MS);
+  return Number.isFinite(timeout) && timeout > 0 ? timeout : DEFAULT_MYTIME_TIMEOUT_MS;
+}
 
 export interface MytimeResponse<T = unknown> {
   result: 'success' | 'error';
@@ -56,7 +62,7 @@ export async function callMytime<T>(name: string, params: (string | number)[]): 
     const res = await fetch(url, {
       method: 'GET',
       next: { revalidate: 0 },
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(getMytimeTimeoutMs()),
     });
 
     if (!res.ok) {
@@ -88,7 +94,8 @@ export async function callMytime<T>(name: string, params: (string | number)[]): 
       return { result: 'error', reason: `Invalid JSON response: ${text.slice(0, 50)}`, data: [] as unknown as T };
     }
   } catch (err) {
-    console.error(`[MyTime API] ${name} failed:`, err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[MyTime API] ${name} connection failed (${MYTIME_ENDPOINT}): ${message}`);
     return { result: 'error', reason: 'Connection failed', data: [] as unknown as T };
   }
 }

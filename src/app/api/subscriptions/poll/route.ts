@@ -4,56 +4,59 @@
  * GET /api/subscriptions/poll
  */
 
-import { NextResponse } from 'next/server';
-import { getAttendanceList } from '@/lib/mytime-api';
-import { processAttendanceRecord, autoCheckOutStaleSessions } from '@/lib/subscription-logic';
-import { prisma } from '@/lib/prisma';
-import { formatBusinessDate } from '@/lib/subscription/date-utils';
+import { getAttendanceList } from '@/lib/mytime-api'
+import { prisma } from '@/lib/prisma'
+import { autoCheckOutStaleSessions, processAttendanceRecord } from '@/lib/subscription-logic'
+import { formatBusinessDate, parseAttendanceRecordDateTime } from '@/lib/subscription/date-utils'
+import { NextResponse } from 'next/server'
 
 // Store processed attendance times to avoid duplicates
 // In production, use Redis or DB-backed cache
-const processedKeys = new Set<string>();
+const processedKeys = new Set<string>()
 
 export async function GET(request: Request) {
   try {
     // Auth check (simple token)
-    const url = new URL(request.url);
-    const token = url.searchParams.get('token');
+    const url = new URL(request.url)
+    const token = url.searchParams.get('token')
     if (token !== process.env.SUBSCRIPTION_POLL_TOKEN && process.env.NODE_ENV === 'production') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const today = formatBusinessDate();
+    const today = formatBusinessDate()
 
     // 1. Fetch attendance from MyTime
     let records: Array<{
-      AttTime: string;
-      EmployeeID: string;
-      FullName: string;
-      MachineAlias: string;
-      sn: string;
-    }> = [];
+      AttTime: string
+      EmployeeID: string
+      FullName: string
+      MachineAlias: string
+      sn: string
+      AttDate?: string
+    }> = []
 
     try {
-      const response = await getAttendanceList(today, today);
+      const response = await getAttendanceList(today, today)
       if (response.result === 'success' && Array.isArray(response.data)) {
-        records = response.data;
+        records = response.data.sort(
+          (a, b) => parseAttendanceRecordDateTime(a).getTime() - parseAttendanceRecordDateTime(b).getTime()
+        )
       }
     } catch (err) {
-      console.error('[Poll] MyTime API unreachable:', err);
+      console.error('[Poll] MyTime API unreachable:', err)
       // Non-fatal: MyTime/PC có thể đang tắt, sẽ poll lại lần sau
       return NextResponse.json({
         status: 'mytime_offline',
         message: 'Không kết nối được MyTime',
         autoCheckouts: [],
-      });
+      })
     }
 
     // 2. Process new records only
-    const events = [];
+    const events = []
     for (const record of records) {
-      const key = `${record.EmployeeID}-${record.AttTime}`;
-      if (processedKeys.has(key)) continue;
+      const key = `${record.EmployeeID}-${record.AttTime}`
+      if (processedKeys.has(key)) continue
 
       // Also check DB to avoid processing on restart
       const existing = await prisma.subscriptionAuditLog.findFirst({
@@ -64,28 +67,28 @@ export async function GET(request: Request) {
             equals: record.AttTime,
           },
         },
-      });
+      })
       if (existing) {
-        processedKeys.add(key);
-        continue;
+        processedKeys.add(key)
+        continue
       }
 
       try {
-        const result = await processAttendanceRecord(record);
-        events.push(result);
-        processedKeys.add(key);
+        const result = await processAttendanceRecord(record)
+        events.push(result)
+        processedKeys.add(key)
       } catch (err) {
-        console.error('[Poll] Error processing record:', record, err);
-        events.push({ type: 'ERROR', record, error: String(err) });
+        console.error('[Poll] Error processing record:', record, err)
+        events.push({ type: 'ERROR', record, error: String(err) })
       }
     }
 
     // 3. Auto-checkout stale sessions
-    const autoCheckouts = await autoCheckOutStaleSessions();
+    const autoCheckouts = await autoCheckOutStaleSessions()
 
     // 4. Cleanup old keys (keep last 24h only)
     if (processedKeys.size > 10000) {
-      processedKeys.clear();
+      processedKeys.clear()
     }
 
     return NextResponse.json({
@@ -94,9 +97,9 @@ export async function GET(request: Request) {
       events,
       autoCheckouts: autoCheckouts.length,
       totalRecords: records.length,
-    });
+    })
   } catch (err) {
-    console.error('[Poll] Fatal error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[Poll] Fatal error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

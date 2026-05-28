@@ -1,83 +1,75 @@
-import { writeFile, mkdir } from 'fs/promises'
-import { getServerSession } from 'next-auth'
+import { getUploadPath, getUploadUrl, getWritableUploadsDir } from '@/lib/upload-storage'
+import { writeFile } from 'fs/promises'
 import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
-import { authOptions } from '@/lib/auth'
 
 // POST /api/upload - Upload images
 export async function POST(request: NextRequest) {
-    try {
-        const formData = await request.formData()
-        
-        // Hỗ trợ cả single 'file' (từ Monthly Beaver) và multiple 'files' (từ Admin)
-        let files: File[] = []
-        const filesFromFields = formData.getAll('files') as File[]
-        const fileFromField = formData.get('file') as File | null
-        
-        if (filesFromFields.length > 0) {
-            files = filesFromFields
-        } else if (fileFromField) {
-            files = [fileFromField]
-        }
+  try {
+    const formData = await request.formData()
 
-        if (!files || files.length === 0) {
-            return NextResponse.json({ error: 'No files uploaded' }, { status: 400 })
-        }
+    // Hỗ trợ cả single 'file' (từ Monthly Beaver) và multiple 'files' (từ Admin)
+    let files: File[] = []
+    const filesFromFields = formData.getAll('files') as File[]
+    const fileFromField = formData.get('file') as File | null
 
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads')
-
-        // Ensure upload directory exists
-        try {
-            await mkdir(uploadDir, { recursive: true })
-        } catch {
-            // Directory might already exist
-        }
-
-        const uploadedUrls: string[] = []
-
-        for (const file of files) {
-            // Validate file type
-            const allowedTypes = [
-                'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            ]
-            if (!allowedTypes.includes(file.type)) {
-                continue
-            }
-
-            // Validate file size (max 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                continue
-            }
-
-            const bytes = await file.arrayBuffer()
-            const buffer = new Uint8Array(bytes)
-
-            // Generate unique filename
-            const ext = path.extname(file.name)
-            const filename = `${uuidv4()}${ext}`
-            const filepath = path.join(uploadDir, filename)
-
-            await writeFile(filepath, buffer)
-            uploadedUrls.push(`/uploads/${filename}`)
-        }
-
-        if (uploadedUrls.length === 0) {
-            return NextResponse.json(
-                { error: 'No valid files were uploaded' },
-                { status: 400 }
-            )
-        }
-
-        return NextResponse.json({
-            urls: uploadedUrls,
-            url: uploadedUrls[0], // For single file uploads
-        })
-    } catch (error) {
-        console.error('Error uploading files:', error)
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    if (filesFromFields.length > 0) {
+      files = filesFromFields
+    } else if (fileFromField) {
+      files = [fileFromField]
     }
+
+    if (!files || files.length === 0) {
+      return NextResponse.json({ error: 'No files uploaded' }, { status: 400 })
+    }
+
+    const uploadDir = await getWritableUploadsDir()
+
+    const uploadedUrls: string[] = []
+
+    for (const file of files) {
+      // Validate file type
+      const allowedTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ]
+      if (!allowedTypes.includes(file.type)) {
+        continue
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        continue
+      }
+
+      const bytes = await file.arrayBuffer()
+      const buffer = new Uint8Array(bytes)
+
+      // Generate unique filename
+      const ext = path.extname(file.name)
+      const filename = `${uuidv4()}${ext}`
+      const filepath = getUploadPath(uploadDir, filename)
+
+      await writeFile(filepath, buffer)
+      uploadedUrls.push(getUploadUrl(filename))
+    }
+
+    if (uploadedUrls.length === 0) {
+      return NextResponse.json({ error: 'No valid files were uploaded' }, { status: 400 })
+    }
+
+    return NextResponse.json({
+      urls: uploadedUrls,
+      url: uploadedUrls[0], // For single file uploads
+    })
+  } catch (error) {
+    console.error('Error uploading files:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
 }
