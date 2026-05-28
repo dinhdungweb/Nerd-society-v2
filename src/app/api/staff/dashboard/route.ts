@@ -4,10 +4,16 @@
  * POST /api/staff/dashboard — manual check-in/verify
  */
 
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { manualCheckIn, verifySession, getWarnings } from '@/lib/subscription-logic';
-import { localStartOfDay, splitMinutesByLocalDay } from '@/lib/subscription/date-utils';
+import { localStartOfDay } from '@/lib/subscription/date-utils';
+import {
+  calculateDailyCapSessionUsage,
+  getSessionUsageDate,
+  getSubscriptionDailyCapMin,
+} from '@/lib/subscription/usage-billing';
+import { getWarnings, manualCheckIn, verifySession } from '@/lib/subscription-logic';
+import { $Enums } from '@prisma/client';
+import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
   try {
@@ -104,7 +110,18 @@ export async function POST(request: Request) {
         const { sessionId } = body;
         const session = await prisma.subscriptionSession.findUnique({
           where: { id: sessionId },
-          include: { subscription: true },
+          include: {
+            subscriber: {
+              include: {
+                user: {
+                  select: {
+                    wallet: { select: { balance: true } },
+                  },
+                },
+              },
+            },
+            subscription: true,
+          },
         });
         if (!session || session.checkOutTime) {
           return NextResponse.json({ error: 'Session không hợp lệ' }, { status: 400 });
@@ -113,39 +130,70 @@ export async function POST(request: Request) {
         const checkOutTime = new Date();
         const durationRaw = (checkOutTime.getTime() - session.checkInTime.getTime()) / (1000 * 60);
         const durationMin = Math.ceil(Math.max(1, durationRaw) / 15) * 15;
-
-        await prisma.subscriptionSession.update({
-          where: { id: sessionId },
-          data: { checkOutTime, durationMin, source: 'manual', status: 'COMPLETED' },
-        });
+        let overageMin = 0;
+        let amountCharged = 0;
 
         if (session.subscriptionId) {
+          const dailyCapMin = getSubscriptionDailyCapMin(session.subscription);
+          if (dailyCapMin) {
+            const usageDate = getSessionUsageDate(session.checkInTime);
+            const usageBefore = await prisma.dailyUsage.findUnique({
+              where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate } },
+            });
+            const billing = calculateDailyCapSessionUsage({
+              durationMin,
+              usedMinBefore: usageBefore?.totalMin || 0,
+              dailyCapMin,
+            });
+
+            overageMin = billing.overageMin;
+            amountCharged = billing.overageCharge;
+
+            if (billing.includedMin > 0) {
+              await prisma.dailyUsage.upsert({
+                where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate } },
+                create: {
+                  subscriberId: session.subscriberId,
+                  subscriptionId: session.subscriptionId,
+                  usageDate,
+                  totalMin: billing.includedMin,
+                },
+                update: { totalMin: { increment: billing.includedMin } },
+              });
+            }
+          }
+
           await prisma.subscription.update({
             where: { id: session.subscriptionId },
             data: { usedHoursMin: { increment: durationMin } },
           });
 
-          // Update daily usage for plans with daily cap (MONTHLY_LIMITED & MONTHLY_UNLIMITED)
-          const plansWithDailyCap = ['MONTHLY_LIMITED', 'MONTHLY_UNLIMITED'];
-          if (session.subscription?.planType && plansWithDailyCap.includes(session.subscription.planType)) {
-            const segments = splitMinutesByLocalDay(session.checkInTime, checkOutTime, durationMin);
+          if (amountCharged > 0) {
+            await prisma.subscriber.update({
+              where: { id: session.subscriberId },
+              data: { outstandingBalance: { increment: amountCharged } },
+            });
 
-            for (const segment of segments) {
-              await prisma.dailyUsage.upsert({
-                where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: segment.usageDate } },
-                create: {
-                  subscriberId: session.subscriberId,
-                  subscriptionId: session.subscriptionId,
-                  usageDate: segment.usageDate,
-                  totalMin: segment.minutes,
-                },
-                update: { totalMin: { increment: segment.minutes } },
-              });
-            }
+            await prisma.transaction.create({
+              data: {
+                subscriberId: session.subscriberId,
+                type: 'OVERAGE_CHARGE' as $Enums.TransactionType,
+                amount: -amountCharged,
+                balanceBefore: session.subscriber.user?.wallet?.balance || 0,
+                balanceAfter: session.subscriber.user?.wallet?.balance || 0,
+                reference: session.id,
+                description: `Phi qua gio (${overageMin}m)`,
+              },
+            });
           }
         }
 
-        return NextResponse.json({ success: true, durationMin });
+        await prisma.subscriptionSession.update({
+          where: { id: sessionId },
+          data: { checkOutTime, durationMin, overageMin, amountCharged, source: 'manual', status: 'COMPLETED' },
+        });
+
+        return NextResponse.json({ success: true, durationMin, overageMin, amountCharged });
       }
 
       default:

@@ -1,12 +1,17 @@
 import { prisma } from '@/lib/prisma'
-import { localDateOnly, splitMinutesByLocalDay } from '@/lib/subscription/date-utils'
+import { localDateOnly } from '@/lib/subscription/date-utils'
+import {
+    DEFAULT_RATE_PER_HOUR,
+    calculateDailyCapSessionUsage,
+    getSessionUsageDate,
+    getSubscriptionDailyCapMin,
+    roundUpToIncrement,
+} from '@/lib/subscription/usage-billing'
 import { applyWalletTransaction } from '@/lib/wallet-ledger'
 import { $Enums } from '@prisma/client'
 import { differenceInMinutes } from 'date-fns'
 
-const RATE_PER_HOUR = 15000
-const DAILY_CAP_MIN = 480
-const MIN_WALLET_BALANCE = RATE_PER_HOUR / 4
+const MIN_WALLET_BALANCE = DEFAULT_RATE_PER_HOUR / 4
 
 export type CheckInResult = {
     success: boolean
@@ -71,18 +76,22 @@ export async function handleCheckIn(cardNo: string, branch: string, customTime?:
                 })
             }
 
-            const today = localDateOnly(now)
-            const usageToday = await prisma.dailyUsage.findUnique({
-                where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: today } },
-            })
+            const dailyCapMin = getSubscriptionDailyCapMin(activeSub)
+            let remainingMin: number | undefined
+            if (dailyCapMin) {
+                const today = localDateOnly(now)
+                const usageToday = await prisma.dailyUsage.findUnique({
+                    where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: today } },
+                })
 
-            const usedMin = usageToday?.totalMin || 0
-            const remainingMin = Math.max(0, DAILY_CAP_MIN - usedMin)
-            if (remainingMin <= 0) {
-                return {
-                    success: false,
-                    message: 'Ban da su dung het 8h mien phi hom nay. Vui long quay lai vao ngay mai hoac dung vi.',
-                    errorType: 'BLOCK_CAP_REACHED',
+                const usedMin = usageToday?.totalMin || 0
+                remainingMin = Math.max(0, dailyCapMin - usedMin)
+                if (remainingMin <= 0) {
+                    return {
+                        success: false,
+                        message: 'Ban da su dung het 8h mien phi hom nay. Vui long quay lai vao ngay mai hoac dung vi.',
+                        errorType: 'BLOCK_CAP_REACHED',
+                    }
                 }
             }
 
@@ -99,7 +108,10 @@ export async function handleCheckIn(cardNo: string, branch: string, customTime?:
 
             return {
                 success: true,
-                message: `Chao ${subscriber.fullName}! Hom nay ban con ${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m.`,
+                message:
+                    remainingMin === undefined
+                        ? `Chao ${subscriber.fullName}!`
+                        : `Chao ${subscriber.fullName}! Hom nay ban con ${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m.`,
                 subscriberName: subscriber.fullName,
                 remainingMin,
             }
@@ -143,6 +155,9 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
                 where: { status: 'ACTIVE' as $Enums.SessionStatus, checkOutTime: null },
                 orderBy: { checkInTime: 'desc' },
                 take: 1,
+                include: {
+                    subscription: { select: { dailyLimitMin: true, planType: true } },
+                },
             },
             user: {
                 select: {
@@ -158,28 +173,40 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
 
     const session = subscriber.sessions[0]
     const durationMin = Math.max(1, differenceInMinutes(now, session.checkInTime))
-    const roundedMin = Math.ceil(durationMin / 15) * 15
+    const roundedMin = roundUpToIncrement(durationMin)
     let message = `Tam biet ${subscriber.fullName}! Phien ngoi cua ban keo dai ${Math.floor(durationMin / 60)}h ${durationMin % 60}m.`
+    let overageMin = 0
+    let amountCharged = 0
 
     if (session.subscriptionId) {
-        const usageSegments = splitMinutesByLocalDay(session.checkInTime, now, durationMin)
-        let overageMin = 0
+        const dailyCapMin = getSubscriptionDailyCapMin(session.subscription)
 
-        for (const segment of usageSegments) {
-            const usage = await prisma.dailyUsage.upsert({
-                where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: segment.usageDate } },
-                create: {
-                    subscriberId: subscriber.id,
-                    subscriptionId: session.subscriptionId,
-                    usageDate: segment.usageDate,
-                    totalMin: segment.minutes,
-                },
-                update: { totalMin: { increment: segment.minutes } },
+        if (dailyCapMin) {
+            const usageDate = getSessionUsageDate(session.checkInTime)
+            const usageBefore = await prisma.dailyUsage.findUnique({
+                where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate } },
+            })
+            const billing = calculateDailyCapSessionUsage({
+                durationMin,
+                usedMinBefore: usageBefore?.totalMin || 0,
+                dailyCapMin,
             })
 
-            const usedMinBefore = usage.totalMin - segment.minutes
-            const capRemaining = Math.max(0, DAILY_CAP_MIN - usedMinBefore)
-            overageMin += Math.max(0, segment.minutes - capRemaining)
+            overageMin = billing.overageMin
+            amountCharged = billing.overageCharge
+
+            if (billing.includedMin > 0) {
+                await prisma.dailyUsage.upsert({
+                    where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate } },
+                    create: {
+                        subscriberId: subscriber.id,
+                        subscriptionId: session.subscriptionId,
+                        usageDate,
+                        totalMin: billing.includedMin,
+                    },
+                    update: { totalMin: { increment: billing.includedMin } },
+                })
+            }
         }
 
         await prisma.subscription.update({
@@ -187,20 +214,17 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
             data: { usedHoursMin: { increment: durationMin } },
         })
 
-        if (overageMin > 0) {
-            const roundedOverage = Math.ceil(overageMin / 15) * 15
-            const overageCharge = Math.round((roundedOverage / 60) * RATE_PER_HOUR)
-
+        if (amountCharged > 0) {
             await prisma.subscriber.update({
                 where: { id: subscriber.id },
-                data: { outstandingBalance: { increment: overageCharge } },
+                data: { outstandingBalance: { increment: amountCharged } },
             })
 
             await prisma.transaction.create({
                 data: {
                     subscriberId: subscriber.id,
                     type: 'OVERAGE_CHARGE' as $Enums.TransactionType,
-                    amount: -overageCharge,
+                    amount: -amountCharged,
                     balanceBefore: subscriber.user?.wallet?.balance || 0,
                     balanceAfter: subscriber.user?.wallet?.balance || 0,
                     reference: session.id,
@@ -208,10 +232,10 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
                 },
             })
 
-            message += ` Phi qua gio: ${overageCharge.toLocaleString()}d.`
+            message += ` Phi qua gio: ${amountCharged.toLocaleString()}d.`
         }
     } else {
-        const amount = Math.round((roundedMin / 60) * RATE_PER_HOUR)
+        const amount = Math.round((roundedMin / 60) * DEFAULT_RATE_PER_HOUR)
         const wallet = subscriber.user?.wallet
         const walletBalance = wallet?.balance || 0
         const paidAmount = Math.min(walletBalance, amount)
@@ -260,6 +284,8 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
         data: {
             checkOutTime: now,
             durationMin,
+            overageMin,
+            amountCharged,
             status: 'COMPLETED' as $Enums.SessionStatus,
         },
     })

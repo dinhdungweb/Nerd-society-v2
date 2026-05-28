@@ -9,8 +9,12 @@ import {
   businessDateOnly,
   localDateOnly,
   parseAttendanceRecordDateTime,
-  splitMinutesByLocalDay,
 } from '@/lib/subscription/date-utils'
+import {
+  calculateDailyCapSessionUsage,
+  getSessionUsageDate,
+} from '@/lib/subscription/usage-billing'
+import { $Enums } from '@prisma/client'
 
 // Hằng số
 const ROUND_UP_MINUTES = 15 // Làm tròn lên 15 phút
@@ -56,23 +60,32 @@ async function incrementDailyUsageBySession(
   subscriberId: string,
   subscriptionId: string,
   start: Date,
-  end: Date,
   durationMin: number
 ) {
-  const segments = splitMinutesByLocalDay(start, end, durationMin)
+  const usageDate = getSessionUsageDate(start)
+  const usageBefore = await prisma.dailyUsage.findUnique({
+    where: { subscriberId_usageDate: { subscriberId, usageDate } },
+  })
+  const billing = calculateDailyCapSessionUsage({
+    durationMin,
+    usedMinBefore: usageBefore?.totalMin || 0,
+    dailyCapMin: DAILY_CAP_MIN,
+  })
 
-  for (const segment of segments) {
+  if (billing.includedMin > 0) {
     await prisma.dailyUsage.upsert({
-      where: { subscriberId_usageDate: { subscriberId, usageDate: segment.usageDate } },
+      where: { subscriberId_usageDate: { subscriberId, usageDate } },
       create: {
         subscriberId,
         subscriptionId,
-        usageDate: segment.usageDate,
-        totalMin: segment.minutes,
+        usageDate,
+        totalMin: billing.includedMin,
       },
-      update: { totalMin: { increment: segment.minutes } },
+      update: { totalMin: { increment: billing.includedMin } },
     })
   }
+
+  return billing
 }
 
 /**
@@ -356,10 +369,8 @@ async function performCheckOut(
   const durationMin = roundUpMinutes(Math.max(1, Math.round(durationRaw)))
 
   // Cập nhật session
-  await prisma.subscriptionSession.update({
-    where: { id: sessionId },
-    data: { checkOutTime: attTime, durationMin, status: 'COMPLETED' },
-  })
+  let overageMin = 0
+  let amountCharged = 0
 
   if (subscription) {
     // Cập nhật used hours
@@ -370,15 +381,45 @@ async function performCheckOut(
 
     // Cập nhật daily usage (cho tất cả gói có daily cap)
     if (PLANS_WITH_DAILY_CAP.includes(subscription.planType)) {
-      await incrementDailyUsageBySession(
+      const billing = await incrementDailyUsageBySession(
         session.subscriberId,
         subscription.id,
         session.checkInTime,
-        attTime,
         durationMin
       )
+      overageMin = billing.overageMin
+      amountCharged = billing.overageCharge
+
+      if (amountCharged > 0) {
+        const subscriber = await prisma.subscriber.findUnique({
+          where: { id: session.subscriberId },
+          include: { user: { select: { wallet: { select: { balance: true } } } } },
+        })
+
+        await prisma.subscriber.update({
+          where: { id: session.subscriberId },
+          data: { outstandingBalance: { increment: amountCharged } },
+        })
+
+        await prisma.transaction.create({
+          data: {
+            subscriberId: session.subscriberId,
+            type: 'OVERAGE_CHARGE' as $Enums.TransactionType,
+            amount: -amountCharged,
+            balanceBefore: subscriber?.user?.wallet?.balance || 0,
+            balanceAfter: subscriber?.user?.wallet?.balance || 0,
+            reference: sessionId,
+            description: `Phi qua gio (${overageMin}m)`,
+          },
+        })
+      }
     }
   }
+
+  await prisma.subscriptionSession.update({
+    where: { id: sessionId },
+    data: { checkOutTime: attTime, durationMin, overageMin, amountCharged, status: 'COMPLETED' },
+  })
 
   await prisma.subscriptionAuditLog.create({
     data: {
