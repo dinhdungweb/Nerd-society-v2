@@ -11,6 +11,9 @@ type Args = {
   sessionId?: string
   checkout?: string
   lookupDays: number
+  maxAutoDurationMin: number
+  allowLongAuto: boolean
+  json: boolean
   list: boolean
   activeOnly: boolean
   search?: string
@@ -20,7 +23,16 @@ type Args = {
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { apply: false, activeOnly: false, list: false, lookupDays: 14, take: 50 }
+  const args: Args = {
+    allowLongAuto: false,
+    apply: false,
+    activeOnly: false,
+    json: false,
+    list: false,
+    lookupDays: 14,
+    maxAutoDurationMin: 720,
+    take: 50,
+  }
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]
@@ -40,6 +52,22 @@ function parseArgs(argv: string[]): Args {
     if (arg === '--lookup-days') {
       args.lookupDays = Number(argv[i + 1])
       i += 1
+      continue
+    }
+
+    if (arg === '--max-auto-duration') {
+      args.maxAutoDurationMin = Number(argv[i + 1])
+      i += 1
+      continue
+    }
+
+    if (arg === '--allow-long-auto') {
+      args.allowLongAuto = true
+      continue
+    }
+
+    if (arg === '--json') {
+      args.json = true
       continue
     }
 
@@ -94,6 +122,7 @@ Find session ids:
   npx tsx scripts/repair-subscription-session.ts --list --active
   npx tsx scripts/repair-subscription-session.ts --list --search "Trường Đức Anh"
   npx tsx scripts/repair-subscription-session.ts --list --min-duration 480 --take 100
+  npx tsx scripts/repair-subscription-session.ts --list --search "Truong Duc Anh" --json
 
 Supported checkout formats:
   2026-05-27 03:50:13
@@ -101,6 +130,8 @@ Supported checkout formats:
 
 When --checkout is omitted, the script fetches MyTime attendance automatically.
 Use --lookup-days <number> to widen the search window. Default: 14.
+Auto-detected checkout is blocked when duration exceeds --max-auto-duration. Default: 720 minutes.
+Use --checkout for manual repair, or --allow-long-auto only when the long session is confirmed.
 `)
 }
 
@@ -282,6 +313,11 @@ async function listSessions(args: Args) {
     return
   }
 
+  if (args.json) {
+    console.log(JSON.stringify(rows, null, 2))
+    return
+  }
+
   console.table(rows)
 }
 
@@ -388,6 +424,12 @@ async function main() {
 
   const rawMinutes = (checkoutTime.getTime() - session.checkInTime.getTime()) / 60000
   const repairedDurationMin = roundUp15(Math.max(1, rawMinutes))
+  const isLongAutoMatch =
+    Boolean(autoCheckout?.record) &&
+    !args.checkout &&
+    !args.allowLongAuto &&
+    Number.isFinite(args.maxAutoDurationMin) &&
+    repairedDurationMin > args.maxAutoDurationMin
 
   console.log('Session repair preview:')
   console.log({
@@ -398,9 +440,17 @@ async function main() {
     oldDurationMin: session.durationMin,
     repairedCheckOutTime: checkoutTime,
     repairedDurationMin,
+    maxAutoDurationMin: args.maxAutoDurationMin,
+    autoMatchBlocked: isLongAutoMatch,
     autoMatchedAttendance: autoCheckout?.record || null,
     apply: args.apply,
   })
+
+  if (isLongAutoMatch) {
+    throw new Error(
+      `Auto-detected checkout would create a ${repairedDurationMin} minute session. Pass --checkout manually, increase --max-auto-duration, or add --allow-long-auto if this is correct.`
+    )
+  }
 
   if (!args.apply) {
     console.log('Dry run only. Add --apply to write changes.')
