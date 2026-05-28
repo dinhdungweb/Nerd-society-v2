@@ -9,10 +9,11 @@ import {
   businessDateOnly,
   localDateOnly,
   parseAttendanceRecordDateTime,
+  splitMinutesByLocalDay,
 } from '@/lib/subscription/date-utils'
 import {
   calculateDailyCapSessionUsage,
-  getSessionUsageDate,
+  calculateOverageCharge,
 } from '@/lib/subscription/usage-billing'
 import { $Enums } from '@prisma/client'
 
@@ -60,32 +61,45 @@ async function incrementDailyUsageBySession(
   subscriberId: string,
   subscriptionId: string,
   start: Date,
+  end: Date,
   durationMin: number
 ) {
-  const usageDate = getSessionUsageDate(start)
-  const usageBefore = await prisma.dailyUsage.findUnique({
-    where: { subscriberId_usageDate: { subscriberId, usageDate } },
-  })
-  const billing = calculateDailyCapSessionUsage({
-    durationMin,
-    usedMinBefore: usageBefore?.totalMin || 0,
-    dailyCapMin: DAILY_CAP_MIN,
-  })
+  const segments = splitMinutesByLocalDay(start, end, durationMin)
+  let overageMin = 0
+  let includedMin = 0
 
-  if (billing.includedMin > 0) {
-    await prisma.dailyUsage.upsert({
-      where: { subscriberId_usageDate: { subscriberId, usageDate } },
-      create: {
-        subscriberId,
-        subscriptionId,
-        usageDate,
-        totalMin: billing.includedMin,
-      },
-      update: { totalMin: { increment: billing.includedMin } },
+  for (const segment of segments) {
+    const usageBefore = await prisma.dailyUsage.findUnique({
+      where: { subscriberId_usageDate: { subscriberId, usageDate: segment.usageDate } },
     })
+    const billing = calculateDailyCapSessionUsage({
+      durationMin: segment.minutes,
+      usedMinBefore: usageBefore?.totalMin || 0,
+      dailyCapMin: DAILY_CAP_MIN,
+    })
+
+    overageMin += billing.overageMin
+    includedMin += billing.includedMin
+
+    if (billing.includedMin > 0) {
+      await prisma.dailyUsage.upsert({
+        where: { subscriberId_usageDate: { subscriberId, usageDate: segment.usageDate } },
+        create: {
+          subscriberId,
+          subscriptionId,
+          usageDate: segment.usageDate,
+          totalMin: billing.includedMin,
+        },
+        update: { totalMin: { increment: billing.includedMin } },
+      })
+    }
   }
 
-  return billing
+  return {
+    includedMin,
+    overageMin,
+    ...calculateOverageCharge(overageMin),
+  }
 }
 
 /**
@@ -385,6 +399,7 @@ async function performCheckOut(
         session.subscriberId,
         subscription.id,
         session.checkInTime,
+        attTime,
         durationMin
       )
       overageMin = billing.overageMin

@@ -4,10 +4,10 @@ import { prisma } from '../src/lib/prisma'
 import {
   parseAttendanceDateTime,
   parseAttendanceRecordDateTime,
+  splitMinutesByLocalDay,
 } from '../src/lib/subscription/date-utils'
 import {
   calculateDailyCapSessionUsage,
-  getSessionUsageDate,
   getSubscriptionDailyCapMin,
 } from '../src/lib/subscription/usage-billing'
 
@@ -354,21 +354,24 @@ async function rebuildSubscriberUsage(subscriberId: string) {
     const dailyCapMin = getSubscriptionDailyCapMin(session.subscription)
     if (!dailyCapMin) continue
 
-    const usageDate = getSessionUsageDate(session.checkInTime)
-    const key = dateKey(usageDate)
-    const current = usageByDate.get(key)
-    const billing = calculateDailyCapSessionUsage({
-      durationMin: session.durationMin,
-      usedMinBefore: current?.totalMin || 0,
-      dailyCapMin,
-    })
+    const segments = splitMinutesByLocalDay(session.checkInTime, session.checkOutTime, session.durationMin)
 
-    if (billing.includedMin > 0) {
-      usageByDate.set(key, {
-        subscriptionId: current?.subscriptionId || session.subscriptionId,
-        usageDate,
-        totalMin: (current?.totalMin || 0) + billing.includedMin,
+    for (const segment of segments) {
+      const key = dateKey(segment.usageDate)
+      const current = usageByDate.get(key)
+      const billing = calculateDailyCapSessionUsage({
+        durationMin: segment.minutes,
+        usedMinBefore: current?.totalMin || 0,
+        dailyCapMin,
       })
+
+      if (billing.includedMin > 0) {
+        usageByDate.set(key, {
+          subscriptionId: current?.subscriptionId || session.subscriptionId,
+          usageDate: segment.usageDate,
+          totalMin: (current?.totalMin || 0) + billing.includedMin,
+        })
+      }
     }
   }
 

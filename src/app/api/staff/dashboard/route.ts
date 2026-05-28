@@ -5,10 +5,10 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { localStartOfDay } from '@/lib/subscription/date-utils';
+import { localStartOfDay, splitMinutesByLocalDay } from '@/lib/subscription/date-utils';
 import {
   calculateDailyCapSessionUsage,
-  getSessionUsageDate,
+  calculateOverageCharge,
   getSubscriptionDailyCapMin,
 } from '@/lib/subscription/usage-billing';
 import { getWarnings, manualCheckIn, verifySession } from '@/lib/subscription-logic';
@@ -136,31 +136,35 @@ export async function POST(request: Request) {
         if (session.subscriptionId) {
           const dailyCapMin = getSubscriptionDailyCapMin(session.subscription);
           if (dailyCapMin) {
-            const usageDate = getSessionUsageDate(session.checkInTime);
-            const usageBefore = await prisma.dailyUsage.findUnique({
-              where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate } },
-            });
-            const billing = calculateDailyCapSessionUsage({
-              durationMin,
-              usedMinBefore: usageBefore?.totalMin || 0,
-              dailyCapMin,
-            });
+            const segments = splitMinutesByLocalDay(session.checkInTime, checkOutTime, durationMin);
 
-            overageMin = billing.overageMin;
-            amountCharged = billing.overageCharge;
-
-            if (billing.includedMin > 0) {
-              await prisma.dailyUsage.upsert({
-                where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate } },
-                create: {
-                  subscriberId: session.subscriberId,
-                  subscriptionId: session.subscriptionId,
-                  usageDate,
-                  totalMin: billing.includedMin,
-                },
-                update: { totalMin: { increment: billing.includedMin } },
+            for (const segment of segments) {
+              const usageBefore = await prisma.dailyUsage.findUnique({
+                where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: segment.usageDate } },
               });
+              const billing = calculateDailyCapSessionUsage({
+                durationMin: segment.minutes,
+                usedMinBefore: usageBefore?.totalMin || 0,
+                dailyCapMin,
+              });
+
+              overageMin += billing.overageMin;
+
+              if (billing.includedMin > 0) {
+                await prisma.dailyUsage.upsert({
+                  where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: segment.usageDate } },
+                  create: {
+                    subscriberId: session.subscriberId,
+                    subscriptionId: session.subscriptionId,
+                    usageDate: segment.usageDate,
+                    totalMin: billing.includedMin,
+                  },
+                  update: { totalMin: { increment: billing.includedMin } },
+                });
+              }
             }
+
+            amountCharged = calculateOverageCharge(overageMin).overageCharge;
           }
 
           await prisma.subscription.update({

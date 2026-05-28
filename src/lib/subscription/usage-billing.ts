@@ -22,6 +22,17 @@ export function getSessionUsageDate(checkInTime: Date) {
   return localDateOnly(checkInTime)
 }
 
+export function getUsageDateKey(usageDate: Date) {
+  return usageDate.toISOString().slice(0, 10)
+}
+
+export function calculateOverageCharge(overageMin: number, ratePerHour = DEFAULT_RATE_PER_HOUR) {
+  const roundedOverageMin = roundUpToIncrement(Math.max(0, overageMin))
+  const overageCharge = Math.round((roundedOverageMin / 60) * ratePerHour)
+
+  return { roundedOverageMin, overageCharge }
+}
+
 export function calculateDailyCapSessionUsage(input: {
   durationMin: number
   usedMinBefore: number
@@ -32,8 +43,10 @@ export function calculateDailyCapSessionUsage(input: {
   const capRemaining = Math.max(0, dailyCapMin - input.usedMinBefore)
   const includedMin = Math.min(input.durationMin, capRemaining)
   const overageMin = Math.max(0, input.durationMin - includedMin)
-  const roundedOverageMin = roundUpToIncrement(overageMin)
-  const overageCharge = Math.round((roundedOverageMin / 60) * (input.ratePerHour || DEFAULT_RATE_PER_HOUR))
+  const { roundedOverageMin, overageCharge } = calculateOverageCharge(
+    overageMin,
+    input.ratePerHour || DEFAULT_RATE_PER_HOUR
+  )
 
   return {
     includedMin,
