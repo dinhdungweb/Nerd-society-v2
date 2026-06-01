@@ -422,34 +422,7 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                                     onChange={e => setFormData({ ...formData, guests: parseInt(e.target.value) || 1 })}
                                                 />
                                             </div>
-                                        )}  {/* Payment */}
-                                        <div className="pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">Trạng thái cọc</label>
-                                            <div className="flex gap-4">
-                                                <label className="flex items-center gap-2">
-                                                    <input
-                                                        type="radio"
-                                                        name="depositStatus"
-                                                        value="PAID_CASH"
-                                                        checked={formData.depositStatus === 'PAID_CASH'}
-                                                        onChange={e => setFormData({ ...formData, depositStatus: e.target.value })}
-                                                        className="text-primary-600 focus:ring-primary-500"
-                                                    />
-                                                    <span className="text-sm dark:text-neutral-300">Đã thu tiền mặt</span>
-                                                </label>
-                                                <label className="flex items-center gap-2">
-                                                    <input
-                                                        type="radio"
-                                                        name="depositStatus"
-                                                        value="WAIVED"
-                                                        checked={formData.depositStatus === 'WAIVED'}
-                                                        onChange={e => setFormData({ ...formData, depositStatus: e.target.value })}
-                                                        className="text-primary-600 focus:ring-primary-500"
-                                                    />
-                                                    <span className="text-sm dark:text-neutral-300">Không cọc (Khách quen)</span>
-                                                </label>
-                                            </div>
-                                        </div>
+                                        )}
 
                                         {/* Price Preview */}
                                         {estimatedPrice > 0 && (
@@ -483,12 +456,7 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
                                                         </span>
                                                     </div>
                                                 )}
-                                                {formData.depositStatus === 'WAIVED' && (
-                                                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-primary-200 dark:border-primary-800">
-                                                        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Tiền cọc:</span>
-                                                        <span className="text-sm font-medium text-neutral-500">Miễn cọc</span>
-                                                    </div>
-                                                )}
+
                                             </div>
                                         )}
 
