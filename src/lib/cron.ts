@@ -4,6 +4,7 @@ import { sendCheckinReminderEmail } from '@/lib/email'
 import cron from 'node-cron'
 import { differenceInMinutes, startOfDay } from 'date-fns'
 import { pollAttendanceRecords } from './subscription/attendance-polling'
+import { syncAllSubscribersStatus } from './subscription/sync-status'
 
 const PENDING_TIMEOUT_MINUTES = 600 // Hủy booking PENDING sau 10 giờ (600 phút)
 const ENDING_SOON_MINUTES = 15 // Cảnh báo 15 phút trước khi hết giờ
@@ -148,6 +149,23 @@ async function checkOvertimeBookings() {
 }
 
 let isScheduled = false
+let isSyncingSubscribers = false
+
+async function syncSubscriberStatuses() {
+    if (isSyncingSubscribers) {
+        console.log('[Cron] Subscriber status sync already running, skipping...')
+        return
+    }
+
+    isSyncingSubscribers = true
+    try {
+        await syncAllSubscribersStatus()
+    } catch (error) {
+        console.error('[Cron] Error syncing subscriber statuses:', error)
+    } finally {
+        isSyncingSubscribers = false
+    }
+}
 
 /**
  * Initialize cron job - runs every minute
@@ -159,7 +177,7 @@ export function initCronJobs() {
         return
     }
 
-    // Run every minute - for pending bookings and overtime check
+    // Run every minute - for pending bookings and attendance polling
     cron.schedule('* * * * *', () => {
         cancelPendingBookings()
         // checkOvertimeBookings()
@@ -171,15 +189,22 @@ export function initCronJobs() {
         checkCheckinReminders()
     })
 
+    // Run every 15 minutes - expire overdue subscriptions and sync MyTime lock status
+    cron.schedule('*/15 * * * *', () => {
+        syncSubscriberStatuses()
+    })
+
     isScheduled = true
     console.log('[Cron] All cron jobs scheduled:')
     console.log('  - Pending booking cleanup: every minute')
-    console.log('  - Overtime check: every minute')
+    console.log('  - Attendance polling: every minute')
     console.log('  - Check-in reminders: every 15 minutes')
+    console.log('  - Subscriber/MyTime status sync: every 15 minutes')
 
     // Run once immediately on startup
     cancelPendingBookings()
     // checkOvertimeBookings()
+    syncSubscriberStatuses()
 }
 
 /**

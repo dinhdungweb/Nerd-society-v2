@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { localDateOnly, splitMinutesByLocalDay } from '@/lib/subscription/date-utils'
+import { businessDateOnly, localDateOnly, splitMinutesByLocalDay } from '@/lib/subscription/date-utils'
 import {
     DEFAULT_RATE_PER_HOUR,
     calculateDailyCapSessionUsage,
@@ -34,6 +34,7 @@ type CheckoutSessionOptions = {
 
 export async function handleCheckIn(cardNo: string, branch: string, customTime?: Date): Promise<CheckInResult> {
     const now = customTime || new Date()
+    const today = businessDateOnly(now)
     const subscriber = await prisma.subscriber.findUnique({
         where: { cardNo },
         include: {
@@ -64,7 +65,7 @@ export async function handleCheckIn(cardNo: string, branch: string, customTime?:
 
     const activeSub = subscriber.subscriptions[0]
     if (activeSub) {
-        if (activeSub.status === 'ACTIVE' && activeSub.endDate && activeSub.endDate < now) {
+        if (activeSub.status === 'ACTIVE' && activeSub.endDate && activeSub.endDate < today) {
             await prisma.subscription.update({
                 where: { id: activeSub.id },
                 data: { status: 'EXPIRED' },

@@ -1,10 +1,67 @@
 import { prisma } from '@/lib/prisma'
 import { updateEmployeeStatus } from '@/lib/mytime-api'
+import { businessDateOnly } from '@/lib/subscription/date-utils'
 
 const MIN_WALLET_BALANCE = 3750
 
+function activeSubscriptionWhere(today: Date) {
+    return {
+        status: 'ACTIVE' as const,
+        OR: [{ endDate: null }, { endDate: { gte: today } }],
+    }
+}
+
+export async function expireOverdueSubscriptions(today: Date = businessDateOnly(), subscriberId?: string) {
+    const overdueSubscriptions = await prisma.subscription.findMany({
+        where: {
+            status: 'ACTIVE',
+            endDate: { lt: today },
+            ...(subscriberId ? { subscriberId } : {}),
+        },
+        select: {
+            id: true,
+            subscriberId: true,
+            planType: true,
+            endDate: true,
+        },
+    })
+
+    if (overdueSubscriptions.length === 0) return 0
+
+    const result = await prisma.subscription.updateMany({
+        where: {
+            status: 'ACTIVE',
+            id: { in: overdueSubscriptions.map((subscription) => subscription.id) },
+        },
+        data: { status: 'EXPIRED' },
+    })
+
+    if (result.count > 0) {
+        await prisma.subscriptionAuditLog.createMany({
+            data: overdueSubscriptions.map((subscription) => ({
+                action: 'AUTO_EXPIRE_SUBSCRIPTION',
+                entityType: 'SUBSCRIPTION',
+                entityId: subscription.id,
+                performedBy: 'system',
+                details: {
+                    subscriberId: subscription.subscriberId,
+                    planType: subscription.planType,
+                    endDate: subscription.endDate?.toISOString().slice(0, 10),
+                    expiredBefore: today.toISOString().slice(0, 10),
+                },
+            })),
+        })
+
+        console.log(`[SyncStatus] Expired ${result.count} overdue subscription(s) before ${today.toISOString().slice(0, 10)}`)
+    }
+
+    return result.count
+}
+
 export async function syncAllSubscribersStatus() {
     console.log('[SyncStatus] Starting global status synchronization...')
+    const today = businessDateOnly()
+    const expiredSubscriptions = await expireOverdueSubscriptions(today)
 
     const subscribers = await prisma.subscriber.findMany({
         where: {
@@ -12,7 +69,8 @@ export async function syncAllSubscribersStatus() {
         },
         include: {
             subscriptions: {
-                where: { status: 'ACTIVE' },
+                where: activeSubscriptionWhere(today),
+                orderBy: { createdAt: 'desc' },
                 take: 1,
             },
             user: {
@@ -28,6 +86,7 @@ export async function syncAllSubscribersStatus() {
         activated: 0,
         locked: 0,
         errors: 0,
+        expiredSubscriptions,
     }
 
     for (const sub of subscribers) {
@@ -54,11 +113,15 @@ export async function syncAllSubscribersStatus() {
 }
 
 export async function syncSubscriberStatus(subscriberId: string) {
+    const today = businessDateOnly()
+    await expireOverdueSubscriptions(today, subscriberId)
+
     const sub = await prisma.subscriber.findUnique({
         where: { id: subscriberId },
         include: {
             subscriptions: {
-                where: { status: 'ACTIVE' },
+                where: activeSubscriptionWhere(today),
+                orderBy: { createdAt: 'desc' },
                 take: 1,
             },
             user: {
