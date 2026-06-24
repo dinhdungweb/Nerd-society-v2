@@ -162,6 +162,28 @@ async function processTapRecord(record: any): Promise<boolean> {
       return true
     } else {
       // Thông báo lỗi (Ví dụ: nợ tiền, hết hạn...)
+      await prisma.subscriptionAuditLog.create({
+        data: {
+          action: 'BLOCK_CHECKIN',
+          entityType: 'ATTENDANCE',
+          entityId: record.EmployeeID,
+          performedBy: 'system',
+          details: {
+            external_id: `${record.EmployeeID}_${record.AttDate}_${record.AttTime}`,
+            subscriberId: subscriber.id,
+            subscriberName: subscriber.fullName,
+            cardNo: subscriber.cardNo,
+            branch,
+            attTime: attTime.toISOString(),
+            errorType: result.errorType || null,
+            message: result.message,
+            walletBalance: result.walletBalance ?? null,
+            outstandingBalance: result.outstandingBalance ?? null,
+            record,
+          },
+        },
+      })
+
       await sendZaloNotification(subscriber.phone, 'BLOCK_CHECKIN', {
         CustomerName: subscriber.fullName,
         ErrorMessage: result.message,

@@ -20,7 +20,16 @@ export type CheckInResult = {
     remainingMin?: number
     walletBalance?: number
     outstandingBalance?: number
+    durationMin?: number
+    overageMin?: number
+    amountCharged?: number
     errorType?: 'BLOCK_DEBT' | 'BLOCK_EXPIRED' | 'BLOCK_LOW_BALANCE' | 'BLOCK_CAP_REACHED' | 'NOT_FOUND'
+}
+
+type CheckoutSessionOptions = {
+    checkOutTime?: Date
+    source?: string
+    performedBy?: string
 }
 
 export async function handleCheckIn(cardNo: string, branch: string, customTime?: Date): Promise<CheckInResult> {
@@ -159,11 +168,6 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
                     subscription: { select: { dailyLimitMin: true, planType: true } },
                 },
             },
-            user: {
-                select: {
-                    wallet: { select: { id: true, balance: true } },
-                },
-            },
         },
     })
 
@@ -171,10 +175,37 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
         return { success: false, message: 'Khong tim thay phien check-in dang hoat dong.', errorType: 'NOT_FOUND' }
     }
 
-    const session = subscriber.sessions[0]
+    return checkoutSubscriptionSession(subscriber.sessions[0].id, { checkOutTime: now })
+}
+
+export async function checkoutSubscriptionSession(
+    sessionId: string,
+    options: CheckoutSessionOptions = {}
+): Promise<CheckInResult> {
+    const now = options.checkOutTime || new Date()
+    const session = await prisma.subscriptionSession.findUnique({
+        where: { id: sessionId },
+        include: {
+            subscriber: {
+                include: {
+                    user: {
+                        select: {
+                            wallet: { select: { id: true, balance: true } },
+                        },
+                    },
+                },
+            },
+            subscription: true,
+        },
+    })
+
+    if (!session || session.checkOutTime || session.status !== 'ACTIVE') {
+        return { success: false, message: 'Session khong hop le hoac da check-out.', errorType: 'NOT_FOUND' }
+    }
+
     const durationMin = Math.max(1, differenceInMinutes(now, session.checkInTime))
     const roundedMin = roundUpToIncrement(durationMin)
-    let message = `Tam biet ${subscriber.fullName}! Phien ngoi cua ban keo dai ${Math.floor(durationMin / 60)}h ${durationMin % 60}m.`
+    let message = `Tam biet ${session.subscriber.fullName}! Phien ngoi cua ban keo dai ${Math.floor(durationMin / 60)}h ${durationMin % 60}m.`
     let overageMin = 0
     let amountCharged = 0
 
@@ -186,7 +217,7 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
 
             for (const segment of segments) {
                 const usageBefore = await prisma.dailyUsage.findUnique({
-                    where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: segment.usageDate } },
+                    where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: segment.usageDate } },
                 })
                 const billing = calculateDailyCapSessionUsage({
                     durationMin: segment.minutes,
@@ -197,9 +228,9 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
 
                 if (billing.includedMin > 0) {
                     await prisma.dailyUsage.upsert({
-                        where: { subscriberId_usageDate: { subscriberId: subscriber.id, usageDate: segment.usageDate } },
+                        where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: segment.usageDate } },
                         create: {
-                            subscriberId: subscriber.id,
+                            subscriberId: session.subscriberId,
                             subscriptionId: session.subscriptionId,
                             usageDate: segment.usageDate,
                             totalMin: billing.includedMin,
@@ -219,17 +250,17 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
 
         if (amountCharged > 0) {
             await prisma.subscriber.update({
-                where: { id: subscriber.id },
+                where: { id: session.subscriberId },
                 data: { outstandingBalance: { increment: amountCharged } },
             })
 
             await prisma.transaction.create({
                 data: {
-                    subscriberId: subscriber.id,
+                    subscriberId: session.subscriberId,
                     type: 'OVERAGE_CHARGE' as $Enums.TransactionType,
                     amount: -amountCharged,
-                    balanceBefore: subscriber.user?.wallet?.balance || 0,
-                    balanceAfter: subscriber.user?.wallet?.balance || 0,
+                    balanceBefore: session.subscriber.user?.wallet?.balance || 0,
+                    balanceAfter: session.subscriber.user?.wallet?.balance || 0,
                     reference: session.id,
                     description: `Phi qua gio (${overageMin}m)`,
                 },
@@ -239,7 +270,7 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
         }
     } else {
         const amount = Math.round((roundedMin / 60) * DEFAULT_RATE_PER_HOUR)
-        const wallet = subscriber.user?.wallet
+        const wallet = session.subscriber.user?.wallet
         const walletBalance = wallet?.balance || 0
         const paidAmount = Math.min(walletBalance, amount)
         const debtAmount = Math.max(0, amount - paidAmount)
@@ -258,14 +289,14 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
 
         if (debtAmount > 0) {
             await prisma.subscriber.update({
-                where: { id: subscriber.id },
+                where: { id: session.subscriberId },
                 data: { outstandingBalance: { increment: debtAmount } },
             })
         }
 
         await prisma.transaction.create({
             data: {
-                subscriberId: subscriber.id,
+                subscriberId: session.subscriberId,
                 type: 'SESSION_CHARGE' as $Enums.TransactionType,
                 amount: -amount,
                 balanceBefore: walletBalance,
@@ -289,9 +320,37 @@ export async function handleCheckOut(cardNo: string, customTime?: Date): Promise
             durationMin,
             overageMin,
             amountCharged,
+            ...(options.source ? { source: options.source } : {}),
             status: 'COMPLETED' as $Enums.SessionStatus,
         },
     })
 
-    return { success: true, message, subscriberName: subscriber.fullName }
+    if (options.performedBy || options.source) {
+        await prisma.subscriptionAuditLog.create({
+            data: {
+                action: 'check_out',
+                entityType: 'subscription_session',
+                entityId: session.id,
+                performedBy: options.performedBy || 'system',
+                details: {
+                    source: options.source || session.source,
+                    subscriberId: session.subscriberId,
+                    subscriberName: session.subscriber.fullName,
+                    checkOutTime: now.toISOString(),
+                    durationMin,
+                    overageMin,
+                    amountCharged,
+                },
+            },
+        })
+    }
+
+    return {
+        success: true,
+        message,
+        subscriberName: session.subscriber.fullName,
+        durationMin,
+        overageMin,
+        amountCharged,
+    }
 }
