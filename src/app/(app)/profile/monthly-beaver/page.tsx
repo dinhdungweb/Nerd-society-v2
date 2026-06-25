@@ -257,14 +257,16 @@ export default async function MonthlyBeaverPage() {
                                     </div>
                                     <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
                                         <p className="text-xs font-semibold uppercase text-neutral-500">
-                                            {activeSub.endDate ? 'Hạn dùng' : 'Giới hạn ngày'}
+                                            Hạn sử dụng
                                         </p>
                                         <p className="mt-1 text-lg font-bold text-neutral-950 dark:text-white">
                                             {activeSub.endDate
                                                 ? new Date(activeSub.endDate).toLocaleDateString('vi-VN')
-                                                : activeSub.dailyLimitMin
-                                                    ? `${activeSub.dailyLimitMin / 60}h/ngày`
-                                                    : '—'}
+                                                : activeSub.activationDeadline
+                                                    ? new Date(activeSub.activationDeadline).toLocaleDateString('vi-VN')
+                                                    : activeSub.dailyLimitMin
+                                                        ? `${activeSub.dailyLimitMin / 60}h/ngày`
+                                                        : '—'}
                                         </p>
                                     </div>
                                 </div>
