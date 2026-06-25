@@ -246,8 +246,16 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
         order: updatedOrder,
         walletTransaction: walletResult.transaction,
         currentBalance: walletResult.balanceAfter,
+        isRenewal: !!freshOrder.subscriberId,
       };
     });
+
+    if (result.isRenewal) {
+      await prisma.$transaction(async (tx) => {
+        await processRenewalSubscription(tx, result.order.id, result.walletTransaction?.id || null);
+      });
+      syncMyTimeRenewal(result.order.id).catch(console.error);
+    }
 
     try {
       await sendSubscriptionPaidEmail(result.order);
@@ -295,6 +303,13 @@ export async function confirmPayment(orderId: string, paymentRef?: string) {
       details: { paymentRef, orderCode: order.orderCode },
     },
   });
+
+  if (order.subscriberId) {
+    await prisma.$transaction(async (tx) => {
+      await processRenewalSubscription(tx, order.id, paymentRef || null);
+    });
+    syncMyTimeRenewal(order.id).catch(console.error);
+  }
 
   try {
     await sendSubscriptionPaidEmail(order);
@@ -455,6 +470,139 @@ export async function cancelOrder(orderId: string, reason?: string) {
 
   revalidatePath('/admin/subscriptions');
   return { success: true, refund: refundResult };
+}
+
+// ============= RENEWAL HELPERS =============
+
+/**
+ * Xử lý tự động tạo Subscription cho đơn gia hạn (nội bộ)
+ */
+async function processRenewalSubscription(tx: any, orderId: string, paymentRef: string | null) {
+  const order = await tx.registrationOrder.findUnique({ where: { id: orderId } });
+  if (!order || !order.subscriberId || order.orderStatus !== 'PAID') return null;
+
+  const subscriber = await tx.subscriber.findUnique({ where: { id: order.subscriberId } });
+  if (!subscriber || !subscriber.cardNo) return null;
+
+  const totalMin = PLAN_HOURS_MIN[order.planType] || 0;
+  const activationDeadline = new Date();
+  activationDeadline.setDate(activationDeadline.getDate() + 30);
+
+  const subscription = await tx.subscription.create({
+    data: {
+      subscriberId: subscriber.id,
+      planType: order.planType,
+      pricePaid: order.amount,
+      status: 'PENDING_ACTIVATION',
+      totalHoursMin: totalMin > 0 ? totalMin : null,
+      dailyLimitMin: (order.planType === 'MONTHLY_LIMITED' || order.planType === 'MONTHLY_UNLIMITED') ? 480 : null,
+      paymentMethod: order.paymentMethod,
+      paymentRef: paymentRef,
+      cardAssigned: subscriber.cardNo,
+      cardAssignedAt: new Date(),
+      activationDeadline,
+    },
+  });
+
+  await tx.registrationOrder.update({
+    where: { id: order.id },
+    data: {
+      subscriptionId: subscription.id,
+    },
+  });
+
+  await tx.subscriptionAuditLog.create({
+    data: {
+      action: 'renewal_subscription_created',
+      entityType: 'registration_order',
+      entityId: order.id,
+      performedBy: 'system',
+      details: { cardNo: subscriber.cardNo, planType: order.planType, subscriptionId: subscription.id },
+    },
+  });
+
+  return subscription;
+}
+
+/**
+ * Sync MyTime sau khi gia hạn
+ */
+async function syncMyTimeRenewal(orderId: string) {
+  const order = await prisma.registrationOrder.findUnique({
+    where: { id: orderId },
+    include: { subscriber: { include: { user: true } } }
+  });
+  if (order?.subscriber?.mytimeEmpId && order.subscriber.cardNo) {
+    try {
+      await importEmployee({
+        employeeId: order.subscriber.mytimeEmpId,
+        fullName: order.subscriber.fullName,
+        planType: order.planType,
+        accId: order.subscriber.mytimeEmpId.replace('NS', ''),
+        cardNo: order.subscriber.cardNo,
+        birthday: order.subscriber.user?.dateOfBirth || undefined,
+        gender: (order.subscriber.user?.gender?.toLowerCase() === 'male' || order.subscriber.user?.gender?.toLowerCase() === 'nam') ? 'male' : 
+                (order.subscriber.user?.gender?.toLowerCase() === 'female' || order.subscriber.user?.gender?.toLowerCase() === 'nữ') ? 'female' : undefined,
+        branch: order.branchPrimary || 'HTM',
+      });
+    } catch (err) {
+      console.error('[syncMyTimeRenewal] MyTime API error (non-fatal):', err);
+    }
+  }
+}
+
+/**
+ * Khách tự tạo đơn gia hạn (renew)
+ */
+export async function createRenewalOrder(data: {
+  subscriberId: string;
+  planType: 'WEEKLY_LIMITED' | 'MONTHLY_LIMITED' | 'MONTHLY_UNLIMITED';
+  paymentMethod: string;
+}) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return { success: false, error: 'Chưa đăng nhập' };
+
+  const subscriber = await prisma.subscriber.findUnique({ where: { id: data.subscriberId } });
+  if (!subscriber) return { success: false, error: 'Không tìm thấy thông tin hội viên' };
+  if (subscriber.userId !== session.user.id) return { success: false, error: 'Không có quyền thao tác' };
+
+  const amount = PLAN_PRICES[data.planType];
+  if (!amount) return { success: false, error: 'Gói không hợp lệ' };
+
+  const orderCode = await generateOrderCode();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 30);
+
+  const order = await prisma.registrationOrder.create({
+    data: {
+      orderCode,
+      fullName: subscriber.fullName,
+      phone: subscriber.phone,
+      email: subscriber.email,
+      branchPrimary: subscriber.branchPrimary || 'HTM',
+      planType: data.planType,
+      selfieUrl: subscriber.photoUrl || '/placeholder-selfie.jpg',
+      amount,
+      paymentMethod: data.paymentMethod,
+      orderStatus: 'PENDING_PAYMENT',
+      expiresAt,
+      userId: session.user.id,
+      subscriberId: subscriber.id, // Đánh dấu là đơn gia hạn
+    },
+  });
+
+  let qrUrl = '';
+  const bankConfig = getVietQRConfig();
+  
+  if (data.paymentMethod === 'online') {
+    try {
+      qrUrl = await generateOfficialQR({ amount, description: orderCode });
+    } catch (error) {
+      qrUrl = `https://img.vietqr.io/image/${bankConfig.bankCode}-${bankConfig.accountNumber}-compact2.png?amount=${amount}&addInfo=${orderCode}&accountName=${encodeURIComponent(bankConfig.accountName)}`;
+    }
+  }
+
+  return { success: true, order, qrUrl, bankInfo: bankConfig };
 }
 
 // ============= QUERY HELPERS =============

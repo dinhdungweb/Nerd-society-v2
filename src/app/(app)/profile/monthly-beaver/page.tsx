@@ -1,5 +1,6 @@
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import RenewPlanClientWrapper from './RenewPlanClientWrapper'
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -35,7 +36,9 @@ export default async function MonthlyBeaverPage() {
     const session = await getServerSession(authOptions)
     if (!session) redirect('/login')
 
-    await ensureUserWalletAccount(session.user.id)
+    const walletRes = await ensureUserWalletAccount(session.user.id)
+    const walletBalance = walletRes.success ? walletRes.wallet.balance : 0
+    const walletStatus = walletRes.success ? walletRes.wallet.status : 'INACTIVE'
 
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },
@@ -265,18 +268,25 @@ export default async function MonthlyBeaverPage() {
                                         </p>
                                     </div>
                                 </div>
+                                <div className="mt-6">
+                                    <RenewPlanClientWrapper 
+                                        subscriberId={subscriber.id}
+                                        currentPlanType={activeSub.planType}
+                                        walletBalance={walletBalance}
+                                        walletStatus={walletStatus}
+                                    />
+                                </div>
                             </div>
                         ) : (
                             <div className="mt-6">
-                                <p className="max-w-xl text-sm text-neutral-600 dark:text-neutral-400">
-                                    Bạn chưa có gói Monthly Beaver đang hoạt động. Đăng ký gói mới để tiếp tục sử dụng quyền lợi hội viên.
+                                <p className="max-w-xl text-sm text-neutral-600 dark:text-neutral-400 mb-4">
+                                    Bạn chưa có gói Monthly Beaver đang hoạt động. Bạn có thể gia hạn lại gói trước đó bằng thẻ vật lý cũ của mình.
                                 </p>
-                                <Link
-                                    href="/monthly-beaver"
-                                    className="mt-4 inline-flex rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600"
-                                >
-                                    Đăng ký gói mới
-                                </Link>
+                                <RenewPlanClientWrapper 
+                                    subscriberId={subscriber.id}
+                                    walletBalance={walletBalance}
+                                    walletStatus={walletStatus}
+                                />
                             </div>
                         )}
                     </div>
