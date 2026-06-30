@@ -508,6 +508,10 @@ async function processRenewalSubscription(tx: any, orderId: string, paymentRef: 
     where: { id: order.id },
     data: {
       subscriptionId: subscription.id,
+      orderStatus: 'CARD_ASSIGNED',
+      assignedCardNo: subscriber.cardNo,
+      assignedBy: 'system',
+      assignedAt: new Date(),
     },
   });
 
