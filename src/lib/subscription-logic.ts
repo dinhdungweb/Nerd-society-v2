@@ -163,7 +163,35 @@ export async function processAttendanceRecord(record: {
     }
   }
 
-  // 3. Kích hoạt gói (first tap)
+  // 3. Kiểm tra nợ phí trước khi kích hoạt gói hoặc check-in
+  if (subscriber.outstandingBalance > 0) {
+    await prisma.subscriptionAuditLog.create({
+      data: {
+        action: 'BLOCK_CHECKIN',
+        entityType: 'ATTENDANCE',
+        entityId: record.EmployeeID,
+        performedBy: 'system',
+        details: {
+          subscriberId: subscriber.id,
+          subscriberName: subscriber.fullName,
+          branch,
+          attTime: attTime.toISOString(),
+          errorType: 'BLOCK_DEBT',
+          outstandingBalance: subscriber.outstandingBalance,
+          message: `Vui lòng thanh toán ${subscriber.outstandingBalance.toLocaleString()}đ phí quá giờ để tiếp tục.`,
+          record: record as object,
+        },
+      },
+    })
+    return {
+      type: 'BLOCK_DEBT',
+      message: `Khách hàng đang nợ ${subscriber.outstandingBalance.toLocaleString()}đ phí quá giờ. Vui lòng thanh toán trước khi check-in.`,
+      subscriber,
+      outstandingBalance: subscriber.outstandingBalance,
+    }
+  }
+
+  // 4. Kích hoạt gói (first tap)
   if (subscription.status === 'PENDING_ACTIVATION') {
     return await activateSubscription(subscriber.id, subscription.id, attTime, branch, record)
   }
@@ -285,6 +313,38 @@ async function performCheckIn(
   branch: string,
   record: unknown
 ) {
+  // Kiểm tra nợ phí quá giờ
+  const subData = await prisma.subscriber.findUnique({
+    where: { id: subscriber.id },
+    select: { id: true, outstandingBalance: true, fullName: true },
+  })
+  if (subData && subData.outstandingBalance > 0) {
+    await prisma.subscriptionAuditLog.create({
+      data: {
+        action: 'BLOCK_CHECKIN',
+        entityType: 'ATTENDANCE',
+        entityId: subscriber.id,
+        performedBy: 'system',
+        details: {
+          subscriberId: subscriber.id,
+          subscriberName: subData.fullName,
+          branch,
+          attTime: attTime.toISOString(),
+          errorType: 'BLOCK_DEBT',
+          outstandingBalance: subData.outstandingBalance,
+          message: `Vui lòng thanh toán ${subData.outstandingBalance.toLocaleString()}đ phí quá giờ để tiếp tục.`,
+          record: record as object,
+        },
+      },
+    })
+    return {
+      type: 'BLOCK_DEBT',
+      message: `Khách hàng đang nợ ${subData.outstandingBalance.toLocaleString()}đ phí quá giờ. Vui lòng thanh toán trước khi check-in.`,
+      subscriber: subData,
+      outstandingBalance: subData.outstandingBalance,
+    }
+  }
+
   // Nếu không có gói (dùng Wallet)
   if (!subscription) {
     const session = await prisma.subscriptionSession.create({

@@ -11,14 +11,62 @@ export const SYSTEM_CONFIG = {
 } as const
 
 /**
+ * Mức giá mặc định theo yêu cầu cho Meeting Room:
+ * 1 người: 30k/h | 2-3 người: 60k/h | 4+ người: 100k/h
+ */
+export const DEFAULT_MEETING_TIERS = [
+    { minGuests: 1, maxGuests: 1, pricePerHour: 30000, label: '1 người (30k/h)' },
+    { minGuests: 2, maxGuests: 3, pricePerHour: 60000, label: '2-3 người (60k/h)' },
+    { minGuests: 4, maxGuests: null, pricePerHour: 100000, label: '4 người trở lên (100k/h)' },
+]
+
+/**
  * Interface cho Service pricing từ database
  */
-interface ServicePricing {
+export interface PricingTierItem {
+    minGuests: number
+    maxGuests?: number | null
+    pricePerHour: number
+    label?: string
+}
+
+export interface ServicePricing {
     priceSmall: number | null
     priceLarge: number | null
     priceFirstHour: number | null
     pricePerHour: number | null
     nerdCoinReward: number
+    pricingTiers?: PricingTierItem[] | null
+}
+
+/**
+ * Helper xác định đơn giá Meeting Room theo số người
+ */
+export function resolveMeetingPricePerHour(guests: number, pricing: ServicePricing): { pricePerHour: number; label: string } {
+    const rawTiers = pricing.pricingTiers
+    const tiers = (rawTiers && Array.isArray(rawTiers) && rawTiers.length > 0)
+        ? rawTiers
+        : DEFAULT_MEETING_TIERS
+
+    const sortedTiers = [...tiers].sort((a, b) => (Number(a.minGuests) || 1) - (Number(b.minGuests) || 1))
+    const matched = sortedTiers.find(tier => {
+        const min = Number(tier.minGuests) || 1
+        const max = (tier.maxGuests !== null && tier.maxGuests !== undefined && Number(tier.maxGuests) > 0) ? Number(tier.maxGuests) : Infinity
+        return guests >= min && guests <= max
+    })
+    const chosen = matched || sortedTiers[sortedTiers.length - 1]
+    const price = Number(chosen.pricePerHour) || 0
+    const min = Number(chosen.minGuests) || 1
+    const max = (chosen.maxGuests !== null && chosen.maxGuests !== undefined && Number(chosen.maxGuests) > 0) ? Number(chosen.maxGuests) : null
+    let label = chosen.label
+    if (!label || label === `${min}-${min} người`) {
+        if (max !== null) {
+            label = min === max ? `${min} người` : `${min}-${max} người`
+        } else {
+            label = `${min}+ người`
+        }
+    }
+    return { pricePerHour: price, label }
 }
 
 /**
@@ -49,6 +97,7 @@ export async function getServicePricing(serviceType: ServiceType): Promise<Servi
             priceFirstHour: true,
             pricePerHour: true,
             nerdCoinReward: true,
+            pricingTiers: true,
         }
     })
 
@@ -60,6 +109,7 @@ export async function getServicePricing(serviceType: ServiceType): Promise<Servi
             priceFirstHour: service.priceFirstHour,
             pricePerHour: service.pricePerHour,
             nerdCoinReward: service.nerdCoinReward,
+            pricingTiers: (service as any).pricingTiers || null,
         })
     }
     cacheTimestamp = now
@@ -87,9 +137,7 @@ export async function calculateMeetingPriceFromDB(
         throw new Error('Meeting pricing not found in database')
     }
 
-    const pricePerHour = guests >= SYSTEM_CONFIG.GUEST_THRESHOLD
-        ? (pricing.priceLarge || 0)
-        : (pricing.priceSmall || 0)
+    const { pricePerHour } = resolveMeetingPricePerHour(guests, pricing)
 
     const hours = durationMinutes / 60
     return Math.round(pricePerHour * hours)
@@ -174,9 +222,7 @@ export async function calculateSurchargeFromDB(
     if (serviceType === 'MEETING') {
         // Meeting: Làm tròn lên theo block 1h
         const overtimeHours = Math.ceil(overtimeMinutes / 60)
-        const pricePerHour = guests >= SYSTEM_CONFIG.GUEST_THRESHOLD
-            ? (pricing.priceLarge || 0)
-            : (pricing.priceSmall || 0)
+        const { pricePerHour } = resolveMeetingPricePerHour(guests, pricing)
         return overtimeHours * pricePerHour
     }
 
@@ -201,14 +247,12 @@ export async function getPriceBreakdownFromDB(
     const hours = durationMinutes / 60
 
     if (serviceType === 'MEETING') {
-        const pricePerHour = guests >= SYSTEM_CONFIG.GUEST_THRESHOLD
-            ? (pricing.priceLarge || 0)
-            : (pricing.priceSmall || 0)
+        const { pricePerHour, label } = resolveMeetingPricePerHour(guests, pricing)
         return {
             type: 'MEETING',
             pricePerHour,
             hours,
-            guestTier: guests >= SYSTEM_CONFIG.GUEST_THRESHOLD ? 'LARGE' : 'SMALL',
+            guestTier: label,
         }
     }
 

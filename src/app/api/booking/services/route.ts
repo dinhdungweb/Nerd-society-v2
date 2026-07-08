@@ -19,6 +19,7 @@ export async function GET() {
                 priceLarge: true,
                 priceFirstHour: true,
                 pricePerHour: true,
+                pricingTiers: true,
                 nerdCoinReward: true,
                 minDuration: true,
                 timeStep: true,

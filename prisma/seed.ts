@@ -107,6 +107,11 @@ async function main() {
             description: 'Phòng họp cho nhóm, thích hợp workshop, brainstorm',
             priceSmall: 80000,    // < 8 người
             priceLarge: 100000,   // 8-20 người
+            pricingTiers: [
+                { minGuests: 1, maxGuests: 1, pricePerHour: 30000, label: '1 người (30k/h)' },
+                { minGuests: 2, maxGuests: 3, pricePerHour: 60000, label: '2-3 người (60k/h)' },
+                { minGuests: 4, maxGuests: null, pricePerHour: 100000, label: '4 người trở lên (100k/h)' },
+            ],
             nerdCoinReward: 0,
             minDuration: 60,
             timeStep: 30,

@@ -25,6 +25,7 @@ interface Service {
     priceLarge: number | null
     priceFirstHour: number | null
     pricePerHour: number | null
+    pricingTiers?: any[]
 }
 
 // Helper: Generate time slots
@@ -179,7 +180,21 @@ export default function CreateBookingModal({ open, setOpen, onSuccess }: CreateB
         // Simple client-side estimation (server validation is final)
         let price = 0
         if (serviceType === 'MEETING') {
-            const pricePerHour = (formData.guests >= 8 ? service.priceLarge : service.priceSmall) || 0
+            const tiers = (service.pricingTiers && Array.isArray(service.pricingTiers) && service.pricingTiers.length > 0)
+                ? service.pricingTiers
+                : [
+                    { minGuests: 1, maxGuests: 1, pricePerHour: 30000 },
+                    { minGuests: 2, maxGuests: 3, pricePerHour: 60000 },
+                    { minGuests: 4, maxGuests: null, pricePerHour: 100000 },
+                ]
+            const sortedTiers = [...tiers].sort((a: any, b: any) => (a.minGuests || 1) - (b.minGuests || 1))
+            const matched = sortedTiers.find((t: any) => {
+                const min = t.minGuests ?? 1
+                const max = (t.maxGuests !== null && t.maxGuests !== undefined) ? t.maxGuests : Infinity
+                return formData.guests >= min && formData.guests <= max
+            })
+            const chosen = matched || sortedTiers[sortedTiers.length - 1]
+            const pricePerHour = Number(chosen.pricePerHour) || 0
             price = (durationMinutes / 60) * pricePerHour
         } else {
             // Pod reasoning (simplified, server handles complex blocks)

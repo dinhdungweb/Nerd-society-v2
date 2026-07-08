@@ -126,6 +126,7 @@ model Service {
   priceLarge     Int?
   priceFirstHour Int?
   pricePerHour   Int?
+  pricingTiers   Json?
   nerdCoinReward Int         @default(0)
   minDuration    Int         @default(60)
   timeStep       Int         @default(30)

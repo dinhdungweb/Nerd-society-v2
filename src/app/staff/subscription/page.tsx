@@ -139,6 +139,8 @@ export default function StaffDashboardPage() {
         remaining: result.remainingMin ? formatDuration(result.remainingMin) : '∞',
       });
       setTimeout(() => setFlashEvent(null), 8000);
+    } else if (result.message) {
+      alert(result.message);
     }
     fetchDashboard();
   };

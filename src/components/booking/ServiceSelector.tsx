@@ -16,6 +16,7 @@ interface Service {
     priceLarge?: number | null        // Meeting >= 8 người
     priceFirstHour?: number | null    // Pod giờ đầu
     pricePerHour?: number | null      // Pod từ giờ 2
+    pricingTiers?: any[] | null
     nerdCoinReward: number
     minDuration: number
     timeStep: number
@@ -55,7 +56,17 @@ function formatPrice(price: number): string {
 
 function getPriceDisplay(service: Service): string {
     if (service.type === 'MEETING') {
-        return `${formatPrice(service.priceSmall || 0)}đ - ${formatPrice(service.priceLarge || 0)}đ/giờ`
+        const tiers = (service.pricingTiers && Array.isArray(service.pricingTiers) && service.pricingTiers.length > 0)
+            ? service.pricingTiers
+            : [
+                { pricePerHour: 30000 },
+                { pricePerHour: 100000 },
+            ]
+        const prices = tiers.map((t: any) => Number(t.pricePerHour) || 0)
+        const minPrice = Math.min(...prices)
+        const maxPrice = Math.max(...prices)
+        if (minPrice === maxPrice) return `${formatPrice(minPrice)}đ/giờ`
+        return `${formatPrice(minPrice)}đ - ${formatPrice(maxPrice)}đ/giờ`
     }
     return `${formatPrice(service.priceFirstHour || 0)}đ giờ đầu`
 }
@@ -168,6 +179,33 @@ export default function ServiceSelector({
                             <CurrencyDollarIcon className="size-5" />
                             {getPriceDisplay(service)}
                         </div>
+
+                        {/* Meeting pricing tiers pills */}
+                        {service.type === 'MEETING' && (
+                            <div className="mt-2.5 flex flex-wrap gap-1.5">
+                                {((service.pricingTiers && Array.isArray(service.pricingTiers) && service.pricingTiers.length > 0)
+                                    ? service.pricingTiers
+                                    : [
+                                        { minGuests: 1, maxGuests: 1, pricePerHour: 30000, label: '1 người' },
+                                        { minGuests: 2, maxGuests: 3, pricePerHour: 60000, label: '2-3 người' },
+                                        { minGuests: 4, maxGuests: null, pricePerHour: 100000, label: '4+ người' }
+                                    ]
+                                ).map((tier: any, idx: number) => {
+                                    const min = Number(tier.minGuests) || 1
+                                    const max = (tier.maxGuests !== null && tier.maxGuests !== undefined && Number(tier.maxGuests) > 0) ? Number(tier.maxGuests) : null
+                                    let label = String(tier.label || '').replace(/(\d+)-(\1)\s*người/g, '$1 người')
+                                    if (!label || label === `${min}-${min} người`) {
+                                        label = max !== null ? (min === max ? `${min} người` : `${min}-${max} người`) : `${min}+ người`
+                                    }
+                                    label = label.replace(/\s*\([^)]*\)/g, '')
+                                    return (
+                                        <span key={idx} className="rounded-md bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                                            {label}: <strong className="text-primary-600 dark:text-primary-400">{formatPrice(tier.pricePerHour)}đ/h</strong>
+                                        </span>
+                                    )
+                                })}
+                            </div>
+                        )}
 
                         {/* Nerd Coin badge */}
                         {service.nerdCoinReward > 0 && (

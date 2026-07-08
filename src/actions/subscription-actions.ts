@@ -95,7 +95,7 @@ export async function createRegistrationOrder(data: {
   // Tạo mã QR từ API chính thức để hỗ trợ xác nhận tự động
   let qrUrl = '';
   const bankConfig = getVietQRConfig();
-  
+
   if (data.paymentMethod === 'online') {
     try {
       qrUrl = await generateOfficialQR({
@@ -116,9 +116,9 @@ export async function createRegistrationOrder(data: {
     console.error('[createRegistrationOrder] Email error:', error);
   });
 
-  return { 
-    success: true, 
-    order, 
+  return {
+    success: true,
+    order,
     qrUrl,
     bankInfo: bankConfig
   };
@@ -403,8 +403,8 @@ export async function assignCardAndCreate(orderId: string, cardNo: string, staff
       accId: empId.replace('NS', ''),
       cardNo,
       birthday: linkedUser?.dateOfBirth || undefined,
-      gender: (linkedUser?.gender?.toLowerCase() === 'male' || linkedUser?.gender?.toLowerCase() === 'nam') ? 'male' : 
-              (linkedUser?.gender?.toLowerCase() === 'female' || linkedUser?.gender?.toLowerCase() === 'nữ') ? 'female' : undefined,
+      gender: (linkedUser?.gender?.toLowerCase() === 'male' || linkedUser?.gender?.toLowerCase() === 'nam') ? 'male' :
+        (linkedUser?.gender?.toLowerCase() === 'female' || linkedUser?.gender?.toLowerCase() === 'nữ') ? 'female' : undefined,
       branch: order.branchPrimary, // Đồng bộ vào đúng máy theo chi nhánh
     });
   } catch (err) {
@@ -545,8 +545,8 @@ async function syncMyTimeRenewal(orderId: string) {
         accId: order.subscriber.mytimeEmpId.replace('NS', ''),
         cardNo: order.subscriber.cardNo,
         birthday: order.subscriber.user?.dateOfBirth || undefined,
-        gender: (order.subscriber.user?.gender?.toLowerCase() === 'male' || order.subscriber.user?.gender?.toLowerCase() === 'nam') ? 'male' : 
-                (order.subscriber.user?.gender?.toLowerCase() === 'female' || order.subscriber.user?.gender?.toLowerCase() === 'nữ') ? 'female' : undefined,
+        gender: (order.subscriber.user?.gender?.toLowerCase() === 'male' || order.subscriber.user?.gender?.toLowerCase() === 'nam') ? 'male' :
+          (order.subscriber.user?.gender?.toLowerCase() === 'female' || order.subscriber.user?.gender?.toLowerCase() === 'nữ') ? 'female' : undefined,
         branch: order.branchPrimary || 'HTM',
       });
     } catch (err) {
@@ -597,7 +597,7 @@ export async function createRenewalOrder(data: {
 
   let qrUrl = '';
   const bankConfig = getVietQRConfig();
-  
+
   if (data.paymentMethod === 'online') {
     try {
       qrUrl = await generateOfficialQR({ amount, description: orderCode });
@@ -876,8 +876,8 @@ export async function reassignSubscriberCard(subscriberId: string, newCardNo: st
           accId: subscriber.mytimeEmpId.replace('NS', ''),
           cardNo: newCardNo,
           birthday: subscriber.user?.dateOfBirth || undefined,
-          gender: (subscriber.user?.gender?.toLowerCase() === 'male' || subscriber.user?.gender?.toLowerCase() === 'nam') ? 'male' : 
-                  (subscriber.user?.gender?.toLowerCase() === 'female' || subscriber.user?.gender?.toLowerCase() === 'nữ') ? 'female' : undefined,
+          gender: (subscriber.user?.gender?.toLowerCase() === 'male' || subscriber.user?.gender?.toLowerCase() === 'nam') ? 'male' :
+            (subscriber.user?.gender?.toLowerCase() === 'female' || subscriber.user?.gender?.toLowerCase() === 'nữ') ? 'female' : undefined,
           branch: subscriber.branchPrimary || 'HTM',
         });
       } catch (err) {

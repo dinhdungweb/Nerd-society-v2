@@ -38,6 +38,12 @@ interface Service {
     icon: string | null
     image: string | null
     isActive: boolean
+    pricingTiers?: Array<{
+        minGuests: number
+        maxGuests?: number | null
+        pricePerHour: number
+        label?: string
+    }> | null
 }
 
 const serviceTypeLabels: Record<string, string> = {
@@ -84,6 +90,12 @@ export default function ServicesPage() {
     const { hasPermission } = usePermissions()
     const canManageServices = hasPermission('canManageServices')
 
+    const defaultMeetingTiers = [
+        { minGuests: 1, maxGuests: 1, pricePerHour: 30000, label: '1 người (30k/h)' },
+        { minGuests: 2, maxGuests: 3, pricePerHour: 60000, label: '2-3 người (60k/h)' },
+        { minGuests: 4, maxGuests: null, pricePerHour: 100000, label: '4 người trở lên (100k/h)' },
+    ]
+
     // Form state
     const [formData, setFormData] = useState({
         name: '',
@@ -94,6 +106,7 @@ export default function ServicesPage() {
         priceLarge: '',
         priceFirstHour: '',
         pricePerHour: '',
+        pricingTiers: defaultMeetingTiers as Array<{ minGuests: number | string; maxGuests?: number | null | string; pricePerHour: number | string; label?: string }>,
         nerdCoinReward: '0',
         minDuration: '60',
         timeStep: '30',
@@ -131,6 +144,7 @@ export default function ServicesPage() {
             priceLarge: '',
             priceFirstHour: '',
             pricePerHour: '',
+            pricingTiers: defaultMeetingTiers,
             nerdCoinReward: '0',
             minDuration: '60',
             timeStep: '30',
@@ -151,6 +165,9 @@ export default function ServicesPage() {
             priceLarge: service.priceLarge?.toString() || '',
             priceFirstHour: service.priceFirstHour?.toString() || '',
             pricePerHour: service.pricePerHour?.toString() || '',
+            pricingTiers: (service.pricingTiers && Array.isArray(service.pricingTiers) && service.pricingTiers.length > 0)
+                ? service.pricingTiers
+                : defaultMeetingTiers,
             nerdCoinReward: service.nerdCoinReward.toString(),
             minDuration: service.minDuration.toString(),
             timeStep: service.timeStep.toString(),
@@ -162,11 +179,40 @@ export default function ServicesPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (formData.type === 'MEETING') {
+            const tiers = [...formData.pricingTiers].sort((a, b) => (Number(a.minGuests) || 1) - (Number(b.minGuests) || 1))
+            for (let i = 0; i < tiers.length; i++) {
+                const current = tiers[i]
+                const min = Number(current.minGuests) || 1
+                const max = (current.maxGuests !== null && current.maxGuests !== undefined && Number(current.maxGuests) > 0) ? Number(current.maxGuests) : null
+                if (max !== null && max < min) {
+                    alert(`Mốc giá không hợp lệ: Số người đến (${max}) nhỏ hơn số người từ (${min}).`)
+                    return
+                }
+                if (i < tiers.length - 1) {
+                    const nextMin = Number(tiers[i + 1].minGuests) || 1
+                    if (max === null) {
+                        alert(`Mốc giá thứ ${i + 1} không có giới hạn trên nên không thể thêm mốc phía sau!`)
+                        return
+                    }
+                    if (nextMin <= max) {
+                        alert(`Các mốc giá bị trùng lặp số lượng người! Mốc trước đến ${max} người thì mốc sau phải từ ${max + 1} người trở lên.`)
+                        return
+                    }
+                }
+            }
+        }
         setSaving(true)
 
         try {
             const payload = {
                 ...formData,
+                pricingTiers: formData.type === 'MEETING' ? formData.pricingTiers.map(t => ({
+                    minGuests: Number(t.minGuests) || 1,
+                    maxGuests: (t.maxGuests !== null && t.maxGuests !== undefined && Number(t.maxGuests) > 0) ? Number(t.maxGuests) : null,
+                    pricePerHour: Number(t.pricePerHour) || 0,
+                    label: t.label
+                })) : null,
                 features: formData.features.split(',').map(f => f.trim()).filter(Boolean),
                 image: formData.image || null,
             }
@@ -324,16 +370,34 @@ export default function ServicesPage() {
                             {/* Pricing Grid */}
                             <div className="grid grid-cols-2 gap-3 text-sm">
                                 {service.type === 'MEETING' ? (
-                                    <>
-                                        <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 space-y-1">
-                                            <p className="text-xs text-neutral-500">Dưới 8 người</p>
-                                            <p className="font-semibold text-neutral-900 dark:text-white">{formatPrice(service.priceSmall)}/h</p>
-                                        </div>
-                                        <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 space-y-1">
-                                            <p className="text-xs text-neutral-500">8-20 người</p>
-                                            <p className="font-semibold text-neutral-900 dark:text-white">{formatPrice(service.priceLarge)}/h</p>
-                                        </div>
-                                    </>
+                                    <div className="col-span-2 grid grid-cols-3 gap-2">
+                                        {((service.pricingTiers && Array.isArray(service.pricingTiers) && service.pricingTiers.length > 0)
+                                            ? service.pricingTiers
+                                            : [
+                                                { minGuests: 1, maxGuests: 1, pricePerHour: 30000, label: '1 người' },
+                                                { minGuests: 2, maxGuests: 3, pricePerHour: 60000, label: '2-3 người' },
+                                                { minGuests: 4, maxGuests: null, pricePerHour: 100000, label: '4+ người' }
+                                            ]
+                                        ).map((tier: any, idx: number) => {
+                                            const min = Number(tier.minGuests) || 1
+                                            const max = (tier.maxGuests !== null && tier.maxGuests !== undefined && Number(tier.maxGuests) > 0) ? Number(tier.maxGuests) : null
+                                            let label = String(tier.label || '').replace(/(\d+)-(\1)\s*người/g, '$1 người')
+                                            if (!label || label === `${min}-${min} người`) {
+                                                label = max !== null ? (min === max ? `${min} người` : `${min}-${max} người`) : `${min}+ người`
+                                            }
+                                            label = label.replace(/\s*\([^)]*\)/g, '')
+                                            return (
+                                                <div key={idx} className="p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 space-y-0.5">
+                                                    <p className="text-xs text-neutral-500">
+                                                        {label}
+                                                    </p>
+                                                    <p className="font-semibold text-neutral-900 dark:text-white">
+                                                        {formatPrice(tier.pricePerHour)}/h
+                                                    </p>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
                                 ) : (
                                     <>
                                         <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 space-y-1">
@@ -438,30 +502,118 @@ export default function ServicesPage() {
                             </select>
                         </div>
 
-                        {/* Pricing - Meeting */}
+                        {/* Pricing - Meeting Tiers */}
                         {formData.type === 'MEETING' && (
-                            <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                        Giá &lt;8 người (VND/h)
+                            <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800/40">
+                                <div className="flex items-center justify-between">
+                                    <label className="block text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+                                        Bảng giá linh hoạt theo số người (VND/giờ)
                                     </label>
-                                    <input
-                                        type="number"
-                                        value={formData.priceSmall}
-                                        onChange={e => setFormData({ ...formData, priceSmall: e.target.value })}
-                                        className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800"
-                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const nextMin = formData.pricingTiers.length > 0
+                                                ? (Number(formData.pricingTiers[formData.pricingTiers.length - 1].maxGuests) || 1) + 1
+                                                : 1
+                                            setFormData({
+                                                ...formData,
+                                                pricingTiers: [
+                                                    ...formData.pricingTiers,
+                                                    { minGuests: nextMin, maxGuests: null, pricePerHour: 100000, label: `${nextMin}+ người` }
+                                                ]
+                                            })
+                                        }}
+                                        className="px-2.5 py-1 text-xs font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition"
+                                    >
+                                        + Thêm mức giá
+                                    </button>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                                        Giá 8-20 người (VND/h)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={formData.priceLarge}
-                                        onChange={e => setFormData({ ...formData, priceLarge: e.target.value })}
-                                        className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800"
-                                    />
+                                <div className="space-y-2">
+                                    {formData.pricingTiers.map((tier, idx) => (
+                                        <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-white dark:bg-neutral-800 p-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                                            <div className="col-span-3">
+                                                <label className="block text-[10px] text-neutral-400 mb-0.5">Từ (người)</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={tier.minGuests ?? ''}
+                                                    onChange={e => {
+                                                        const valText = e.target.value
+                                                        const val = valText === '' ? '' : parseInt(valText, 10)
+                                                        const updated = [...formData.pricingTiers]
+                                                        const numVal = typeof val === 'number' && !isNaN(val) ? val : 1
+                                                        updated[idx] = {
+                                                            ...tier,
+                                                            minGuests: val,
+                                                            label: tier.maxGuests ? (numVal === tier.maxGuests ? `${numVal} người` : `${numVal}-${tier.maxGuests} người`) : `${numVal}+ người`
+                                                        }
+                                                        setFormData({ ...formData, pricingTiers: updated })
+                                                    }}
+                                                    className="w-full px-2 py-1.5 text-xs border border-neutral-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+                                                />
+                                            </div>
+                                            <div className="col-span-3">
+                                                <label className="block text-[10px] text-neutral-400 mb-0.5">Đến (người)</label>
+                                                <input
+                                                    type="number"
+                                                    placeholder="Trở lên"
+                                                    value={tier.maxGuests ?? ''}
+                                                    onChange={e => {
+                                                        const valText = e.target.value
+                                                        const val = valText === '' ? null : parseInt(valText, 10)
+                                                        const updated = [...formData.pricingTiers]
+                                                        const minNum = Number(tier.minGuests) || 1
+                                                        updated[idx] = {
+                                                            ...tier,
+                                                            maxGuests: val,
+                                                            label: val ? (minNum === val ? `${val} người` : `${minNum}-${val} người`) : `${minNum}+ người`
+                                                        }
+                                                        if (typeof val === 'number' && !isNaN(val) && idx + 1 < updated.length) {
+                                                            const nextMin = val + 1
+                                                            const nextMax = updated[idx + 1].maxGuests
+                                                            updated[idx + 1] = {
+                                                                ...updated[idx + 1],
+                                                                minGuests: nextMin,
+                                                                label: nextMax ? (nextMin === nextMax ? `${nextMin} người` : `${nextMin}-${nextMax} người`) : `${nextMin}+ người`
+                                                            }
+                                                        }
+                                                        setFormData({ ...formData, pricingTiers: updated })
+                                                    }}
+                                                    className="w-full px-2 py-1.5 text-xs border border-neutral-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+                                                />
+                                            </div>
+                                            <div className="col-span-4">
+                                                <label className="block text-[10px] text-neutral-400 mb-0.5">Đơn giá (VND/h)</label>
+                                                <input
+                                                    type="number"
+                                                    step="1000"
+                                                    value={tier.pricePerHour ?? ''}
+                                                    onChange={e => {
+                                                        const valText = e.target.value
+                                                        const val = valText === '' ? '' : parseInt(valText, 10)
+                                                        const updated = [...formData.pricingTiers]
+                                                        updated[idx] = { ...tier, pricePerHour: val }
+                                                        setFormData({ ...formData, pricingTiers: updated })
+                                                    }}
+                                                    className="w-full px-2 py-1.5 text-xs border border-neutral-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800 font-medium text-primary-600"
+                                                />
+                                            </div>
+                                            <div className="col-span-2 flex justify-end pt-4">
+                                                {formData.pricingTiers.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const updated = formData.pricingTiers.filter((_, i) => i !== idx)
+                                                            setFormData({ ...formData, pricingTiers: updated })
+                                                        }}
+                                                        className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                                    >
+                                                        <TrashIcon className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}

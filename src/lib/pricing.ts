@@ -23,15 +23,42 @@ export const PRICING = {
     GRACE_PERIOD_MINUTES: 15,    // Thời gian ân hạn (phút) không tính phụ trội
 } as const
 
+export interface SimplePricingTier {
+    minGuests: number
+    maxGuests?: number | null
+    pricePerHour: number
+}
+
+export const DEFAULT_STATIC_MEETING_TIERS: SimplePricingTier[] = [
+    { minGuests: 1, maxGuests: 1, pricePerHour: 30000 },
+    { minGuests: 2, maxGuests: 3, pricePerHour: 60000 },
+    { minGuests: 4, maxGuests: null, pricePerHour: 100000 },
+]
+
 /**
  * Tính giá Meeting Room
  * @param guests - Số người tham gia
  * @param durationMinutes - Thời gian (phút)
+ * @param pricingTiers - Bảng giá tùy chỉnh theo mốc số người (tùy chọn)
  */
-export function calculateMeetingPrice(guests: number, durationMinutes: number): number {
-    const pricePerHour = guests >= PRICING.MEETING.THRESHOLD
-        ? PRICING.MEETING.LARGE
-        : PRICING.MEETING.SMALL
+export function calculateMeetingPrice(
+    guests: number,
+    durationMinutes: number,
+    pricingTiers?: SimplePricingTier[] | null
+): number {
+    const tiers = (pricingTiers && Array.isArray(pricingTiers) && pricingTiers.length > 0)
+        ? pricingTiers
+        : DEFAULT_STATIC_MEETING_TIERS
+
+    const sortedTiers = [...tiers].sort((a, b) => (a.minGuests || 1) - (b.minGuests || 1))
+    const matched = sortedTiers.find(t => {
+        const min = t.minGuests ?? 1
+        const max = (t.maxGuests !== null && t.maxGuests !== undefined) ? t.maxGuests : Infinity
+        return guests >= min && guests <= max
+    })
+    const chosen = matched || sortedTiers[sortedTiers.length - 1]
+    const pricePerHour = Number(chosen.pricePerHour) || 0
+
     const hours = durationMinutes / 60
     return Math.round(pricePerHour * hours)
 }

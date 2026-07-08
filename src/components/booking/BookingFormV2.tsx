@@ -671,6 +671,18 @@ export default function BookingFormV2({
                             </div>
                         )}
 
+                        {/* Meeting Unit Price Row */}
+                        {isMeeting && priceInfo.breakdown && (priceInfo.breakdown as any).pricePerHour > 0 && (
+                            <div className="flex items-center justify-between px-4 py-3 bg-primary-50/50 dark:bg-primary-900/10">
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Mức giá ({guests} người)
+                                </span>
+                                <span className="font-semibold text-primary-600 dark:text-primary-400">
+                                    {new Intl.NumberFormat('vi-VN').format((priceInfo.breakdown as any).pricePerHour)}đ/h
+                                </span>
+                            </div>
+                        )}
+
                         {/* Subtotal Row */}
                         <div className="flex items-center justify-between px-4 py-3">
                             <span className="text-sm text-neutral-600 dark:text-neutral-400">Tạm tính</span>
