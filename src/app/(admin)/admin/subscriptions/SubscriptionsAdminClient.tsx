@@ -22,14 +22,27 @@ import LiveSessions from './_components/LiveSessions';
 import SubscriptionReport from './_components/SubscriptionReport';
 import OrderDetailsModal from './_components/OrderDetailsModal';
 import SessionHistoryModal from './_components/SessionHistoryModal';
+import AdminPagination from './_components/AdminPagination';
 
 // Constants & Types
-import { TabType, RegistrationOrder, Subscriber } from './_components/constants';
+import { PaginationMeta, TabType, RegistrationOrder, Subscriber } from './_components/constants';
+
+const PAGE_SIZE = 10;
+const INITIAL_PAGINATION: PaginationMeta = {
+  page: 1,
+  limit: PAGE_SIZE,
+  total: 0,
+  totalPages: 1,
+};
 
 export default function SubscriptionsAdminClient() {
   const [activeTab, setActiveTab] = useState<TabType>('orders');
   const [orders, setOrders] = useState<RegistrationOrder[]>([]);
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+  const [orderPage, setOrderPage] = useState(1);
+  const [subscriberPage, setSubscriberPage] = useState(1);
+  const [orderPagination, setOrderPagination] = useState<PaginationMeta>(INITIAL_PAGINATION);
+  const [subscriberPagination, setSubscriberPagination] = useState<PaginationMeta>(INITIAL_PAGINATION);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<RegistrationOrder | null>(null);
   const [filterStatus, setFilterStatus] = useState('');
@@ -41,17 +54,43 @@ export default function SubscriptionsAdminClient() {
     setLoading(true);
     try {
       if (activeTab === 'orders') {
-        const res = await fetch(`/api/admin/subscriptions/orders?${filterStatus ? `status=${filterStatus}` : ''}`);
-        if (res.ok) setOrders(await res.json());
+        const params = new URLSearchParams({
+          page: String(orderPage),
+          limit: String(PAGE_SIZE),
+        });
+        if (filterStatus) params.set('status', filterStatus);
+
+        const res = await fetch(`/api/admin/subscriptions/orders?${params}`);
+        if (res.ok) {
+          const result = await res.json();
+          setOrders(result.data);
+          setOrderPagination(result.pagination);
+          if (orderPage > result.pagination.totalPages) {
+            setOrderPage(result.pagination.totalPages);
+          }
+        }
       } else if (activeTab === 'subscribers') {
-        const res = await fetch(`/api/admin/subscriptions/subscribers?${searchTerm ? `search=${searchTerm}` : ''}`);
-        if (res.ok) setSubscribers(await res.json());
+        const params = new URLSearchParams({
+          page: String(subscriberPage),
+          limit: String(PAGE_SIZE),
+        });
+        if (searchTerm) params.set('search', searchTerm);
+
+        const res = await fetch(`/api/admin/subscriptions/subscribers?${params}`);
+        if (res.ok) {
+          const result = await res.json();
+          setSubscribers(result.data);
+          setSubscriberPagination(result.pagination);
+          if (subscriberPage > result.pagination.totalPages) {
+            setSubscriberPage(result.pagination.totalPages);
+          }
+        }
       }
     } catch (err) {
       console.error('Fetch error:', err);
     }
     setLoading(false);
-  }, [activeTab, filterStatus, searchTerm]);
+  }, [activeTab, filterStatus, orderPage, searchTerm, subscriberPage]);
 
   useEffect(() => {
     fetchData();
@@ -167,7 +206,10 @@ export default function SubscriptionsAdminClient() {
                type="text"
                placeholder="Tìm kiếm hội viên..."
                value={searchTerm}
-               onChange={(e) => setSearchTerm(e.target.value)}
+               onChange={(e) => {
+                 setSearchTerm(e.target.value);
+                 setSubscriberPage(1);
+               }}
                className="block w-full rounded-2xl border-none bg-white py-2.5 pl-10 pr-4 text-sm font-medium shadow-sm ring-1 ring-neutral-200 focus:ring-2 focus:ring-primary-500 dark:bg-neutral-900 dark:ring-neutral-700"
              />
            </div>
@@ -180,7 +222,11 @@ export default function SubscriptionsAdminClient() {
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => {
+                setActiveTab(tab.key);
+                if (tab.key === 'orders') setOrderPage(1);
+                if (tab.key === 'subscribers') setSubscriberPage(1);
+              }}
               className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all duration-200 ${
                 activeTab === tab.key
                   ? 'bg-white text-neutral-900 border border-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-white'
@@ -204,7 +250,10 @@ export default function SubscriptionsAdminClient() {
                  <FunnelIcon className="h-4 w-4 text-neutral-400" />
                  <select
                     value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
+                    onChange={(e) => {
+                      setFilterStatus(e.target.value);
+                      setOrderPage(1);
+                    }}
                     className="rounded-xl border-none bg-neutral-100 px-4 py-2 text-sm font-bold text-neutral-700 focus:ring-2 focus:ring-primary-500 dark:bg-neutral-800 dark:text-neutral-300"
                   >
                     <option value="">Tất cả trạng thái</option>
@@ -219,18 +268,38 @@ export default function SubscriptionsAdminClient() {
                 loading={loading} 
                 onSelectOrder={setSelectedOrder} 
               />
+              <AdminPagination
+                page={orderPagination.page}
+                pageSize={orderPagination.limit}
+                total={orderPagination.total}
+                totalPages={orderPagination.totalPages}
+                itemLabel="đơn đăng ký"
+                disabled={loading}
+                onPageChange={setOrderPage}
+              />
             </div>
           )}
 
           {activeTab === 'subscribers' && (
-            <SubscriberTable 
-              subscribers={subscribers} 
-              loading={loading} 
-              onDelete={handleDeleteSubscriber}
-              onViewHistory={(sub) => setHistorySubscriber({ id: sub.id, name: sub.fullName })}
-              onReassignCard={handleReassignCard}
-              actionLoading={actionLoading}
-            />
+            <div className="space-y-4">
+              <SubscriberTable
+                subscribers={subscribers}
+                loading={loading}
+                onDelete={handleDeleteSubscriber}
+                onViewHistory={(sub) => setHistorySubscriber({ id: sub.id, name: sub.fullName })}
+                onReassignCard={handleReassignCard}
+                actionLoading={actionLoading}
+              />
+              <AdminPagination
+                page={subscriberPagination.page}
+                pageSize={subscriberPagination.limit}
+                total={subscriberPagination.total}
+                totalPages={subscriberPagination.totalPages}
+                itemLabel="hội viên"
+                disabled={loading}
+                onPageChange={setSubscriberPage}
+              />
+            </div>
           )}
 
           {activeTab === 'live' && (

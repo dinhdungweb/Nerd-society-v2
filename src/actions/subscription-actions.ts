@@ -329,15 +329,46 @@ export async function assignCardAndCreate(orderId: string, cardNo: string, staff
   if (!order) return { success: false, error: 'Đơn không tồn tại' };
   if (order.orderStatus !== 'PAID') return { success: false, error: 'Đơn chưa thanh toán' };
 
-  // Kiểm tra thẻ đã được dùng chưa
-  const existingCard = await prisma.subscriber.findFirst({ where: { cardNo } });
-  if (existingCard) return { success: false, error: 'Thẻ này đã được gán cho người khác' };
+  // Subscriber có thể đã tồn tại theo tài khoản dù số điện thoại trên đơn đã đổi.
+  // Nếu chỉ tìm theo phone, lệnh create bên dưới sẽ vi phạm unique(userId).
+  const [subscriberByUserId, subscriberByPhone] = await Promise.all([
+    order.userId
+      ? prisma.subscriber.findUnique({ where: { userId: order.userId } })
+      : Promise.resolve(null),
+    prisma.subscriber.findUnique({ where: { phone: order.phone } }),
+  ]);
+
+  if (
+    subscriberByUserId &&
+    subscriberByPhone &&
+    subscriberByUserId.id !== subscriberByPhone.id
+  ) {
+    return {
+      success: false,
+      error:
+        'Tài khoản và số điện thoại đang thuộc hai hồ sơ hội viên khác nhau. Vui lòng kiểm tra lại dữ liệu khách hàng.',
+    };
+  }
+
+  let subscriber = subscriberByUserId || subscriberByPhone;
+
+  if (subscriber?.userId && order.userId && subscriber.userId !== order.userId) {
+    return {
+      success: false,
+      error: 'Số điện thoại này đã liên kết với tài khoản khác.',
+    };
+  }
+
+  // Cho phép chính subscriber đó tiếp tục dùng thẻ đã liên kết.
+  const existingCard = await prisma.subscriber.findUnique({ where: { cardNo } });
+  if (existingCard && existingCard.id !== subscriber?.id) {
+    return { success: false, error: 'Thẻ này đã được gán cho người khác' };
+  }
 
   // Tạo MyTime employee ID
   const empId = await generateNextEmployeeId(prisma);
 
   // Tìm hoặc tạo subscriber
-  let subscriber = await prisma.subscriber.findFirst({ where: { phone: order.phone } });
   if (!subscriber) {
     subscriber = await prisma.subscriber.create({
       data: {
@@ -618,20 +649,52 @@ export async function getRegistrationOrders(filters?: {
   id?: string;
   status?: string;
   branch?: string;
+  page?: number;
+  limit?: number;
 }) {
   const where: Record<string, unknown> = {};
   if (filters?.id) where.id = filters.id;
   if (filters?.status) where.orderStatus = filters.status;
   if (filters?.branch) where.branchPrimary = filters.branch;
 
-  return prisma.registrationOrder.findMany({
+  const query = {
     where,
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: 'desc' as const },
     include: {
       subscriber: true,
       subscription: true,
     },
-  });
+  };
+
+  // Keep the legacy array response for callers that fetch one order to poll
+  // payment status. Admin list requests provide page/limit and get metadata.
+  if (filters?.page === undefined && filters?.limit === undefined) {
+    return prisma.registrationOrder.findMany(query);
+  }
+
+  const page = Number.isFinite(filters?.page) ? Math.max(1, Math.floor(filters!.page!)) : 1;
+  const limit = Number.isFinite(filters?.limit)
+    ? Math.min(100, Math.max(1, Math.floor(filters!.limit!)))
+    : 20;
+
+  const [data, total] = await prisma.$transaction([
+    prisma.registrationOrder.findMany({
+      ...query,
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.registrationOrder.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  };
 }
 
 /**
@@ -640,6 +703,8 @@ export async function getRegistrationOrders(filters?: {
 export async function getSubscribers(filters?: {
   status?: string;
   search?: string;
+  page?: number;
+  limit?: number;
 }) {
   const where: Record<string, unknown> = {};
   if (filters?.status) where.status = filters.status;
@@ -653,35 +718,45 @@ export async function getSubscribers(filters?: {
 
   const today = businessDateOnly();
 
-  const subscribers = await prisma.subscriber.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      user: {
-        select: {
-          wallet: {
-            select: {
-              balance: true,
-              walletCode: true,
+  const page = Number.isFinite(filters?.page) ? Math.max(1, Math.floor(filters!.page!)) : 1;
+  const limit = Number.isFinite(filters?.limit)
+    ? Math.min(100, Math.max(1, Math.floor(filters!.limit!)))
+    : 20;
+
+  const [subscribers, total] = await prisma.$transaction([
+    prisma.subscriber.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+      include: {
+        user: {
+          select: {
+            wallet: {
+              select: {
+                balance: true,
+                walletCode: true,
+              },
+            },
+          },
+        },
+        subscriptions: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            dailyUsages: {
+              where: {
+                usageDate: today,
+              },
             },
           },
         },
       },
-      subscriptions: {
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-        include: {
-          dailyUsages: {
-            where: {
-              usageDate: today
-            }
-          }
-        }
-      },
-    },
-  });
+    }),
+    prisma.subscriber.count({ where }),
+  ]);
 
-  return subscribers.map((subscriber) => {
+  const data = subscribers.map((subscriber) => {
     const currentSub = subscriber.subscriptions[0];
     const todayUsage = currentSub?.dailyUsages?.[0]?.totalMin || 0;
 
@@ -692,6 +767,16 @@ export async function getSubscribers(filters?: {
       todayUsedMin: todayUsage,
     };
   });
+
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  };
 }
 
 /**

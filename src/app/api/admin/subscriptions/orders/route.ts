@@ -13,8 +13,12 @@ export async function GET(request: Request) {
     const id = url.searchParams.get('id') || undefined;
     const status = url.searchParams.get('status') || undefined;
     const branch = url.searchParams.get('branch') || undefined;
+    const pageParam = url.searchParams.get('page');
+    const limitParam = url.searchParams.get('limit');
+    const page = pageParam ? Number.parseInt(pageParam, 10) : undefined;
+    const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
 
-    const orders = await getRegistrationOrders({ id, status, branch });
+    const orders = await getRegistrationOrders({ id, status, branch, page, limit });
     return NextResponse.json(orders);
   } catch (err) {
     console.error('[Admin Orders GET]', err);

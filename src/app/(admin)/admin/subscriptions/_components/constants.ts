@@ -1,5 +1,12 @@
 export type TabType = 'orders' | 'subscribers' | 'live' | 'report';
 
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface RegistrationOrder {
   id: string;
   orderCode: string;
