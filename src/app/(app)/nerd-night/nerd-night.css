@@ -378,6 +378,7 @@
 .nn-qr-amount { font-family: var(--font-nn-serif), Georgia, serif; font-style: italic; font-size: 26px; color: var(--nn-oxblood); }
 .nn-code { font-family: var(--font-nn-mono), monospace; font-size: 13px; background: var(--nn-cream-deep); border: 1px dashed var(--nn-ink); padding: 6px 12px; display: inline-block; margin: 8px 0 18px; }
 .nn-status { text-align: center; padding: 8px 0; }
+.nn-status > .nn-medal { margin: 0 auto 16px; }
 
 .nn-speakers { display: grid; gap: 12px; text-align: left; }
 .nn-speaker { width: 100%; border: 1.5px solid var(--nn-ink); padding: 14px 16px; background: var(--nn-cream); cursor: pointer; transition: transform .1s ease; text-align: left; }
