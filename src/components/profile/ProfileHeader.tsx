@@ -10,6 +10,7 @@ import {
     ChevronRightIcon,
     CreditCardIcon,
     WalletIcon,
+    MoonIcon,
 } from '@heroicons/react/24/outline'
 
 interface ProfileHeaderProps {
@@ -25,6 +26,7 @@ const navigation = [
     { name: 'Lịch sử đặt lịch', href: '/profile', icon: ClockIcon },
     { name: 'Ví Nerd', href: '/profile/wallet', icon: WalletIcon },
     { name: 'Monthly Beaver', href: '/profile/monthly-beaver', icon: CreditCardIcon },
+    { name: 'Nerd Night', href: '/profile/nerd-night', icon: MoonIcon },
     { name: 'Cài đặt tài khoản', href: '/profile/settings', icon: Cog6ToothIcon },
 ]
 

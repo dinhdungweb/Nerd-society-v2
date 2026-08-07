@@ -8,43 +8,49 @@ datasource db {
 }
 
 model User {
-  id                  String                  @id @default(cuid())
-  email               String                  @unique
-  password            String
-  name                String
-  phone               String?
-  avatar              String?
-  role                Role                    @default(CUSTOMER)
-  emailVerified       DateTime?
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
-  address             String?
-  assignedLocationId  String?
-  bio                 String?
-  dateOfBirth         DateTime?
-  gender              String?
-  nerdCoinBalance     Int                     @default(0)
-  nerdCoinTier        String                  @default("BRONZE")
-  isLocked            Boolean                 @default(false)
-  occupation          String?
-  profileCompletedAt  DateTime?
-  region              String?
-  school              String?
-  visitPurpose        String[]
-  accounts            Account[]
-  bookings            Booking[]
-  nerdCoinTxns        NerdCoinTransaction[]
-  posts               Post[]
-  registrationOrders  RegistrationOrder[]
-  sessions            Session[]
-  matchesAsA          StudyMatch[]            @relation("MatchUserA")
-  matchesAsB          StudyMatch[]            @relation("MatchUserB")
-  studyProfile        StudyProfile?
-  subscriber          Subscriber?
-  assignedLocation    Location?               @relation(fields: [assignedLocationId], references: [id])
-  studyAvailabilities UserStudyAvailability[]
-  wallet              Wallet?
-  createdWalletTxns   WalletTransaction[]     @relation("WalletTransactionCreator")
+  id                         String                   @id @default(cuid())
+  email                      String                   @unique
+  password                   String
+  name                       String
+  phone                      String?
+  avatar                     String?
+  role                       Role                     @default(CUSTOMER)
+  emailVerified              DateTime?
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  address                    String?
+  assignedLocationId         String?
+  bio                        String?
+  dateOfBirth                DateTime?
+  gender                     String?
+  nerdCoinBalance            Int                      @default(0)
+  nerdCoinTier               String                   @default("BRONZE")
+  isLocked                   Boolean                  @default(false)
+  occupation                 String?
+  profileCompletedAt         DateTime?
+  region                     String?
+  school                     String?
+  visitPurpose               String[]
+  accounts                   Account[]
+  bookings                   Booking[]
+  nerdCoinTxns               NerdCoinTransaction[]
+  posts                      Post[]
+  registrationOrders         RegistrationOrder[]
+  sessions                   Session[]
+  matchesAsA                 StudyMatch[]             @relation("MatchUserA")
+  matchesAsB                 StudyMatch[]             @relation("MatchUserB")
+  studyProfile               StudyProfile?
+  subscriber                 Subscriber?
+  assignedLocation           Location?                @relation(fields: [assignedLocationId], references: [id])
+  studyAvailabilities        UserStudyAvailability[]
+  wallet                     Wallet?
+  createdWalletTxns          WalletTransaction[]      @relation("WalletTransactionCreator")
+  nerdNightRegistrations     NerdNightRegistration[]
+  nerdNightReviews           NerdNightReview[]
+  nerdNightVotes             NerdNightVote[]          @relation("NerdNightVoter")
+  nerdNightEventsCreated     NerdNightEvent[]         @relation("NerdNightEventCreator")
+  nerdNightPaymentsConfirmed NerdNightRegistration[]  @relation("NerdNightPaymentConfirmer")
+  nerdNightConfigsUpdated    NerdNightPaymentConfig[] @relation("NerdNightPaymentConfigUpdater")
 
   @@index([name])
   @@index([phone])
@@ -101,19 +107,140 @@ model Room {
 }
 
 model Location {
-  id         String      @id @default(cuid())
-  name       String
-  address    String
-  phone      String
-  mapUrl     String?
-  image      String?
-  isActive   Boolean     @default(true)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  bookings   Booking[]
-  rooms      Room[]
-  studySlots StudySlot[]
-  staff      User[]
+  id              String           @id @default(cuid())
+  name            String
+  address         String
+  phone           String
+  mapUrl          String?
+  image           String?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  bookings        Booking[]
+  rooms           Room[]
+  studySlots      StudySlot[]
+  staff           User[]
+  nerdNightEvents NerdNightEvent[]
+}
+
+model NerdNightEvent {
+  id                      String                  @id @default(cuid())
+  slug                    String                  @unique
+  season                  Int                     @default(1)
+  episode                 Int
+  themeCode               String
+  title                   String
+  themeDescription        String?
+  topicSuggestions        String[]
+  startsAt                DateTime
+  locationId              String?
+  venueName               String
+  venueAddress            String?
+  price                   Int
+  capacity                Int
+  speakerCapacity         Int                     @default(6)
+  registrationOpen        Boolean                 @default(false)
+  speakerRegistrationOpen Boolean                 @default(false)
+  status                  NerdNightEventStatus    @default(DRAFT)
+  votingStatus            NerdNightVotingStatus   @default(CLOSED)
+  notes                   String?
+  completedAt             DateTime?
+  createdById             String
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  location                Location?               @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  createdBy               User                    @relation("NerdNightEventCreator", fields: [createdById], references: [id])
+  registrations           NerdNightRegistration[]
+  reviews                 NerdNightReview[]
+  votes                   NerdNightVote[]
+
+  @@unique([season, episode])
+  @@index([status, startsAt])
+  @@index([locationId])
+}
+
+model NerdNightRegistration {
+  id                   String                      @id @default(cuid())
+  registrationCode     String                      @unique
+  eventId              String
+  userId               String
+  attendeeName         String
+  attendeePhone        String
+  status               NerdNightRegistrationStatus @default(ACTIVE)
+  wantsToShare         Boolean                     @default(false)
+  topicTitle           String?
+  topicBackup1         String?
+  topicBackup2         String?
+  topicDescription     String?
+  hasSlides            Boolean                     @default(false)
+  interests            String[]
+  speakerStatus        NerdNightSpeakerStatus      @default(NONE)
+  amount               Int
+  transferContent      String                      @unique
+  paymentBankCode      String
+  paymentAccountNumber String
+  paymentAccountName   String
+  paymentStatus        NerdNightPaymentStatus      @default(UNPAID)
+  paymentReportedAt    DateTime?
+  paymentConfirmedAt   DateTime?
+  paymentConfirmedById String?
+  paymentExpiresAt     DateTime?
+  cancelledAt          DateTime?
+  cancellationReason   String?
+  refundStatus         NerdNightRefundStatus       @default(NOT_REQUIRED)
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  event                NerdNightEvent              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                 User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentConfirmedBy   User?                       @relation("NerdNightPaymentConfirmer", fields: [paymentConfirmedById], references: [id], onDelete: SetNull)
+  votesReceived        NerdNightVote[]             @relation("NerdNightSpeakerVotes")
+
+  @@unique([eventId, userId])
+  @@index([eventId, status])
+  @@index([eventId, paymentStatus])
+  @@index([eventId, speakerStatus])
+  @@index([userId, createdAt])
+}
+
+model NerdNightReview {
+  id        String         @id @default(cuid())
+  eventId   String
+  userId    String
+  rating    Int
+  comment   String?
+  isVisible Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  event     NerdNightEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId, isVisible])
+}
+
+model NerdNightVote {
+  id                    String                @id @default(cuid())
+  eventId               String
+  voterId               String
+  speakerRegistrationId String
+  createdAt             DateTime              @default(now())
+  event                 NerdNightEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  voter                 User                  @relation("NerdNightVoter", fields: [voterId], references: [id], onDelete: Cascade)
+  speakerRegistration   NerdNightRegistration @relation("NerdNightSpeakerVotes", fields: [speakerRegistrationId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, voterId])
+  @@index([eventId, speakerRegistrationId])
+}
+
+model NerdNightPaymentConfig {
+  id            String   @id @default("default")
+  bankCode      String
+  accountNumber String
+  accountName   String
+  updatedById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  updatedBy     User?    @relation("NerdNightPaymentConfigUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
 }
 
 model Service {
@@ -742,6 +869,44 @@ enum Role {
   CUSTOMER
   MANAGER
   CONTENT_EDITOR
+}
+
+enum NerdNightEventStatus {
+  DRAFT
+  PUBLISHED
+  COMPLETED
+  CANCELLED
+}
+
+enum NerdNightVotingStatus {
+  CLOSED
+  OPEN
+  RESULTS
+}
+
+enum NerdNightRegistrationStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+enum NerdNightSpeakerStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NerdNightPaymentStatus {
+  UNPAID
+  PENDING
+  CONFIRMED
+}
+
+enum NerdNightRefundStatus {
+  NOT_REQUIRED
+  PENDING
+  COMPLETED
 }
 
 enum RoomType {

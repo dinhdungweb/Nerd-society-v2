@@ -45,6 +45,9 @@ const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
         canManageRecruitment: true,
         canViewQrGenerator: true,
         canViewFeedback: true,
+        canViewNerdNight: true,
+        canManageNerdNight: true,
+        canConfirmNerdNightPayments: true,
     },
     STAFF: {
         canViewDashboard: true,
@@ -84,6 +87,9 @@ const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
         canManageRecruitment: false,
         canViewQrGenerator: false,
         canViewFeedback: false,
+        canViewNerdNight: true,
+        canManageNerdNight: true,
+        canConfirmNerdNightPayments: true,
     },
     CONTENT_EDITOR: {
         canViewDashboard: false,
@@ -123,6 +129,9 @@ const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
         canManageRecruitment: false,
         canViewQrGenerator: false,
         canViewFeedback: false,
+        canViewNerdNight: false,
+        canManageNerdNight: false,
+        canConfirmNerdNightPayments: false,
     },
 }
 
@@ -146,6 +155,7 @@ export type PermissionKey =
     | 'canViewRecruitment' | 'canManageRecruitment'
     | 'canViewQrGenerator'
     | 'canViewFeedback'
+    | 'canViewNerdNight' | 'canManageNerdNight' | 'canConfirmNerdNightPayments'
 
 /**
  * Get permissions for a specific role from database
@@ -224,7 +234,7 @@ export async function checkApiPermission(requiredPermission: PermissionKey): Pro
 /**
  * Quick check for view permissions (commonly used pattern)
  */
-export async function canView(resource: 'Dashboard' | 'Reports' | 'Bookings' | 'Chat' | 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'Wallets' | 'NerdCoin' | 'Settings' | 'Staff' | 'AuditLog' | 'EmailTemplates' | 'Recruitment' | 'QrGenerator' | 'Feedback'): Promise<{
+export async function canView(resource: 'Dashboard' | 'Reports' | 'Bookings' | 'Chat' | 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'Wallets' | 'NerdCoin' | 'Settings' | 'Staff' | 'AuditLog' | 'EmailTemplates' | 'Recruitment' | 'QrGenerator' | 'Feedback' | 'NerdNight'): Promise<{
     session: any | null
     hasAccess: boolean
     role: string | null
@@ -236,7 +246,7 @@ export async function canView(resource: 'Dashboard' | 'Reports' | 'Bookings' | '
 /**
  * Quick check for manage permissions (commonly used pattern)
  */
-export async function canManage(resource: 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'Wallets' | 'NerdCoin' | 'Staff' | 'EmailTemplates' | 'Recruitment'): Promise<{
+export async function canManage(resource: 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'Wallets' | 'NerdCoin' | 'Staff' | 'EmailTemplates' | 'Recruitment' | 'NerdNight'): Promise<{
     session: any | null
     hasAccess: boolean
     role: string | null

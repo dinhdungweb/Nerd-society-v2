@@ -51,6 +51,9 @@ const DEFAULT_ROLE_PERMISSIONS = {
         canViewAuditLog: true,
         canViewEmailTemplates: true,
         canManageEmailTemplates: true,
+        canViewNerdNight: true,
+        canManageNerdNight: true,
+        canConfirmNerdNightPayments: true,
     },
     STAFF: {
         // Dashboard
@@ -98,6 +101,9 @@ const DEFAULT_ROLE_PERMISSIONS = {
         canViewAuditLog: false,
         canViewEmailTemplates: false,
         canManageEmailTemplates: false,
+        canViewNerdNight: true,
+        canManageNerdNight: true,
+        canConfirmNerdNightPayments: true,
     },
     CONTENT_EDITOR: {
         // Dashboard
@@ -145,6 +151,9 @@ const DEFAULT_ROLE_PERMISSIONS = {
         canViewAuditLog: false,
         canViewEmailTemplates: false,
         canManageEmailTemplates: false,
+        canViewNerdNight: false,
+        canManageNerdNight: false,
+        canConfirmNerdNightPayments: false,
     },
 }
 

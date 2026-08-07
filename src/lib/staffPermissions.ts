@@ -60,6 +60,11 @@ export const DEFAULT_STAFF_PERMISSIONS = {
     canViewAuditLog: false,
     canViewEmailTemplates: false,
     canManageEmailTemplates: false,
+
+    // Nerd Night
+    canViewNerdNight: true,
+    canManageNerdNight: true,
+    canConfirmNerdNightPayments: true,
 }
 
 export type StaffPermissions = typeof DEFAULT_STAFF_PERMISSIONS
@@ -104,6 +109,7 @@ export const PERMISSION_ROUTE_MAP: Record<string, keyof StaffPermissions> = {
     '/admin/staff': 'canViewStaff',
     '/admin/audit-log': 'canViewAuditLog',
     '/admin/email-templates': 'canViewEmailTemplates',
+    '/admin/nerd-night': 'canViewNerdNight',
 }
 
 // Check if a route is allowed for staff based on permissions

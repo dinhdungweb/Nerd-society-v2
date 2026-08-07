@@ -71,6 +71,11 @@ interface Permissions {
     // Study Date
     canViewStudyDate: boolean
     canManageStudyDate: boolean
+
+    // Nerd Night
+    canViewNerdNight: boolean
+    canManageNerdNight: boolean
+    canConfirmNerdNightPayments: boolean
 }
 
 type RoleKey = 'MANAGER' | 'STAFF' | 'CONTENT_EDITOR'
@@ -150,6 +155,11 @@ const permissionLabels: Record<keyof Permissions, { label: string; description: 
     // Study Date
     canViewStudyDate: { label: 'Xem Study Date', description: 'Xem danh sách hồ sơ và thống kê', group: 'Study Date' },
     canManageStudyDate: { label: 'Quản lý Study Date', description: 'Sửa hồ sơ, tạo slots, matching', group: 'Study Date' },
+
+    // Nerd Night
+    canViewNerdNight: { label: 'Xem Nerd Night', description: 'Xem sự kiện, người tham dự và feedback', group: 'Nerd Night' },
+    canManageNerdNight: { label: 'Quản lý Nerd Night', description: 'Tạo, sửa, mở đăng ký và duyệt speaker', group: 'Nerd Night' },
+    canConfirmNerdNightPayments: { label: 'Xác nhận thanh toán Nerd Night', description: 'Xác nhận, bỏ xác nhận và xử lý hoàn tiền', group: 'Nerd Night' },
 
     // System
     canViewSettings: { label: 'Xem Settings', description: 'Xem cài đặt hệ thống', group: 'Hệ thống' },

@@ -70,6 +70,11 @@ export interface StaffPermissions {
     // Study Date
     canViewStudyDate: boolean
     canManageStudyDate: boolean
+
+    // Nerd Night
+    canViewNerdNight: boolean
+    canManageNerdNight: boolean
+    canConfirmNerdNightPayments: boolean
 }
 
 const DEFAULT_PERMISSIONS: StaffPermissions = {
@@ -125,6 +130,9 @@ const DEFAULT_PERMISSIONS: StaffPermissions = {
     // Study Date
     canViewStudyDate: false,
     canManageStudyDate: false,
+    canViewNerdNight: true,
+    canManageNerdNight: true,
+    canConfirmNerdNightPayments: true,
 
     // System
     canViewSettings: false,
@@ -170,6 +178,9 @@ const ADMIN_PERMISSIONS: StaffPermissions = {
     canManageNerdCoin: true,
     canViewStudyDate: true,
     canManageStudyDate: true,
+    canViewNerdNight: true,
+    canManageNerdNight: true,
+    canConfirmNerdNightPayments: true,
     canViewSettings: true,
     canViewStaff: true,
     canManageStaff: true,
@@ -213,6 +224,9 @@ const CONTENT_EDITOR_PERMISSIONS: StaffPermissions = {
     canManageNerdCoin: false,
     canViewStudyDate: false,
     canManageStudyDate: false,
+    canViewNerdNight: false,
+    canManageNerdNight: false,
+    canConfirmNerdNightPayments: false,
     canViewSettings: false,
     canViewStaff: false,
     canManageStaff: false,

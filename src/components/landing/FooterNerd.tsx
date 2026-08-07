@@ -24,6 +24,7 @@ const navigation = {
             children: [
                 { name: 'Monthly Beaver', href: '/monthly-beaver' },
                 { name: 'Study Date', href: '/study-date' },
+                { name: 'Nerd Night', href: '/nerd-night' },
                 { name: 'The Nerd Tree', href: 'https://nerd1stbirthday.nerdsociety.com.vn' }
             ]
         },

@@ -63,6 +63,7 @@ const navigationGroups: NavGroup[] = [
             { name: 'Combos', href: '/admin/combos', icon: RectangleStackIcon, permissionKey: 'canViewServices' },
             { name: 'Cơ sở', href: '/admin/locations', icon: BuildingStorefrontIcon, permissionKey: 'canViewLocations' },
             { name: 'Study Date', href: '/admin/study-date', icon: SparklesIcon, permissionKey: 'canViewStudyDate' },
+            { name: 'Nerd Night', href: '/admin/nerd-night', icon: SparklesIcon, permissionKey: 'canViewNerdNight' },
         ]
     },
     {
