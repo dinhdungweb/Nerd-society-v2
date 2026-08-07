@@ -1,12 +1,12 @@
 'use client'
 
 import { saveNerdNightEvent, setNerdNightEventStatus } from '@/actions/admin-nerd-night'
-import { NERD_NIGHT_SEASON_ORDER } from '@/lib/nerd-night/constants'
 import { CalendarDaysIcon, Cog6ToothIcon, MoonIcon, PlusIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import toast from 'react-hot-toast'
+import NerdNightEventModal from './NerdNightEventModal'
 
 type EventItem = {
   id: string
@@ -39,14 +39,12 @@ export default function NerdNightAdminDashboard({
   isAdmin: boolean
 }) {
   const router = useRouter()
-  const [showForm, setShowForm] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
   const [pending, startTransition] = useTransition()
 
   function submit(formData: FormData) {
     const startsAt = String(formData.get('startsAt') || '')
     startTransition(async () => {
-      const locationId = String(formData.get('locationId') || '')
-      const selectedLocation = locations.find((location) => location.id === locationId)
       const result = await saveNerdNightEvent({
         season: Number(formData.get('season')),
         episode: Number(formData.get('episode')),
@@ -54,9 +52,9 @@ export default function NerdNightAdminDashboard({
         title: String(formData.get('title') || ''),
         themeDescription: String(formData.get('themeDescription') || ''),
         startsAt: new Date(startsAt).toISOString(),
-        locationId: locationId || null,
-        venueName: String(formData.get('venueName') || selectedLocation?.name || ''),
-        venueAddress: String(formData.get('venueAddress') || selectedLocation?.address || ''),
+        locationId: String(formData.get('locationId') || '') || null,
+        venueName: String(formData.get('venueName') || ''),
+        venueAddress: String(formData.get('venueAddress') || ''),
         price: Number(formData.get('price')),
         capacity: Number(formData.get('capacity')),
         speakerCapacity: Number(formData.get('speakerCapacity')),
@@ -69,7 +67,7 @@ export default function NerdNightAdminDashboard({
         return
       }
       toast.success('Đã tạo đêm Nerd Night')
-      setShowForm(false)
+      setShowCreateModal(false)
       router.refresh()
     })
   }
@@ -94,34 +92,18 @@ export default function NerdNightAdminDashboard({
           <p className="mt-1 text-neutral-500 dark:text-neutral-400">Quản lý season, người tham dự, speaker, vote và thanh toán.</p>
         </div>
         <div className="flex gap-2">
-          {isAdmin && <Link href="/admin/nerd-night/settings" className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900"><Cog6ToothIcon className="size-5" />VietQR</Link>}
-          {canManage && <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700"><PlusIcon className="size-5" />Tạo đêm mới</button>}
+          {isAdmin && (
+            <Link href="/admin/nerd-night/settings" className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900">
+              <Cog6ToothIcon className="size-5" />VietQR
+            </Link>
+          )}
+          {canManage && (
+            <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700">
+              <PlusIcon className="size-5" />Thêm sự kiện
+            </button>
+          )}
         </div>
       </div>
-
-      {showForm && (
-        <form action={submit} className="grid gap-4 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:grid-cols-2 dark:border-neutral-800 dark:bg-neutral-900">
-          <AdminField label="Season"><input name="season" type="number" min="1" defaultValue="1" required /></AdminField>
-          <AdminField label="Số đêm"><input name="episode" type="number" min="1" required /></AdminField>
-          <AdminField label="Chủ đề"><select name="themeCode" required>{NERD_NIGHT_SEASON_ORDER.map((item) => <option key={item}>{item}</option>)}</select></AdminField>
-          <AdminField label="Tiêu đề (để trống để tự sinh)"><input name="title" placeholder="Đêm 01 — Theory" /></AdminField>
-          <AdminField label="Thời gian"><input name="startsAt" type="datetime-local" required /></AdminField>
-          <AdminField label="Cơ sở"><select name="locationId" defaultValue=""><option value="">Địa điểm khác</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></AdminField>
-          <AdminField label="Tên địa điểm"><input name="venueName" placeholder="Nerd Society, Hồ Tùng Mậu" required /></AdminField>
-          <AdminField label="Địa chỉ"><input name="venueAddress" /></AdminField>
-          <AdminField label="Giá vé"><input name="price" type="number" min="0" step="1000" defaultValue="120000" required /></AdminField>
-          <AdminField label="Sức chứa"><input name="capacity" type="number" min="1" defaultValue="15" required /></AdminField>
-          <AdminField label="Số suất chia sẻ"><input name="speakerCapacity" type="number" min="0" defaultValue="6" required /></AdminField>
-          <AdminField label="Mô tả theme"><textarea name="themeDescription" rows={3} /></AdminField>
-          <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300"><input name="registrationOpen" type="checkbox" defaultChecked />Mở đăng ký khi công khai</label>
-          <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300"><input name="speakerRegistrationOpen" type="checkbox" defaultChecked />Mở đăng ký speaker</label>
-          <div className="sm:col-span-2"><AdminField label="Ghi chú nội bộ"><textarea name="notes" rows={3} /></AdminField></div>
-          <div className="flex gap-3 sm:col-span-2">
-            <button disabled={pending} className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50">{pending ? 'Đang lưu...' : 'Tạo bản nháp'}</button>
-            <button type="button" onClick={() => setShowForm(false)} className="rounded-xl border border-neutral-300 px-5 py-2.5 text-sm font-medium dark:border-neutral-700">Huỷ</button>
-          </div>
-        </form>
-      )}
 
       <div className="grid gap-4 xl:grid-cols-2">
         {events.map((event) => (
@@ -151,13 +133,28 @@ export default function NerdNightAdminDashboard({
           </article>
         ))}
       </div>
+
       {!events.length && <div className="rounded-2xl border border-dashed border-neutral-300 p-12 text-center text-neutral-500 dark:border-neutral-700">Chưa có đêm Nerd Night nào.</div>}
+
+      {showCreateModal && (
+        <NerdNightEventModal
+          mode="create"
+          locations={locations}
+          pending={pending}
+          onClose={() => setShowCreateModal(false)}
+          onSubmit={submit}
+        />
+      )}
     </div>
   )
 }
 
-function AdminField({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">{label}<span className="mt-1 block [&>input]:w-full [&>input]:rounded-lg [&>input]:border-neutral-300 [&>input]:bg-transparent [&>select]:w-full [&>select]:rounded-lg [&>select]:border-neutral-300 [&>select]:bg-transparent [&>textarea]:w-full [&>textarea]:rounded-lg [&>textarea]:border-neutral-300 [&>textarea]:bg-transparent dark:[&>input]:border-neutral-700 dark:[&>select]:border-neutral-700 dark:[&>textarea]:border-neutral-700">{children}</span></label>
+function Stat({ label, value, warning = false }: { label: string; value: string | number; warning?: boolean }) {
+  return <div className={`rounded-xl p-3 ${warning ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20' : 'bg-neutral-50 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'}`}><div className="text-lg font-bold">{value}</div><div className="text-xs opacity-70">{label}</div></div>
 }
-function Stat({ label, value, warning = false }: { label: string; value: string | number; warning?: boolean }) { return <div className={`rounded-xl p-3 ${warning ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20' : 'bg-neutral-50 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'}`}><div className="text-lg font-bold">{value}</div><div className="text-xs opacity-70">{label}</div></div> }
-function StatusBadge({ status }: { status: EventItem['status'] }) { const style = { DRAFT: 'bg-neutral-100 text-neutral-600', PUBLISHED: 'bg-green-100 text-green-700', COMPLETED: 'bg-purple-100 text-purple-700', CANCELLED: 'bg-red-100 text-red-700' }[status]; const label = { DRAFT: 'Bản nháp', PUBLISHED: 'Công khai', COMPLETED: 'Đã diễn ra', CANCELLED: 'Đã huỷ' }[status]; return <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${style}`}>{label}</span> }
+
+function StatusBadge({ status }: { status: EventItem['status'] }) {
+  const style = { DRAFT: 'bg-neutral-100 text-neutral-600', PUBLISHED: 'bg-green-100 text-green-700', COMPLETED: 'bg-purple-100 text-purple-700', CANCELLED: 'bg-red-100 text-red-700' }[status]
+  const label = { DRAFT: 'Bản nháp', PUBLISHED: 'Công khai', COMPLETED: 'Đã diễn ra', CANCELLED: 'Đã huỷ' }[status]
+  return <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${style}`}>{label}</span>
+}

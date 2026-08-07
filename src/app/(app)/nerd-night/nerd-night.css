@@ -326,7 +326,19 @@
 .nn-detail-facts span:not(:first-child) { color: var(--nn-ink-soft); }
 .nn-detail-actions { padding: 6px 0 72px; }
 
-.nn-tabs { display: flex; justify-content: center; gap: 10px; margin: 0 0 34px; flex-wrap: wrap; }
+.nn-tabs {
+  position: static !important;
+  inset: auto !important;
+  z-index: auto !important;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 0 34px;
+  padding: 0;
+  flex-wrap: wrap;
+  background: transparent;
+  backdrop-filter: none;
+}
 .nn-tab {
   font-family: var(--font-nn-body), sans-serif;
   font-weight: 600;
@@ -413,7 +425,7 @@
   .nn-detail-title { font-size: 38px; }
   .nn-detail-facts { flex-direction: column; gap: 5px; }
   .nn-detail-actions { padding-top: 0; }
-  .nn-tabs { position: sticky; top: 84px; z-index: 5; margin-inline: -8px; padding: 10px 8px; background: color-mix(in srgb, var(--nn-cream) 92%, transparent); backdrop-filter: blur(6px); }
+  .nn-tabs { margin-inline: 0; }
   .nn-tab { padding: 9px 17px; }
   .nn-panel { padding: 24px 18px; }
   .nn-toggle-row { flex-direction: column; }
