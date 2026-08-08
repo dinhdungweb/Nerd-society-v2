@@ -6,11 +6,28 @@
 
 import { NextResponse } from 'next/server';
 import { getRegistrationOrders, confirmPayment, assignCardAndCreate, cancelOrder } from '@/actions/subscription-actions';
+import { getStaffSession } from '@/lib/authHelpers';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const id = url.searchParams.get('id') || undefined;
+
+    // Customers use this unguessable order id to poll payment status. Return
+    // status only; never expose the full admin order payload publicly.
+    if (id) {
+      const order = await prisma.registrationOrder.findUnique({
+        where: { id },
+        select: { orderStatus: true },
+      });
+      if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      return NextResponse.json(order);
+    }
+
+    const session = await getStaffSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const status = url.searchParams.get('status') || undefined;
     const branch = url.searchParams.get('branch') || undefined;
     const pageParam = url.searchParams.get('page');
@@ -18,7 +35,7 @@ export async function GET(request: Request) {
     const page = pageParam ? Number.parseInt(pageParam, 10) : undefined;
     const limit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
 
-    const orders = await getRegistrationOrders({ id, status, branch, page, limit });
+    const orders = await getRegistrationOrders({ status, branch, page, limit });
     return NextResponse.json(orders);
   } catch (err) {
     console.error('[Admin Orders GET]', err);
@@ -28,6 +45,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getStaffSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await request.json();
 
     switch (body.action) {

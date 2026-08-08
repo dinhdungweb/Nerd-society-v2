@@ -32,6 +32,25 @@ const PLAN_HOURS_MIN: Record<string, number> = {
   MONTHLY_UNLIMITED: 0,
 };
 
+function normalizePhone(phone?: string | null) {
+  const digits = phone?.replace(/\D/g, '') || '';
+  return digits.startsWith('84') && digits.length > 9 ? `0${digits.slice(2)}` : digits;
+}
+
+function contactMatches(
+  order: { phone: string; email?: string | null },
+  user: { phone?: string | null; email?: string | null } | null | undefined
+) {
+  if (!user) return false;
+
+  const phoneMatches =
+    !!normalizePhone(order.phone) && normalizePhone(order.phone) === normalizePhone(user.phone);
+  const emailMatches =
+    !!order.email && !!user.email && order.email.trim().toLowerCase() === user.email.trim().toLowerCase();
+
+  return phoneMatches || emailMatches;
+}
+
 /**
  * Tạo mã đơn hàng: NERD-YYYYMMDD-XXX
  */
@@ -71,6 +90,18 @@ export async function createRegistrationOrder(data: {
   const amount = PLAN_PRICES[data.planType];
   if (!amount) return { success: false, error: 'Gói không hợp lệ' };
 
+  // Never trust a userId supplied by the browser. In particular, an admin can
+  // be logged in while filling this public form on behalf of another customer.
+  // Only link the order when its contact details belong to the signed-in user.
+  const session = await getServerSession(authOptions);
+  const signedInUser = session?.user?.id
+    ? await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { id: true, phone: true, email: true },
+      })
+    : null;
+  const linkedUserId = signedInUser && contactMatches(data, signedInUser) ? signedInUser.id : null;
+
   const orderCode = await generateOrderCode();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
@@ -88,7 +119,7 @@ export async function createRegistrationOrder(data: {
       paymentMethod: data.paymentMethod,
       orderStatus: 'PENDING_PAYMENT',
       expiresAt,
-      userId: data.userId,
+      userId: linkedUserId,
     },
   });
 
@@ -325,14 +356,29 @@ export async function confirmPayment(orderId: string, paymentRef?: string) {
  * Admin: Gán thẻ + Tạo subscriber + subscription
  */
 export async function assignCardAndCreate(orderId: string, cardNo: string, staffName: string) {
-  const order = await prisma.registrationOrder.findUnique({ where: { id: orderId } });
+  const order = await prisma.registrationOrder.findUnique({
+    where: { id: orderId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          phone: true,
+          email: true,
+          dateOfBirth: true,
+          gender: true,
+        },
+      },
+    },
+  });
   if (!order) return { success: false, error: 'Đơn không tồn tại' };
   if (order.orderStatus !== 'PAID') return { success: false, error: 'Đơn chưa thanh toán' };
+
+  const orderBelongsToUser = contactMatches(order, order.user);
 
   // Subscriber có thể đã tồn tại theo tài khoản dù số điện thoại trên đơn đã đổi.
   // Nếu chỉ tìm theo phone, lệnh create bên dưới sẽ vi phạm unique(userId).
   const [subscriberByUserId, subscriberByPhone] = await Promise.all([
-    order.userId
+    order.userId && orderBelongsToUser
       ? prisma.subscriber.findUnique({ where: { userId: order.userId } })
       : Promise.resolve(null),
     prisma.subscriber.findUnique({ where: { phone: order.phone } }),
@@ -352,7 +398,12 @@ export async function assignCardAndCreate(orderId: string, cardNo: string, staff
 
   let subscriber = subscriberByUserId || subscriberByPhone;
 
-  if (subscriber?.userId && order.userId && subscriber.userId !== order.userId) {
+  if (
+    subscriber?.userId &&
+    order.userId &&
+    orderBelongsToUser &&
+    subscriber.userId !== order.userId
+  ) {
     return {
       success: false,
       error: 'Số điện thoại này đã liên kết với tài khoản khác.',
@@ -379,7 +430,7 @@ export async function assignCardAndCreate(orderId: string, cardNo: string, staff
         cardNo,
         mytimeEmpId: empId,
         branchPrimary: order.branchPrimary,
-        userId: order.userId,
+        userId: orderBelongsToUser ? order.userId : null,
       },
     });
   } else {
@@ -389,13 +440,13 @@ export async function assignCardAndCreate(orderId: string, cardNo: string, staff
         cardNo,
         mytimeEmpId: empId,
         photoUrl: order.selfieUrl,
-        userId: order.userId,
+        ...(orderBelongsToUser && order.userId ? { userId: order.userId } : {}),
       },
     });
   }
 
   // Tạo subscription (pending_activation)
-  if (order.userId) {
+  if (order.userId && orderBelongsToUser) {
     await ensureUserWalletAccount(order.userId);
   }
 
@@ -420,10 +471,7 @@ export async function assignCardAndCreate(orderId: string, cardNo: string, staff
   });
 
   // Truy vấn thông tin bổ sung từ User (nếu có) để đồng bộ đầy đủ sang MyTime
-  const linkedUser = order.userId ? await prisma.user.findUnique({
-    where: { id: order.userId },
-    select: { dateOfBirth: true, gender: true }
-  }) : null;
+  const linkedUser = orderBelongsToUser ? order.user : null;
 
   // Gọi MyTime API tạo employee
   try {
@@ -453,6 +501,7 @@ export async function assignCardAndCreate(orderId: string, cardNo: string, staff
       assignedAt: new Date(),
       subscriberId: subscriber.id,
       subscriptionId: subscription.id,
+      userId: orderBelongsToUser ? order.userId : null,
     },
   });
 
@@ -726,7 +775,7 @@ export async function getSubscribers(filters?: {
   const [subscribers, total] = await prisma.$transaction([
     prisma.subscriber.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { updatedAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
       include: {

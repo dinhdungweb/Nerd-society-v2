@@ -111,14 +111,26 @@ export default function SubscriptionsAdminClient() {
 
   const handleAssignCard = async (orderId: string, cardNo: string) => {
     setActionLoading(true);
-    await fetch('/api/admin/subscriptions/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'assign_card', orderId, cardNo, staffName: 'admin' }),
-    });
-    setActionLoading(false);
-    fetchData();
-    setSelectedOrder(null);
+    try {
+      const res = await fetch('/api/admin/subscriptions/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'assign_card', orderId, cardNo, staffName: 'admin' }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert('Lỗi: ' + (data.error || 'Không thể gán thẻ'));
+        return;
+      }
+
+      await fetchData();
+      setSelectedOrder(null);
+    } catch (err) {
+      alert('Có lỗi xảy ra khi gán thẻ');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleCancelOrder = async (orderId: string) => {

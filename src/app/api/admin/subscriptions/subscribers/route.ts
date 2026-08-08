@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getSubscribers, deleteSubscriber, reassignSubscriberCard } from '@/actions/subscription-actions';
+import { getStaffSession } from '@/lib/authHelpers';
 
 export async function GET(request: Request) {
   try {
+    const session = await getStaffSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const url = new URL(request.url);
     const search = url.searchParams.get('search') || undefined;
     const status = url.searchParams.get('status') || undefined;
@@ -19,6 +23,9 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const session = await getStaffSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { subscriberId, newCardNo } = await request.json();
     if (!subscriberId || !newCardNo) {
       return NextResponse.json({ error: 'Thiếu thông tin bắt buộc (subscriberId, newCardNo)' }, { status: 400 });
@@ -34,6 +41,9 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const session = await getStaffSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { id } = await request.json();
     if (!id) {
       return NextResponse.json({ error: 'Thiếu ID hội viên' }, { status: 400 });
