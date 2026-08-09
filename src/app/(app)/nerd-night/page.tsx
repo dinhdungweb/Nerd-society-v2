@@ -191,7 +191,7 @@ export default async function NerdNightPage() {
         <div className="nn-wrap">
           <div className="nn-section-head nn-section-head-left">
             <div className="nn-kicker">Vé của bạn</div>
-            <h2 className="nn-section-title">120.000đ này bao gồm những gì</h2>
+            <h2 className="nn-section-title">Vé này bao gồm những gì</h2>
           </div>
           <div className="nn-perks">
             {perks.map((perk) => (
