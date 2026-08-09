@@ -23,6 +23,7 @@ interface GeneralSettings {
     siteLogo: string
     siteLogoLight: string
     siteFavicon: string
+    monthlyBeaverRegistrationOpen: boolean
     // Email toggle settings
     emailBookingConfirmation: boolean
     emailBookingPending: boolean
@@ -77,6 +78,7 @@ export default function AdminSettingsPage() {
         siteLogo: '',
         siteLogoLight: '',
         siteFavicon: '',
+        monthlyBeaverRegistrationOpen: false,
         // Email defaults - all enabled
         emailBookingConfirmation: true,
         emailBookingPending: true,
@@ -111,6 +113,7 @@ export default function AdminSettingsPage() {
             if (res.ok && Object.keys(data).length > 0) {
                 // Convert string booleans to actual booleans
                 const booleanKeys = [
+                    'monthlyBeaverRegistrationOpen',
                     'emailBookingConfirmation',
                     'emailBookingPending',
                     'emailSubscriptionPending',
@@ -211,6 +214,37 @@ export default function AdminSettingsPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+
+                {/* REGISTRATION CONTROLS */}
+                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-6 flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+                            <CursorArrowRippleIcon className="size-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Đăng ký dịch vụ</h2>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">Bật hoặc tạm dừng nhận đăng ký mới</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                        <div className="pr-4">
+                            <p className="font-medium text-neutral-900 dark:text-white">Nhận đăng ký Monthly Beaver mới</p>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                Khi tắt, khách không thấy form và server sẽ từ chối tạo đơn mới. Hội viên hiện tại vẫn sử dụng bình thường.
+                            </p>
+                        </div>
+                        <label className="relative inline-flex shrink-0 cursor-pointer items-center">
+                            <input
+                                type="checkbox"
+                                checked={settings.monthlyBeaverRegistrationOpen}
+                                onChange={(e) => handleChange('monthlyBeaverRegistrationOpen', e.target.checked)}
+                                className="peer sr-only"
+                            />
+                            <div className="peer h-6 w-11 rounded-full bg-neutral-300 after:absolute after:left-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full dark:bg-neutral-600"></div>
+                        </label>
+                    </div>
+                </div>
 
                 {/* GENERAL INFO CARD */}
                 <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">

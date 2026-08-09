@@ -15,6 +15,7 @@ import {
     IdentificationIcon,
 } from '@heroicons/react/24/outline'
 import { ensureUserWalletAccount } from '@/lib/wallet-account'
+import { isMonthlyBeaverRegistrationOpen } from '@/lib/monthly-beaver-registration'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +37,7 @@ export default async function MonthlyBeaverPage() {
     const session = await getServerSession(authOptions)
     if (!session) redirect('/login')
 
+    const registrationOpen = await isMonthlyBeaverRegistrationOpen()
     const walletRes = await ensureUserWalletAccount(session.user.id)
     const walletBalance = walletRes.success ? walletRes.wallet.balance : 0
     const walletStatus = walletRes.success ? walletRes.wallet.status : 'INACTIVE'
@@ -169,12 +171,18 @@ export default async function MonthlyBeaverPage() {
                 <p className="mt-2 max-w-sm text-neutral-500 dark:text-neutral-400">
                     Đăng ký Monthly Beaver để sử dụng không gian linh hoạt và tận hưởng nhiều ưu đãi tại Nerd.
                 </p>
-                <Link
-                    href="/monthly-beaver"
-                    className="mt-6 rounded-xl bg-primary-500 px-6 py-3 font-semibold text-white transition-all hover:bg-primary-600"
-                >
-                    Đăng ký Monthly Beaver ngay
-                </Link>
+                {registrationOpen ? (
+                    <Link
+                        href="/monthly-beaver"
+                        className="mt-6 rounded-xl bg-primary-500 px-6 py-3 font-semibold text-white transition-all hover:bg-primary-600"
+                    >
+                        Đăng ký Monthly Beaver ngay
+                    </Link>
+                ) : (
+                    <span className="mt-6 rounded-xl bg-neutral-100 px-6 py-3 font-semibold text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
+                        Tạm ngừng nhận đăng ký mới
+                    </span>
+                )}
             </div>
         )
     }

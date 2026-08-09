@@ -17,6 +17,7 @@ import {
   sendSubscriptionOrderEmail,
   sendSubscriptionPaidEmail,
 } from '@/lib/email';
+import { isMonthlyBeaverRegistrationOpen } from '@/lib/monthly-beaver-registration';
 
 // ============= REGISTRATION (Khách đăng ký online) =============
 
@@ -82,6 +83,13 @@ export async function createRegistrationOrder(data: {
   paymentMethod: string;
   userId?: string;
 }) {
+  if (!(await isMonthlyBeaverRegistrationOpen())) {
+    return {
+      success: false,
+      error: 'Monthly Beaver đang tạm ngừng nhận đăng ký mới. Vui lòng quay lại sau.',
+    };
+  }
+
   // Validate
   if (!data.fullName || !data.phone || !data.planType || !data.selfieUrl) {
     return { success: false, error: 'Thiếu thông tin bắt buộc' };

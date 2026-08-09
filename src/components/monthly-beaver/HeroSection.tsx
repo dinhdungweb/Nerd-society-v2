@@ -8,9 +8,10 @@ import Image from 'next/image'
 
 interface HeroSectionProps {
   onRegisterClick: () => void
+  registrationOpen?: boolean
 }
 
-const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick }) => {
+const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick, registrationOpen = true }) => {
   return (
     <section className="relative min-h-[85vh] overflow-hidden">
       {/* Background Image */}
@@ -90,10 +91,11 @@ const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick }) => {
               <Button
                 color="primary"
                 onClick={onRegisterClick}
+                disabled={!registrationOpen}
                 className="px-8 py-3.5 text-base"
               >
-                <ArrowRightIcon className="size-5" />
-                Đăng ký ngay
+                {registrationOpen && <ArrowRightIcon className="size-5" />}
+                {registrationOpen ? 'Đăng ký ngay' : 'Tạm ngừng nhận đăng ký'}
               </Button>
             </motion.div>
 

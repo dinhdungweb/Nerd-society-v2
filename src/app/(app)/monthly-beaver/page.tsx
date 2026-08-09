@@ -93,6 +93,7 @@ const PLANS: PlanInfo[] = [
 export default function MonthlyBeaverPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [selectedPlan, setSelectedPlan] = useState<PlanInfo | null>(null);
+  const [registrationOpen, setRegistrationOpen] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -107,6 +108,13 @@ export default function MonthlyBeaverPage() {
   };
 
   // Pre-fill form when session is available
+  useEffect(() => {
+    fetch('/api/monthly-beaver/registration-status', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => setRegistrationOpen(data.registrationOpen === true))
+      .catch(() => setRegistrationOpen(false));
+  }, []);
+
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       setFormData(prev => ({
@@ -273,7 +281,7 @@ export default function MonthlyBeaverPage() {
     return (
       <div className="bg-white">
         {/* Landing Sections */}
-        <HeroSection onRegisterClick={scrollToForm} />
+        <HeroSection onRegisterClick={scrollToForm} registrationOpen={registrationOpen} />
         <FeaturesSection />
         <ComparisonSection />
         <StepsSection />
@@ -281,6 +289,16 @@ export default function MonthlyBeaverPage() {
 
         <div ref={formRef} className="pt-24 pb-16 px-4">
         <div className="mx-auto max-w-5xl">
+          {!registrationOpen ? (
+            <div className="mx-auto max-w-2xl rounded-3xl border border-amber-200 bg-amber-50 px-6 py-10 text-center">
+              <ExclamationCircleIcon className="mx-auto h-12 w-12 text-amber-500" />
+              <h2 className="mt-4 text-2xl font-bold text-neutral-900">Tạm ngừng nhận đăng ký mới</h2>
+              <p className="mx-auto mt-3 max-w-lg text-neutral-600">
+                Monthly Beaver hiện đang tạm ngừng nhận đăng ký mới. Các hội viên hiện tại vẫn sử dụng gói và quyền lợi bình thường.
+              </p>
+            </div>
+          ) : (
+          <>
           {/* Header */}
           <div className="mb-14 text-center">
             <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary-400/30 bg-primary-100 px-5 py-2 text-sm font-medium text-primary-700">
@@ -368,6 +386,8 @@ export default function MonthlyBeaverPage() {
               Gói bắt đầu tính từ <strong className="text-neutral-900">lần đầu bạn đến quán</strong>, không phải từ lúc mua — yên tâm đăng ký trước!
             </p>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
