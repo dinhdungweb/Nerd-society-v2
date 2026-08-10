@@ -319,7 +319,6 @@ export default function NerdNightAdminDetail({
                     </td>
                     <td className="px-5 py-4">
                       <PaymentStatusBadge status={registration.paymentStatus} />
-                      <div className="mt-1 text-xs text-neutral-500">{formatCurrency(registration.paymentReceivedAmount ?? registration.amount)}</div>
                       {registration.paymentTransactionId && <div className="mt-1 max-w-40 truncate font-mono text-[10px] text-neutral-400" title={registration.paymentTransactionId}>VietQR · {registration.paymentTransactionId}</div>}
                       {registration.refundStatus === 'PENDING' && <div className="mt-1 text-xs font-semibold text-red-600">Cần hoàn tiền</div>}
                     </td>
