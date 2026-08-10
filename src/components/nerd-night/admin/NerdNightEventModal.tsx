@@ -139,8 +139,9 @@ export default function NerdNightEventModal({
             <Field label="Sức chứa">
               <input name="capacity" type="number" min="1" defaultValue={initial?.capacity ?? 15} required />
             </Field>
-            <Field label="Số suất chia sẻ">
+            <Field label="Slot dành riêng cho speaker">
               <input name="speakerCapacity" type="number" min="0" defaultValue={initial?.speakerCapacity ?? 6} required />
+              <p className="mt-1.5 text-xs font-normal text-neutral-500">Số chỗ người nghe bằng sức chứa trừ số slot này.</p>
             </Field>
             <Field label="Mô tả theme">
               <textarea name="themeDescription" defaultValue={initial?.themeDescription || ''} rows={3} />

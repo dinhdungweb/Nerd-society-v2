@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { getNerdNightTheme } from '@/lib/nerd-night/constants'
 import { buildNerdNightQrUrl, formatNerdNightDate, formatVnd } from '@/lib/nerd-night/format'
 import { prisma } from '@/lib/prisma'
+import { generateOfficialQR } from '@/lib/vietqr'
 import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -52,6 +53,25 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
         select: { name: true, phone: true },
       })
     : null
+  let currentPaymentQrUrl = currentRegistration?.paymentQrUrl || null
+  if (
+    currentRegistration &&
+    currentRegistration.status === 'ACTIVE' &&
+    currentRegistration.paymentStatus !== 'CONFIRMED' &&
+    !currentPaymentQrUrl
+  ) {
+    currentPaymentQrUrl = await generateOfficialQR({
+      amount: currentRegistration.amount,
+      description: currentRegistration.transferContent,
+      bankCode: currentRegistration.paymentBankCode,
+      accountNumber: currentRegistration.paymentAccountNumber,
+      accountName: currentRegistration.paymentAccountName,
+    })
+    await prisma.nerdNightRegistration.update({
+      where: { id: currentRegistration.id },
+      data: { paymentQrUrl: currentPaymentQrUrl },
+    })
+  }
   const ownReview = session?.user?.id
     ? event.reviews.find((review) => review.userId === session.user.id) || null
     : null
@@ -84,6 +104,9 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
         registration.paymentExpiresAt > now) &&
       ['PENDING', 'APPROVED'].includes(registration.speakerStatus),
   ).length
+  const heldListenerSlots = holdingRegistrations.length - heldSpeakerSlots
+  const listenerCapacity = event.capacity - event.speakerCapacity
+  const totalRemaining = Math.max(0, event.capacity - holdingRegistrations.length)
   const theme = getNerdNightTheme(event.themeCode)
   const isExpired = Boolean(
     currentRegistration?.paymentStatus === 'UNPAID' &&
@@ -136,9 +159,11 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
             registrationOpen: event.registrationOpen,
             speakerRegistrationOpen: event.speakerRegistrationOpen,
             votingStatus: event.votingStatus,
-            remaining: Math.max(0, event.capacity - holdingRegistrations.length),
             capacity: event.capacity,
-            speakerRemaining: Math.max(0, event.speakerCapacity - heldSpeakerSlots),
+            listenerCapacity,
+            listenerRemaining: Math.min(totalRemaining, Math.max(0, listenerCapacity - heldListenerSlots)),
+            speakerCapacity: event.speakerCapacity,
+            speakerRemaining: Math.min(totalRemaining, Math.max(0, event.speakerCapacity - heldSpeakerSlots)),
             topicSuggestions: event.topicSuggestions,
           }}
           isLoggedIn={Boolean(session)}
@@ -153,7 +178,7 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
             transferContent: currentRegistration.transferContent,
             paymentExpiresAt: currentRegistration.paymentExpiresAt?.toISOString() || null,
             isExpired,
-            qrUrl: buildNerdNightQrUrl({
+            qrUrl: currentPaymentQrUrl || buildNerdNightQrUrl({
               bankCode: currentRegistration.paymentBankCode,
               accountNumber: currentRegistration.paymentAccountNumber,
               accountName: currentRegistration.paymentAccountName,

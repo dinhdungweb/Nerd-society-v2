@@ -8,7 +8,7 @@ import {
 } from '@/actions/nerd-night'
 import { NERD_NIGHT_INTERESTS } from '@/lib/nerd-night/constants'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import toast from 'react-hot-toast'
 import { NerdNightMedal } from './NerdNightArtwork'
 
@@ -46,8 +46,10 @@ export interface NerdNightEventClientProps {
     registrationOpen: boolean
     speakerRegistrationOpen: boolean
     votingStatus: string
-    remaining: number
     capacity: number
+    listenerCapacity: number
+    listenerRemaining: number
+    speakerCapacity: number
     speakerRemaining: number
     topicSuggestions: string[]
   }
@@ -77,12 +79,29 @@ export default function NerdNightEventClient({
     event.status === 'COMPLETED' ? 'feedback' : 'register',
   )
   const [pending, startTransition] = useTransition()
-  const [wantsToShare, setWantsToShare] = useState(false)
+  const [wantsToShare, setWantsToShare] = useState(
+    event.listenerRemaining <= 0 && event.speakerRegistrationOpen && event.speakerRemaining > 0,
+  )
   const [hasSlides, setHasSlides] = useState(false)
   const [interests, setInterests] = useState<string[]>([])
   const [rating, setRating] = useState(ownReview?.rating || 0)
   const [message, setMessage] = useState('')
   const activeRegistration = registration && registration.status === 'ACTIVE' && !registration.isExpired
+
+  useEffect(() => {
+    if (!activeRegistration || registration.paymentStatus === 'CONFIRMED') return
+
+    const interval = window.setInterval(() => router.refresh(), 5000)
+    return () => window.clearInterval(interval)
+  }, [activeRegistration, registration?.paymentStatus, router])
+
+  useEffect(() => {
+    if (!wantsToShare && event.listenerRemaining <= 0 && event.speakerRegistrationOpen && event.speakerRemaining > 0) {
+      setWantsToShare(true)
+    } else if (wantsToShare && (!event.speakerRegistrationOpen || event.speakerRemaining <= 0) && event.listenerRemaining > 0) {
+      setWantsToShare(false)
+    }
+  }, [event.listenerRemaining, event.speakerRegistrationOpen, event.speakerRemaining, wantsToShare])
 
   const canReview =
     event.status === 'COMPLETED' &&
@@ -136,7 +155,7 @@ export default function NerdNightEventClient({
     startTransition(async () => {
       const result = await reportNerdNightPayment(registration.id)
       if (!result.success) return setMessage(result.error)
-      toast.success('Đã báo chuyển khoản. Nerd Society sẽ kiểm tra và xác nhận vé.')
+      toast.success('Đã báo chuyển khoản. Hệ thống đang tự động đối soát giao dịch.')
       router.refresh()
     })
   }
@@ -192,12 +211,13 @@ export default function NerdNightEventClient({
             <RegistrationStatus registration={registration!} pending={pending} onReportPayment={handleReportPayment} />
           ) : !event.registrationOpen || event.status !== 'PUBLISHED' ? (
             <p className="nn-empty">Đêm này hiện không mở đăng ký.</p>
-          ) : event.remaining <= 0 ? (
+          ) : event.listenerRemaining <= 0 && (!event.speakerRegistrationOpen || event.speakerRemaining <= 0) ? (
             <p className="nn-empty">Đêm này đã đủ {event.capacity} người rồi — hẹn bạn ở đêm sau nhé!</p>
           ) : (
             <form action={handleRegister}>
               <p className="nn-muted" style={{ textAlign: 'center', marginBottom: 18 }}>
-                Còn {event.remaining}/{event.capacity} chỗ cho đêm này.
+                Còn {event.listenerRemaining}/{event.listenerCapacity} chỗ người nghe
+                {event.speakerRegistrationOpen && ` · ${event.speakerRemaining}/${event.speakerCapacity} suất speaker`}.
               </p>
               {registration?.isExpired && <p className="nn-message error">Lần giữ chỗ trước đã hết hạn. Bạn có thể đăng ký lại bên dưới.</p>}
               <div className="nn-field">
@@ -212,7 +232,7 @@ export default function NerdNightEventClient({
                 <label>Bạn có muốn lên chia sẻ 5–10 phút không?</label>
                 <div className="nn-toggle-row">
                   <button type="button" className={`nn-toggle ${wantsToShare ? 'selected' : ''}`} onClick={() => setWantsToShare(true)} disabled={!event.speakerRegistrationOpen || event.speakerRemaining <= 0}>Có, mình muốn chia sẻ</button>
-                  <button type="button" className={`nn-toggle ${!wantsToShare ? 'selected' : ''}`} onClick={() => setWantsToShare(false)}>Không, mình đến nghe thôi</button>
+                  <button type="button" className={`nn-toggle ${!wantsToShare ? 'selected' : ''}`} onClick={() => setWantsToShare(false)} disabled={event.listenerRemaining <= 0}>Không, mình đến nghe thôi</button>
                 </div>
                 {event.speakerRegistrationOpen && <p className="nn-muted" style={{ marginTop: 6 }}>Còn {event.speakerRemaining} suất chia sẻ.</p>}
               </div>
@@ -309,8 +329,8 @@ function RegistrationStatus({ registration, pending, onReportPayment }: { regist
         <img src={registration.qrUrl} alt="VietQR Nerd Night" />
         <div className="nn-qr-amount">{registration.amount.toLocaleString('vi-VN')}đ</div>
         <div className="nn-code">{registration.transferContent}</div>
-        <p className="nn-muted" style={{ marginBottom: 16 }}>Giữ nguyên nội dung chuyển khoản để Nerd Society đối soát nhanh hơn. Chỗ được giữ trong 30 phút.</p>
-        <button className="nn-button nn-button-primary nn-button-block" onClick={onReportPayment} disabled={pending}>{pending ? 'Đang gửi...' : 'Mình đã chuyển khoản'}</button>
+        <p className="nn-muted" style={{ marginBottom: 16 }}>Giữ nguyên nội dung chuyển khoản để hệ thống tự động xác nhận vé. Chỗ được giữ trong 30 phút.</p>
+        <button className="nn-button nn-button-primary nn-button-block" onClick={onReportPayment} disabled={pending}>{pending ? 'Đang gửi...' : 'Đã chuyển nhưng vé chưa cập nhật'}</button>
       </div>
     )
   }
@@ -319,7 +339,7 @@ function RegistrationStatus({ registration, pending, onReportPayment }: { regist
     <div className="nn-status">
       <NerdNightMedal prof={registration.paymentStatus === 'CONFIRMED'} size={72} />
       <p className="nn-badge-name">{registration.paymentStatus === 'CONFIRMED' ? 'Vé đã xác nhận!' : 'Đang chờ xác nhận'}</p>
-      <p className="nn-muted">{registration.paymentStatus === 'CONFIRMED' ? 'Hẹn gặp bạn ở Nerd Night. Bạn có thể xem vé trong trang tài khoản.' : 'Nerd Society sẽ kiểm tra chuyển khoản và xác nhận vé trong thời gian sớm nhất.'}</p>
+      <p className="nn-muted">{registration.paymentStatus === 'CONFIRMED' ? 'Hẹn gặp bạn ở Nerd Night. Bạn có thể xem vé trong trang tài khoản.' : 'Hệ thống đang tự động đối soát. Nếu giao dịch chưa cập nhật, Nerd Society sẽ kiểm tra thủ công.'}</p>
       {registration.speakerStatus === 'PENDING' && <p className="nn-message ok" style={{ textAlign: 'center' }}>Chủ đề chia sẻ của bạn đang chờ staff duyệt.</p>}
       {registration.speakerStatus === 'APPROVED' && <p className="nn-message ok" style={{ textAlign: 'center' }}>Chủ đề chia sẻ đã được duyệt.</p>}
     </div>

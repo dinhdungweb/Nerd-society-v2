@@ -91,10 +91,16 @@ export async function getVietQRToken(): Promise<string> {
 export async function generateOfficialQR(params: {
     amount: number
     description: string
+    bankCode?: string
+    accountNumber?: string
+    accountName?: string
 }): Promise<string> {
     try {
         const token = await getVietQRToken();
         const { amount, description } = params;
+        const bankCode = params.bankCode || config.bankCode;
+        const accountNumber = params.accountNumber || config.accountNumber;
+        const accountName = params.accountName || config.accountName;
 
         const sanitizedDesc = description
             .replace(/[^a-zA-Z0-9\s]/g, '')
@@ -103,12 +109,12 @@ export async function generateOfficialQR(params: {
 
         const orderId = sanitizedDesc.replace(/\s/g, '').substring(0, 13);
 
-        const officialBankCode = BANK_CODES[config.bankCode as keyof typeof BANK_CODES] || config.bankCode;
+        const officialBankCode = BANK_CODES[bankCode as keyof typeof BANK_CODES] || bankCode;
 
         const payload = {
             bankCode: officialBankCode,
-            bankAccount: config.accountNumber,
-            userBankName: config.accountName,
+            bankAccount: accountNumber,
+            userBankName: accountName,
             content: sanitizedDesc,
             qrType: 0,
             amount: amount,
@@ -160,8 +166,11 @@ export async function generateOfficialQR(params: {
     } catch (error) {
         console.error('[VietQR Generate Error] Exception:', error);
         // Fallback to image service direct link if registration fails (but webhook might not work)
-        const officialBankCode = BANK_CODES[config.bankCode as keyof typeof BANK_CODES] || config.bankCode;
-        return `https://img.vietqr.io/image/${officialBankCode}-${config.accountNumber}-${config.template}.png?amount=${params.amount}&addInfo=${params.description}&accountName=${encodeURIComponent(config.accountName)}`;
+        const bankCode = params.bankCode || config.bankCode;
+        const accountNumber = params.accountNumber || config.accountNumber;
+        const accountName = params.accountName || config.accountName;
+        const officialBankCode = BANK_CODES[bankCode as keyof typeof BANK_CODES] || bankCode;
+        return `https://img.vietqr.io/image/${officialBankCode}-${accountNumber}-${config.template}.png?amount=${params.amount}&addInfo=${params.description}&accountName=${encodeURIComponent(accountName)}`;
     }
 }
 

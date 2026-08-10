@@ -7,6 +7,7 @@ import {
   formatNerdNightEpisode,
 } from '@/lib/nerd-night/constants'
 import { prisma } from '@/lib/prisma'
+import { generateOfficialQR, getVietQRConfig } from '@/lib/vietqr'
 import { Prisma } from '@prisma/client'
 import { addMinutes } from 'date-fns'
 import { getServerSession } from 'next-auth'
@@ -68,16 +69,10 @@ async function withSerializableRetry<T>(callback: (tx: Prisma.TransactionClient)
   throw lastError
 }
 
-async function getPaymentConfig(tx: Prisma.TransactionClient) {
-  const stored = await tx.nerdNightPaymentConfig.findUnique({ where: { id: 'default' } })
-  if (stored) return stored
-
-  const bankCode = process.env.VIETQR_BANK_CODE
-  const accountNumber = process.env.VIETQR_ACCOUNT_NUMBER
-  const accountName = process.env.VIETQR_ACCOUNT_NAME
-
-  if (!bankCode || !accountNumber || !accountName) return null
-  return { bankCode, accountNumber, accountName }
+function getPaymentConfig() {
+  const config = getVietQRConfig()
+  if (!config.bankCode || !config.accountNumber || !config.accountName) return null
+  return config
 }
 
 function makeRegistrationIdentity(season: number, episode: number) {
@@ -127,29 +122,43 @@ export async function registerForNerdNight(
       if (!event || event.status !== 'PUBLISHED') throw new Error('EVENT_NOT_AVAILABLE')
       if (!event.registrationOpen || event.startsAt <= now) throw new Error('REGISTRATION_CLOSED')
 
-      const activeCount = await tx.nerdNightRegistration.count({
-        where: { eventId: event.id, status: 'ACTIVE' },
-      })
-      if (activeCount >= event.capacity) throw new Error('EVENT_FULL')
-
       const existing = await tx.nerdNightRegistration.findUnique({
         where: { eventId_userId: { eventId: event.id, userId: session.user.id } },
       })
       if (existing?.status === 'ACTIVE') throw new Error('ALREADY_REGISTERED')
 
-      let speakerAccepted = false
-      if (parsed.data.wantsToShare && event.speakerRegistrationOpen) {
-        const speakerCount = await tx.nerdNightRegistration.count({
+      const [activeCount, speakerCount, listenerCount] = await Promise.all([
+        tx.nerdNightRegistration.count({
+          where: { eventId: event.id, status: 'ACTIVE' },
+        }),
+        tx.nerdNightRegistration.count({
           where: {
             eventId: event.id,
             status: 'ACTIVE',
             speakerStatus: { in: ['PENDING', 'APPROVED'] },
           },
-        })
-        speakerAccepted = speakerCount < event.speakerCapacity
+        }),
+        tx.nerdNightRegistration.count({
+          where: {
+            eventId: event.id,
+            status: 'ACTIVE',
+            speakerStatus: { notIn: ['PENDING', 'APPROVED'] },
+          },
+        }),
+      ])
+
+      if (activeCount >= event.capacity) throw new Error('EVENT_FULL')
+
+      const listenerCapacity = event.capacity - event.speakerCapacity
+      const speakerAccepted = parsed.data.wantsToShare
+      if (speakerAccepted) {
+        if (!event.speakerRegistrationOpen) throw new Error('SPEAKER_REGISTRATION_CLOSED')
+        if (speakerCount >= event.speakerCapacity) throw new Error('SPEAKER_FULL')
+      } else if (listenerCount >= listenerCapacity) {
+        throw new Error('LISTENER_FULL')
       }
 
-      const config = await getPaymentConfig(tx)
+      const config = getPaymentConfig()
       if (!config) throw new Error('PAYMENT_NOT_CONFIGURED')
 
       const paymentExpiresAt = addMinutes(now, NERD_NIGHT_PAYMENT_HOLD_MINUTES)
@@ -176,6 +185,7 @@ export async function registerForNerdNight(
         paymentBankCode: config.bankCode,
         paymentAccountNumber: config.accountNumber,
         paymentAccountName: config.accountName,
+        paymentQrUrl: null,
         paymentStatus: 'UNPAID' as const,
         paymentReportedAt: null,
         paymentConfirmedAt: null,
@@ -200,6 +210,22 @@ export async function registerForNerdNight(
       return { registration, speakerAccepted, eventSlug: event.slug }
     })
 
+    try {
+      const paymentQrUrl = await generateOfficialQR({
+        amount: result.registration.amount,
+        description: result.registration.transferContent,
+        bankCode: result.registration.paymentBankCode,
+        accountNumber: result.registration.paymentAccountNumber,
+        accountName: result.registration.paymentAccountName,
+      })
+      await prisma.nerdNightRegistration.update({
+        where: { id: result.registration.id },
+        data: { paymentQrUrl },
+      })
+    } catch (error) {
+      console.error('[NerdNight] Could not save official VietQR:', error)
+    }
+
     revalidatePath('/nerd-night')
     revalidatePath(`/nerd-night/${result.eventSlug}`)
     revalidatePath('/profile/nerd-night')
@@ -211,10 +237,7 @@ export async function registerForNerdNight(
         speakerAccepted: result.speakerAccepted,
         paymentExpiresAt: result.registration.paymentExpiresAt!.toISOString(),
       },
-      message:
-        parsed.data.wantsToShare && !result.speakerAccepted
-          ? 'Suất chia sẻ vừa hết; bạn vẫn được giữ chỗ với vai trò người nghe.'
-          : undefined,
+      message: undefined,
     }
   } catch (error) {
     const code = error instanceof Error ? error.message : ''
@@ -222,6 +245,9 @@ export async function registerForNerdNight(
       EVENT_NOT_AVAILABLE: 'Không tìm thấy đêm Nerd Night này',
       REGISTRATION_CLOSED: 'Đêm này đã đóng đăng ký',
       EVENT_FULL: 'Rất tiếc, đêm này vừa đủ người',
+      LISTENER_FULL: 'Suất người nghe đã đủ. Bạn chỉ có thể đăng ký nếu còn suất speaker.',
+      SPEAKER_FULL: 'Suất speaker vừa đủ. Vui lòng chọn đăng ký với vai trò người nghe nếu còn chỗ.',
+      SPEAKER_REGISTRATION_CLOSED: 'Đêm này hiện không mở đăng ký speaker',
       ALREADY_REGISTERED: 'Bạn đã đăng ký đêm này rồi',
       PAYMENT_NOT_CONFIGURED: 'Nerd Night chưa cấu hình tài khoản nhận thanh toán',
     }

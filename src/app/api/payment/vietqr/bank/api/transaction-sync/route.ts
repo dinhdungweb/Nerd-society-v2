@@ -1,9 +1,11 @@
 import { sendBookingEmail } from '@/lib/email'
+import { extractNerdNightPaymentIdentity, normalizeBankAccount } from '@/lib/nerd-night/payment-matching'
 import { prisma } from '@/lib/prisma'
 import { ensureUserWalletAccount } from '@/lib/wallet-account'
 import { applyWalletTransaction, processVietQRWalletTopup, recordBankTransaction } from '@/lib/wallet-ledger'
 import { WalletTransactionSource } from '@prisma/client'
 import jwt from 'jsonwebtoken'
+import { revalidatePath } from 'next/cache'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
@@ -170,8 +172,12 @@ export async function POST(request: NextRequest) {
             where: { externalTransactionId: transactionid },
             select: { id: true },
         })
+        const existedNerdNightPayment = await prisma.nerdNightRegistration.findUnique({
+            where: { paymentTransactionId: transactionid },
+            select: { id: true },
+        })
 
-        if (existedPayment || existedWalletTransaction) {
+        if (existedPayment || existedWalletTransaction || existedNerdNightPayment) {
             await recordBankTransaction({
                 externalTransactionId: transactionid,
                 bankAccount: bankaccount,
@@ -220,8 +226,9 @@ export async function POST(request: NextRequest) {
             return jsonOk('Ignored non-credit transaction', transactionid)
         }
 
+        const nerdNightIdentity = extractNerdNightPaymentIdentity(contentStr)
         const commonMatch = contentStr.match(/(NERD|MB|NP)[- ]?(\d{8})[- ]?(\d{3})/i)
-        if (!commonMatch) {
+        if (!nerdNightIdentity && !commonMatch) {
             await prisma.bankTransaction.update({
                 where: { id: bankTransaction.id },
                 data: { status: 'ERROR', note: 'No valid code found in transfer content' },
@@ -229,6 +236,129 @@ export async function POST(request: NextRequest) {
             return jsonOk('No valid code found in transfer content', transactionid)
         }
 
+        if (nerdNightIdentity) {
+            const registration = await prisma.nerdNightRegistration.findFirst({
+                where: {
+                    OR: [
+                        { registrationCode: nerdNightIdentity.registrationCode },
+                        { transferContent: nerdNightIdentity.transferContent },
+                    ],
+                },
+                include: { event: { select: { id: true, slug: true } } },
+            })
+
+            if (!registration) {
+                await prisma.bankTransaction.update({
+                    where: { id: bankTransaction.id },
+                    data: {
+                        status: 'ERROR',
+                        note: `No Nerd Night registration found for ${nerdNightIdentity.registrationCode}`,
+                    },
+                })
+                return jsonOk('No matching Nerd Night registration found', transactionid)
+            }
+
+            const receivedAmount = Math.round(transactionAmount)
+            if (receivedAmount !== registration.amount) {
+                await prisma.bankTransaction.update({
+                    where: { id: bankTransaction.id },
+                    data: {
+                        status: 'ERROR',
+                        note: `Nerd Night amount mismatch: expected ${registration.amount}, received ${receivedAmount}`,
+                    },
+                })
+                return jsonOk('Nerd Night payment amount mismatch; manual reconciliation required', transactionid)
+            }
+
+            const receivedAccount = normalizeBankAccount(bankaccount)
+            const expectedAccount = normalizeBankAccount(registration.paymentAccountNumber)
+            if (receivedAccount && receivedAccount !== expectedAccount) {
+                await prisma.bankTransaction.update({
+                    where: { id: bankTransaction.id },
+                    data: {
+                        status: 'ERROR',
+                        note: `Nerd Night bank account mismatch for ${registration.registrationCode}`,
+                    },
+                })
+                return jsonOk('Nerd Night bank account mismatch; manual reconciliation required', transactionid)
+            }
+
+            const paidAfterExpiry = Boolean(
+                registration.paymentStatus === 'UNPAID' &&
+                registration.paymentExpiresAt &&
+                finalPaidAt > registration.paymentExpiresAt
+            )
+            if (registration.status !== 'ACTIVE' || paidAfterExpiry) {
+                await prisma.$transaction([
+                    prisma.nerdNightRegistration.update({
+                        where: { id: registration.id },
+                        data: {
+                            status: registration.status === 'ACTIVE' ? 'EXPIRED' : registration.status,
+                            refundStatus: 'PENDING',
+                            paymentReceivedAmount: receivedAmount,
+                        },
+                    }),
+                    prisma.bankTransaction.update({
+                        where: { id: bankTransaction.id },
+                        data: {
+                            status: 'ERROR',
+                            note: `Nerd Night payment received for inactive or expired registration ${registration.registrationCode}; refund required`,
+                        },
+                    }),
+                ])
+                return jsonOk('Nerd Night registration expired or inactive; refund required', transactionid)
+            }
+
+            if (registration.paymentStatus === 'CONFIRMED') {
+                await prisma.$transaction([
+                    prisma.nerdNightRegistration.update({
+                        where: { id: registration.id },
+                        data: { refundStatus: 'PENDING' },
+                    }),
+                    prisma.bankTransaction.update({
+                        where: { id: bankTransaction.id },
+                        data: {
+                            status: 'ERROR',
+                            note: `Additional Nerd Night payment for already confirmed registration ${registration.registrationCode}; refund required`,
+                        },
+                    }),
+                ])
+                return jsonOk('Nerd Night registration was already paid; refund required', transactionid)
+            }
+
+            await prisma.$transaction([
+                prisma.nerdNightRegistration.update({
+                    where: { id: registration.id },
+                    data: {
+                        paymentStatus: 'CONFIRMED',
+                        paymentReportedAt: registration.paymentReportedAt || finalPaidAt,
+                        paymentConfirmedAt: finalPaidAt,
+                        paymentConfirmedById: null,
+                        paymentTransactionId: transactionid,
+                        paymentReceivedAmount: receivedAmount,
+                        paymentExpiresAt: null,
+                    },
+                }),
+                prisma.bankTransaction.update({
+                    where: { id: bankTransaction.id },
+                    data: {
+                        status: 'MATCHED',
+                        note: `Matched Nerd Night registration ${registration.registrationCode}`,
+                    },
+                }),
+            ])
+
+            revalidatePath(`/nerd-night/${registration.event.slug}`)
+            revalidatePath('/profile/nerd-night')
+            revalidatePath('/admin/nerd-night')
+            revalidatePath(`/admin/nerd-night/${registration.event.id}`)
+
+            return jsonOk('Nerd Night payment processed successfully', transactionid)
+        }
+
+        if (!commonMatch) {
+            return jsonOk('No valid standard payment code found', transactionid)
+        }
         const prefix = commonMatch[1].toUpperCase()
         const extractedCode = `${prefix}-${commonMatch[2]}-${commonMatch[3]}`
 

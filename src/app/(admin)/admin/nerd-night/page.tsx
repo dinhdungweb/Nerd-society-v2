@@ -23,7 +23,6 @@ export default async function NerdNightAdminPage() {
   return (
     <NerdNightAdminDashboard
       canManage={manageAccess.hasAccess}
-      isAdmin={session.user.role === 'ADMIN'}
       locations={locations}
       events={events.map((event) => ({
         id: event.id,

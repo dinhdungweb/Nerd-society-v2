@@ -4,8 +4,7 @@ import { audit } from '@/lib/audit'
 import { checkApiPermission } from '@/lib/apiPermissions'
 import { isNerdNightThemeCode, NERD_NIGHT_THEMES } from '@/lib/nerd-night/constants'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { isVietQRConfigured } from '@/lib/vietqr'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -26,12 +25,6 @@ const eventSchema = z.object({
   registrationOpen: z.boolean(),
   speakerRegistrationOpen: z.boolean(),
   notes: z.string().trim().max(3000).optional(),
-})
-
-const configSchema = z.object({
-  bankCode: z.string().trim().min(2).max(20),
-  accountNumber: z.string().trim().min(4).max(30),
-  accountName: z.string().trim().min(2).max(120),
 })
 
 type AdminResult<T = undefined> =
@@ -143,12 +136,8 @@ export async function setNerdNightEventStatus(
   if (!event) return { success: false, error: 'Không tìm thấy sự kiện' }
 
   if (status === 'PUBLISHED') {
-    const config = await prisma.nerdNightPaymentConfig.findUnique({ where: { id: 'default' } })
-    const hasEnvConfig = Boolean(
-      process.env.VIETQR_BANK_CODE && process.env.VIETQR_ACCOUNT_NUMBER && process.env.VIETQR_ACCOUNT_NAME,
-    )
-    if (!config && !hasEnvConfig) {
-      return { success: false, error: 'Hãy cấu hình tài khoản VietQR trước khi công khai sự kiện' }
+    if (!isVietQRConfigured()) {
+      return { success: false, error: 'VietQR dùng chung của hệ thống chưa được cấu hình trên server' }
     }
   }
 
@@ -183,6 +172,104 @@ export async function setNerdNightVotingStatus(
     votingStatus,
   })
   revalidateNerdNight(event.slug)
+  return { success: true }
+}
+
+export async function resetNerdNightVotes(eventId: string): Promise<AdminResult<{ count: number }>> {
+  const session = await requirePermission('canManageNerdNight')
+  if (!session) return { success: false, error: 'Bạn không có quyền quản lý vote Nerd Night' }
+
+  const event = await prisma.nerdNightEvent.findUnique({
+    where: { id: eventId },
+    select: { id: true, slug: true, title: true, _count: { select: { votes: true } } },
+  })
+  if (!event) return { success: false, error: 'Không tìm thấy đêm Nerd Night' }
+  if (event._count.votes === 0) return { success: true, data: { count: 0 } }
+
+  const result = await prisma.nerdNightVote.deleteMany({ where: { eventId: event.id } })
+  await audit.delete(session.user.id, session.user.name || session.user.email || 'Staff', 'nerd-night-votes', event.id, {
+    eventTitle: event.title,
+    removedVotes: result.count,
+  })
+  revalidateNerdNight(event.slug)
+  revalidatePath(`/admin/nerd-night/${event.id}`)
+  return { success: true, data: { count: result.count } }
+}
+
+export async function deleteNerdNightEvent(eventId: string): Promise<AdminResult> {
+  const session = await requirePermission('canManageNerdNight')
+  if (!session) return { success: false, error: 'Bạn không có quyền xóa đêm Nerd Night' }
+
+  const event = await prisma.nerdNightEvent.findUnique({
+    where: { id: eventId },
+    include: {
+      registrations: {
+        select: { paymentStatus: true, refundStatus: true, paymentTransactionId: true },
+      },
+    },
+  })
+  if (!event) return { success: false, error: 'Không tìm thấy đêm Nerd Night' }
+
+  const hasFinancialRecords = event.registrations.some(
+    (registration) =>
+      registration.paymentStatus !== 'UNPAID' ||
+      registration.refundStatus === 'PENDING' ||
+      Boolean(registration.paymentTransactionId),
+  )
+  if (hasFinancialRecords) {
+    return {
+      success: false,
+      error: 'Không thể xóa đêm đã có giao dịch. Hãy hủy sự kiện và xử lý hoàn tiền để giữ lịch sử đối soát.',
+    }
+  }
+
+  await prisma.nerdNightEvent.delete({ where: { id: event.id } })
+  await audit.delete(session.user.id, session.user.name || session.user.email || 'Staff', 'nerd-night-event', event.id, {
+    title: event.title,
+    season: event.season,
+    episode: event.episode,
+    removedRegistrations: event.registrations.length,
+  })
+  revalidateNerdNight(event.slug)
+  return { success: true }
+}
+
+export async function deleteNerdNightRegistration(registrationId: string): Promise<AdminResult> {
+  const session = await requirePermission('canManageNerdNight')
+  if (!session) return { success: false, error: 'Bạn không có quyền xóa slot Nerd Night' }
+
+  const registration = await prisma.nerdNightRegistration.findUnique({
+    where: { id: registrationId },
+    include: { event: { select: { id: true, slug: true, title: true } } },
+  })
+  if (!registration) return { success: false, error: 'Không tìm thấy slot đăng ký' }
+
+  if (
+    registration.paymentStatus !== 'UNPAID' ||
+    registration.refundStatus === 'PENDING' ||
+    registration.paymentTransactionId
+  ) {
+    return {
+      success: false,
+      error: 'Slot đã phát sinh giao dịch nên không thể xóa. Hãy xử lý thanh toán hoặc hoàn tiền trước.',
+    }
+  }
+
+  await prisma.nerdNightRegistration.delete({ where: { id: registration.id } })
+  await audit.delete(
+    session.user.id,
+    session.user.name || session.user.email || 'Staff',
+    'nerd-night-registration',
+    registration.id,
+    {
+      eventId: registration.event.id,
+      eventTitle: registration.event.title,
+      registrationCode: registration.registrationCode,
+      attendeeName: registration.attendeeName,
+    },
+  )
+  revalidateNerdNight(registration.event.slug)
+  revalidatePath(`/admin/nerd-night/${registration.event.id}`)
   return { success: true }
 }
 
@@ -272,30 +359,5 @@ export async function completeNerdNightRefund(registrationId: string): Promise<A
     status: 'COMPLETED',
   })
   revalidateNerdNight(registration.event.slug)
-  return { success: true }
-}
-
-export async function saveNerdNightPaymentConfig(
-  rawInput: z.input<typeof configSchema>,
-): Promise<AdminResult> {
-  const session = await getServerSession(authOptions)
-  if (!session || session.user.role !== 'ADMIN') {
-    return { success: false, error: 'Chỉ Admin được thay đổi tài khoản nhận tiền' }
-  }
-
-  const parsed = configSchema.safeParse(rawInput)
-  if (!parsed.success) return { success: false, error: 'Thông tin tài khoản chưa hợp lệ' }
-
-  await prisma.nerdNightPaymentConfig.upsert({
-    where: { id: 'default' },
-    update: { ...parsed.data, updatedById: session.user.id },
-    create: { id: 'default', ...parsed.data, updatedById: session.user.id },
-  })
-  await audit.update(session.user.id, session.user.name || session.user.email || 'Admin', 'nerd-night-payment-config', 'default', {
-    bankCode: parsed.data.bankCode,
-    accountNumber: parsed.data.accountNumber,
-    accountName: parsed.data.accountName,
-  })
-  revalidatePath('/admin/nerd-night/settings')
   return { success: true }
 }

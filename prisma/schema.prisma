@@ -160,40 +160,43 @@ model NerdNightEvent {
 }
 
 model NerdNightRegistration {
-  id                   String                      @id @default(cuid())
-  registrationCode     String                      @unique
-  eventId              String
-  userId               String
-  attendeeName         String
-  attendeePhone        String
-  status               NerdNightRegistrationStatus @default(ACTIVE)
-  wantsToShare         Boolean                     @default(false)
-  topicTitle           String?
-  topicBackup1         String?
-  topicBackup2         String?
-  topicDescription     String?
-  hasSlides            Boolean                     @default(false)
-  interests            String[]
-  speakerStatus        NerdNightSpeakerStatus      @default(NONE)
-  amount               Int
-  transferContent      String                      @unique
-  paymentBankCode      String
-  paymentAccountNumber String
-  paymentAccountName   String
-  paymentStatus        NerdNightPaymentStatus      @default(UNPAID)
-  paymentReportedAt    DateTime?
-  paymentConfirmedAt   DateTime?
-  paymentConfirmedById String?
-  paymentExpiresAt     DateTime?
-  cancelledAt          DateTime?
-  cancellationReason   String?
-  refundStatus         NerdNightRefundStatus       @default(NOT_REQUIRED)
-  createdAt            DateTime                    @default(now())
-  updatedAt            DateTime                    @updatedAt
-  event                NerdNightEvent              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user                 User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  paymentConfirmedBy   User?                       @relation("NerdNightPaymentConfirmer", fields: [paymentConfirmedById], references: [id], onDelete: SetNull)
-  votesReceived        NerdNightVote[]             @relation("NerdNightSpeakerVotes")
+  id                    String                      @id @default(cuid())
+  registrationCode      String                      @unique
+  eventId               String
+  userId                String
+  attendeeName          String
+  attendeePhone         String
+  status                NerdNightRegistrationStatus @default(ACTIVE)
+  wantsToShare          Boolean                     @default(false)
+  topicTitle            String?
+  topicBackup1          String?
+  topicBackup2          String?
+  topicDescription      String?
+  hasSlides             Boolean                     @default(false)
+  interests             String[]
+  speakerStatus         NerdNightSpeakerStatus      @default(NONE)
+  amount                Int
+  transferContent       String                      @unique
+  paymentBankCode       String
+  paymentAccountNumber  String
+  paymentAccountName    String
+  paymentQrUrl          String?
+  paymentStatus         NerdNightPaymentStatus      @default(UNPAID)
+  paymentReportedAt     DateTime?
+  paymentConfirmedAt    DateTime?
+  paymentConfirmedById  String?
+  paymentTransactionId  String?                     @unique
+  paymentReceivedAmount Int?
+  paymentExpiresAt      DateTime?
+  cancelledAt           DateTime?
+  cancellationReason    String?
+  refundStatus          NerdNightRefundStatus       @default(NOT_REQUIRED)
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  event                 NerdNightEvent              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                  User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentConfirmedBy    User?                       @relation("NerdNightPaymentConfirmer", fields: [paymentConfirmedById], references: [id], onDelete: SetNull)
+  votesReceived         NerdNightVote[]             @relation("NerdNightSpeakerVotes")
 
   @@unique([eventId, userId])
   @@index([eventId, status])

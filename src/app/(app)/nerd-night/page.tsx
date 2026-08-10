@@ -38,7 +38,7 @@ async function getEvents() {
     where: { status: { in: ['PUBLISHED', 'COMPLETED'] } },
     include: {
       registrations: {
-        select: { status: true, paymentStatus: true, paymentExpiresAt: true },
+        select: { status: true, paymentStatus: true, paymentExpiresAt: true, speakerStatus: true },
       },
       reviews: { where: { isVisible: true }, select: { rating: true } },
     },
@@ -46,11 +46,18 @@ async function getEvents() {
   })
 
   return events.map((event) => {
-    const taken = event.registrations.filter(holdsSeat).length
+    const holdingRegistrations = event.registrations.filter(holdsSeat)
+    const taken = holdingRegistrations.length
+    const speakerTaken = holdingRegistrations.filter((item) => ['PENDING', 'APPROVED'].includes(item.speakerStatus)).length
+    const listenerCapacity = event.capacity - event.speakerCapacity
+    const listenerTaken = taken - speakerTaken
+    const totalRemaining = Math.max(0, event.capacity - taken)
+    const listenerRemaining = Math.min(totalRemaining, Math.max(0, listenerCapacity - listenerTaken))
+    const speakerRemaining = Math.min(totalRemaining, Math.max(0, event.speakerCapacity - speakerTaken))
     const averageRating = event.reviews.length
       ? event.reviews.reduce((sum, review) => sum + review.rating, 0) / event.reviews.length
       : null
-    return { ...event, taken, remaining: Math.max(0, event.capacity - taken), averageRating }
+    return { ...event, taken, remaining: totalRemaining, listenerCapacity, listenerRemaining, speakerRemaining, averageRating }
   })
 }
 
@@ -75,8 +82,8 @@ function EventCard({ event }: { event: Awaited<ReturnType<typeof getEvents>>[num
             ? event.averageRating
               ? `${event.averageRating.toFixed(1)}/5 · ${event.reviews.length} feedback`
               : 'Đã diễn ra'
-            : event.remaining > 0
-              ? `còn ${event.remaining}/${event.capacity} chỗ`
+            : event.listenerRemaining > 0 || event.speakerRemaining > 0
+              ? `còn ${event.listenerRemaining} chỗ nghe · ${event.speakerRemaining} speaker`
               : 'đã hết chỗ'}
         </div>
         <Link href={`/nerd-night/${event.slug}`} className="nn-button nn-button-primary nn-button-small">

@@ -1,7 +1,7 @@
 'use client'
 
 import { saveNerdNightEvent, setNerdNightEventStatus } from '@/actions/admin-nerd-night'
-import { CalendarDaysIcon, Cog6ToothIcon, MoonIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { CalendarDaysIcon, MoonIcon, PlusIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
@@ -31,12 +31,10 @@ export default function NerdNightAdminDashboard({
   events,
   locations,
   canManage,
-  isAdmin,
 }: {
   events: EventItem[]
   locations: LocationItem[]
   canManage: boolean
-  isAdmin: boolean
 }) {
   const router = useRouter()
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -92,11 +90,6 @@ export default function NerdNightAdminDashboard({
           <p className="mt-1 text-neutral-500 dark:text-neutral-400">Quản lý season, người tham dự, speaker, vote và thanh toán.</p>
         </div>
         <div className="flex gap-2">
-          {isAdmin && (
-            <Link href="/admin/nerd-night/settings" className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900">
-              <Cog6ToothIcon className="size-5" />VietQR
-            </Link>
-          )}
           {canManage && (
             <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700">
               <PlusIcon className="size-5" />Thêm sự kiện
