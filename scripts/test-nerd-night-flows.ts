@@ -2,9 +2,11 @@ import assert from 'node:assert/strict'
 import {
   canNerdNightReceivePayment,
   canOpenNerdNightVoting,
+  getNerdNightWalletPaymentExternalId,
   hasNerdNightPaymentEvidence,
   holdsNerdNightSeat,
   isNerdNightPaymentExpired,
+  isNerdNightWalletPayment,
 } from '../src/lib/nerd-night/registration-state'
 
 const now = new Date('2026-08-11T12:00:00.000Z')
@@ -33,5 +35,11 @@ assert.equal(canNerdNightReceivePayment({ status: 'PUBLISHED', startsAt: past },
 assert.equal(canOpenNerdNightVoting({ status: 'PUBLISHED', startsAt: past }, now), true)
 assert.equal(canOpenNerdNightVoting({ status: 'PUBLISHED', startsAt: future }, now), false)
 assert.equal(canOpenNerdNightVoting({ status: 'COMPLETED', startsAt: past }, now), false)
+
+const firstWalletPaymentId = getNerdNightWalletPaymentExternalId({ id: 'registration-1', paymentExpiresAt: future, createdAt: past })
+const secondWalletPaymentId = getNerdNightWalletPaymentExternalId({ id: 'registration-1', paymentExpiresAt: new Date('2026-08-11T14:00:00.000Z'), createdAt: past })
+assert.notEqual(firstWalletPaymentId, secondWalletPaymentId)
+assert.equal(isNerdNightWalletPayment(firstWalletPaymentId), true)
+assert.equal(isNerdNightWalletPayment('vietqr-transaction'), false)
 
 console.log('Nerd Night flow checks passed')

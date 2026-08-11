@@ -1,12 +1,14 @@
 'use client'
 
 import {
+  payNerdNightWithWallet,
   registerForNerdNight,
   reportNerdNightPayment,
   submitNerdNightReview,
   voteForNerdNightSpeaker,
 } from '@/actions/nerd-night'
 import { NERD_NIGHT_INTERESTS } from '@/lib/nerd-night/constants'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import toast from 'react-hot-toast'
@@ -56,6 +58,7 @@ export interface NerdNightEventClientProps {
   }
   isLoggedIn: boolean
   user: { name: string; phone: string } | null
+  walletBalance: number
   registration: Registration | null
   speakers: Speaker[]
   reviews: Review[]
@@ -68,6 +71,7 @@ export default function NerdNightEventClient({
   event,
   isLoggedIn,
   user,
+  walletBalance,
   registration,
   speakers,
   reviews,
@@ -156,8 +160,24 @@ export default function NerdNightEventClient({
     if (!registration) return
     startTransition(async () => {
       const result = await reportNerdNightPayment(registration.id)
-      if (!result.success) return setMessage(result.error)
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
       toast.success('Đã báo chuyển khoản. Hệ thống đang tự động đối soát giao dịch.')
+      router.refresh()
+    })
+  }
+
+  function handleWalletPayment() {
+    if (!registration) return
+    startTransition(async () => {
+      const result = await payNerdNightWithWallet(registration.id)
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(result.message || 'Thanh toán bằng Ví Nerd thành công')
       router.refresh()
     })
   }
@@ -209,7 +229,13 @@ export default function NerdNightEventClient({
               <p className="nn-muted">Nerd Society sẽ liên hệ với người đã đăng ký để hỗ trợ các bước tiếp theo.</p>
             </div>
           ) : activeRegistration ? (
-            <RegistrationStatus registration={registration!} pending={pending} onReportPayment={handleReportPayment} />
+            <RegistrationStatus
+              registration={registration!}
+              pending={pending}
+              walletBalance={walletBalance}
+              onPayWithWallet={handleWalletPayment}
+              onReportPayment={handleReportPayment}
+            />
           ) : event.hasStarted ? (
             <div className="nn-status">
               <NerdNightMedal size={72} />
@@ -334,17 +360,55 @@ export default function NerdNightEventClient({
   )
 }
 
-function RegistrationStatus({ registration, pending, onReportPayment }: { registration: Registration; pending: boolean; onReportPayment: () => void }) {
+function RegistrationStatus({
+  registration,
+  pending,
+  walletBalance,
+  onPayWithWallet,
+  onReportPayment,
+}: {
+  registration: Registration
+  pending: boolean
+  walletBalance: number
+  onPayWithWallet: () => void
+  onReportPayment: () => void
+}) {
+  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'vietqr'>(
+    walletBalance >= registration.amount ? 'wallet' : 'vietqr',
+  )
+
   if (registration.paymentStatus === 'UNPAID') {
+    const walletIsEnough = walletBalance >= registration.amount
     return (
-      <div className="nn-qr">
-        <p className="nn-muted">Quét mã để chuyển khoản, giữ chỗ của bạn:</p>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={registration.qrUrl} alt="VietQR Nerd Night" />
-        <div className="nn-qr-amount">{registration.amount.toLocaleString('vi-VN')}đ</div>
-        <div className="nn-code">{registration.transferContent}</div>
-        <p className="nn-muted" style={{ marginBottom: 16 }}>Giữ nguyên nội dung chuyển khoản để hệ thống tự động xác nhận vé. Chỗ được giữ trong 30 phút.</p>
-        <button className="nn-button nn-button-primary nn-button-block" onClick={onReportPayment} disabled={pending}>{pending ? 'Đang gửi...' : 'Đã chuyển nhưng vé chưa cập nhật'}</button>
+      <div className="nn-payment">
+        <p className="nn-muted" style={{ textAlign: 'center', marginBottom: 14 }}>Chọn phương thức thanh toán:</p>
+        <div className="nn-toggle-row nn-payment-methods">
+          <button type="button" className={`nn-toggle ${paymentMethod === 'wallet' ? 'selected' : ''}`} onClick={() => setPaymentMethod('wallet')}>Ví Nerd</button>
+          <button type="button" className={`nn-toggle ${paymentMethod === 'vietqr' ? 'selected' : ''}`} onClick={() => setPaymentMethod('vietqr')}>Chuyển khoản VietQR</button>
+        </div>
+
+        {paymentMethod === 'wallet' ? (
+          <div className="nn-wallet-payment">
+            <p className="nn-muted">Số dư Ví Nerd</p>
+            <div className="nn-wallet-balance">{walletBalance.toLocaleString('vi-VN')}đ</div>
+            <p className="nn-muted">Giá vé: <b>{registration.amount.toLocaleString('vi-VN')}đ</b></p>
+            {!walletIsEnough && <p className="nn-message error">Số dư Ví Nerd chưa đủ. Bạn có thể nạp thêm hoặc chọn chuyển khoản VietQR.</p>}
+            <button className="nn-button nn-button-primary nn-button-block" onClick={onPayWithWallet} disabled={pending || !walletIsEnough}>
+              {pending ? 'Đang thanh toán...' : registration.amount === 0 ? 'Xác nhận vé' : 'Thanh toán bằng Ví Nerd'}
+            </button>
+            {!walletIsEnough && <Link href="/profile/wallet" className="nn-wallet-link">Nạp thêm vào Ví Nerd →</Link>}
+          </div>
+        ) : (
+          <div className="nn-qr">
+            <p className="nn-muted">Quét mã để chuyển khoản, giữ chỗ của bạn:</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={registration.qrUrl} alt="VietQR Nerd Night" />
+            <div className="nn-qr-amount">{registration.amount.toLocaleString('vi-VN')}đ</div>
+            <div className="nn-code">{registration.transferContent}</div>
+            <p className="nn-muted" style={{ marginBottom: 16 }}>Giữ nguyên nội dung chuyển khoản để hệ thống tự động xác nhận vé. Chỗ được giữ trong 30 phút.</p>
+            <button className="nn-button nn-button-primary nn-button-block" onClick={onReportPayment} disabled={pending}>{pending ? 'Đang gửi...' : 'Đã chuyển nhưng vé chưa cập nhật'}</button>
+          </div>
+        )}
       </div>
     )
   }

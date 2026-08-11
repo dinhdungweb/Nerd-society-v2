@@ -15,6 +15,7 @@ import {
 import {
   hasNerdNightPaymentEvidence as hasRecordedPayment,
   holdsNerdNightSeat as holdsSeat,
+  isNerdNightWalletPayment,
 } from '@/lib/nerd-night/registration-state'
 import {
   BanknotesIcon,
@@ -361,7 +362,7 @@ export default function NerdNightAdminDetail({
                     </td>
                     <td className="px-5 py-4">
                       <PaymentStatusBadge status={registration.paymentStatus} />
-                      {registration.paymentTransactionId && <div className="mt-1 max-w-40 truncate font-mono text-[10px] text-neutral-400" title={registration.paymentTransactionId}>VietQR · {registration.paymentTransactionId}</div>}
+                      {registration.paymentTransactionId && <div className="mt-1 max-w-40 truncate font-mono text-[10px] text-neutral-400" title={registration.paymentTransactionId}>{isNerdNightWalletPayment(registration.paymentTransactionId) ? 'Ví Nerd' : 'VietQR'} · {registration.paymentTransactionId}</div>}
                       {registration.refundStatus === 'PENDING' && <div className="mt-1 text-xs font-semibold text-red-600">Cần hoàn tiền</div>}
                     </td>
                     <td className="px-5 py-4"><RegistrationStatusBadge status={registration.status === 'ACTIVE' && !holdsSeat(registration) ? 'EXPIRED' : registration.status} /></td>

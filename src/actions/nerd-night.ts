@@ -10,9 +10,13 @@ import { prisma } from '@/lib/prisma'
 import {
   canNerdNightReceivePayment,
   canOpenNerdNightVoting,
+  getNerdNightWalletPaymentExternalId,
   hasNerdNightPaymentEvidence,
+  isNerdNightPaymentExpired,
 } from '@/lib/nerd-night/registration-state'
 import { generateOfficialQR, getVietQRConfig } from '@/lib/vietqr'
+import { ensureUserWalletAccount } from '@/lib/wallet-account'
+import { applyWalletTransactionInTx } from '@/lib/wallet-ledger'
 import { Prisma } from '@prisma/client'
 import { addMinutes } from 'date-fns'
 import { getServerSession } from 'next-auth'
@@ -334,6 +338,154 @@ export async function reportNerdNightPayment(registrationId: string): Promise<Ac
   revalidatePath('/profile/nerd-night')
   revalidatePath('/admin/nerd-night')
   return { success: true }
+}
+
+export async function payNerdNightWithWallet(
+  registrationId: string,
+): Promise<ActionResult<{ currentBalance: number }>> {
+  const session = await requireUser()
+  if (!session) return { success: false, error: 'Vui lòng đăng nhập để thanh toán bằng Ví Nerd' }
+
+  const registration = await prisma.nerdNightRegistration.findUnique({
+    where: { id: registrationId },
+    include: { event: { select: { slug: true, status: true, startsAt: true } } },
+  })
+  if (!registration || registration.userId !== session.user.id) {
+    return { success: false, error: 'Không tìm thấy đăng ký của bạn' }
+  }
+
+  const walletAccount = await ensureUserWalletAccount(session.user.id)
+  if (!walletAccount.success) return { success: false, error: walletAccount.message }
+
+  if (registration.paymentStatus === 'CONFIRMED') {
+    return {
+      success: true,
+      data: { currentBalance: walletAccount.wallet.balance },
+      message: 'Vé đã được thanh toán',
+    }
+  }
+  if (registration.status !== 'ACTIVE') {
+    return { success: false, error: 'Đăng ký không còn hiệu lực' }
+  }
+  if (!canNerdNightReceivePayment(registration.event)) {
+    return { success: false, error: 'Đêm này không còn nhận thanh toán' }
+  }
+  if (isNerdNightPaymentExpired(registration)) {
+    await prisma.nerdNightRegistration.update({
+      where: { id: registration.id },
+      data: { status: 'EXPIRED' },
+    })
+    revalidatePath(`/nerd-night/${registration.event.slug}`)
+    return { success: false, error: 'Thời gian giữ chỗ đã hết. Vui lòng đăng ký lại.' }
+  }
+  if (hasNerdNightPaymentEvidence(registration)) {
+    return { success: false, error: 'Đăng ký đã có giao dịch đang được xử lý' }
+  }
+
+  const amount = Math.round(registration.amount)
+  if (amount < 0) return { success: false, error: 'Số tiền thanh toán không hợp lệ' }
+  if (walletAccount.wallet.balance < amount) {
+    return {
+      success: false,
+      error: `Số dư Ví Nerd không đủ. Cần ${amount.toLocaleString('vi-VN')}đ, hiện có ${walletAccount.wallet.balance.toLocaleString('vi-VN')}đ.`,
+    }
+  }
+
+  try {
+    const result = await withSerializableRetry(async (tx) => {
+      const current = await tx.nerdNightRegistration.findUnique({
+        where: { id: registration.id },
+        include: { event: { select: { slug: true, status: true, startsAt: true } } },
+      })
+      if (!current || current.userId !== session.user.id) throw new Error('REGISTRATION_NOT_FOUND')
+
+      if (current.paymentStatus === 'CONFIRMED') {
+        const wallet = await tx.wallet.findUnique({ where: { id: walletAccount.wallet.id }, select: { balance: true } })
+        return { currentBalance: wallet?.balance ?? walletAccount.wallet.balance }
+      }
+      if (current.status !== 'ACTIVE') throw new Error('REGISTRATION_INACTIVE')
+      if (!canNerdNightReceivePayment(current.event)) throw new Error('PAYMENT_CLOSED')
+      if (isNerdNightPaymentExpired(current)) throw new Error('PAYMENT_EXPIRED')
+      if (hasNerdNightPaymentEvidence(current)) throw new Error('PAYMENT_ALREADY_RECORDED')
+
+      const paidAt = new Date()
+      let currentBalance = walletAccount.wallet.balance
+      let paymentTransactionId: string | null = null
+
+      if (current.amount > 0) {
+        const externalTransactionId = getNerdNightWalletPaymentExternalId(current)
+        const walletResult = await applyWalletTransactionInTx(tx, {
+          walletId: walletAccount.wallet.id,
+          type: 'DEBIT',
+          amount: -current.amount,
+          source: 'SYSTEM',
+          referenceType: 'nerd_night_registration',
+          referenceId: current.id,
+          externalTransactionId,
+          description: `Thanh toán Nerd Night ${current.registrationCode}`,
+        })
+        currentBalance = walletResult.balanceAfter
+        paymentTransactionId = externalTransactionId
+      }
+
+      await tx.nerdNightRegistration.update({
+        where: { id: current.id },
+        data: {
+          paymentStatus: 'CONFIRMED',
+          paymentReportedAt: paidAt,
+          paymentConfirmedAt: paidAt,
+          paymentConfirmedById: null,
+          paymentTransactionId,
+          paymentReceivedAmount: current.amount,
+          paymentExpiresAt: null,
+          refundStatus: 'NOT_REQUIRED',
+        },
+      })
+
+      return { currentBalance }
+    })
+
+    revalidatePath('/nerd-night')
+    revalidatePath(`/nerd-night/${registration.event.slug}`)
+    revalidatePath('/profile/nerd-night')
+    revalidatePath('/profile/wallet')
+    revalidatePath('/admin/nerd-night')
+    revalidatePath(`/admin/nerd-night/${registration.eventId}`)
+    return {
+      success: true,
+      data: result,
+      message: amount === 0 ? 'Đã xác nhận vé miễn phí' : 'Thanh toán bằng Ví Nerd thành công',
+    }
+  } catch (error) {
+    const latest = await prisma.nerdNightRegistration.findUnique({
+      where: { id: registration.id },
+      select: { paymentStatus: true },
+    })
+    if (latest?.paymentStatus === 'CONFIRMED') {
+      const wallet = await prisma.wallet.findUnique({
+        where: { id: walletAccount.wallet.id },
+        select: { balance: true },
+      })
+      return {
+        success: true,
+        data: { currentBalance: wallet?.balance ?? walletAccount.wallet.balance },
+        message: 'Vé đã được thanh toán',
+      }
+    }
+
+    const code = error instanceof Error ? error.message : ''
+    const messages: Record<string, string> = {
+      REGISTRATION_NOT_FOUND: 'Không tìm thấy đăng ký của bạn',
+      REGISTRATION_INACTIVE: 'Đăng ký không còn hiệu lực',
+      PAYMENT_CLOSED: 'Đêm này không còn nhận thanh toán',
+      PAYMENT_EXPIRED: 'Thời gian giữ chỗ đã hết. Vui lòng đăng ký lại.',
+      PAYMENT_ALREADY_RECORDED: 'Đăng ký đã có giao dịch đang được xử lý',
+      'Số dư ví không đủ': 'Số dư Ví Nerd không đủ để thanh toán vé này',
+    }
+    if (messages[code]) return { success: false, error: messages[code] }
+    console.error('[NerdNight] wallet payment failed:', error)
+    return { success: false, error: 'Không thể thanh toán bằng Ví Nerd lúc này' }
+  }
 }
 
 export async function cancelNerdNightRegistration(registrationId: string): Promise<ActionResult> {

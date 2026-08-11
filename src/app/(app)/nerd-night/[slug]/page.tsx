@@ -58,7 +58,7 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
   const currentUser = session?.user?.id
     ? await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { name: true, phone: true },
+        select: { name: true, phone: true, wallet: { select: { balance: true, status: true } } },
       })
     : null
   let currentPaymentQrUrl = currentRegistration?.paymentQrUrl || null
@@ -158,6 +158,7 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
           isLoggedIn={Boolean(session)}
           loginUrl={`/login?callbackUrl=${encodeURIComponent(`/nerd-night/${event.slug}`)}`}
           user={currentUser ? { name: currentUser.name, phone: currentUser.phone || '' } : null}
+          walletBalance={currentUser?.wallet?.status === 'ACTIVE' ? currentUser.wallet.balance : 0}
           registration={currentRegistration ? {
             id: currentRegistration.id,
             status: currentRegistration.status,

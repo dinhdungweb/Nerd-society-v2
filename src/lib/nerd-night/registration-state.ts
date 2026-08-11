@@ -41,3 +41,18 @@ export function canNerdNightReceivePayment(event: EventWindowInput, paidAt = new
 export function canOpenNerdNightVoting(event: EventWindowInput, now = new Date()) {
   return event.status === 'PUBLISHED' && new Date(event.startsAt) <= now
 }
+
+export function getNerdNightWalletPaymentExternalId(registration: {
+  id: string
+  paymentExpiresAt: Date | string | null
+  createdAt: Date | string
+}) {
+  const paymentAttempt = registration.paymentExpiresAt
+    ? new Date(registration.paymentExpiresAt).getTime()
+    : new Date(registration.createdAt).getTime()
+  return `WALLET-NERD-NIGHT-${registration.id}-${paymentAttempt}`
+}
+
+export function isNerdNightWalletPayment(transactionId: string | null | undefined) {
+  return Boolean(transactionId?.startsWith('WALLET-NERD-NIGHT-'))
+}
