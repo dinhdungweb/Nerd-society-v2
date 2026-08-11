@@ -38,6 +38,8 @@ type EventData = {
   themeCode: string
   title: string
   themeDescription: string | null
+  topicPrompt: string | null
+  topicSuggestions: string[]
   startsAt: string
   locationId: string | null
   venueName: string
@@ -153,6 +155,11 @@ export default function NerdNightAdminDetail({
         themeCode: String(formData.get('themeCode')),
         title: String(formData.get('title')),
         themeDescription: String(formData.get('themeDescription') || ''),
+        topicPrompt: String(formData.get('topicPrompt') || ''),
+        topicSuggestions: String(formData.get('topicSuggestions') || '')
+          .split(/\r?\n/)
+          .map((item) => item.trim())
+          .filter(Boolean),
         startsAt: new Date(String(formData.get('startsAt'))).toISOString(),
         locationId: locationId || null,
         venueName: String(formData.get('venueName')),

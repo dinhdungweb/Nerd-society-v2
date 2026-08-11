@@ -1,7 +1,7 @@
 import NerdNightEventClient from '@/components/nerd-night/NerdNightEventClient'
 import NerdNightSiteFooter from '@/components/nerd-night/NerdNightSiteFooter'
 import { authOptions } from '@/lib/auth'
-import { getNerdNightTheme } from '@/lib/nerd-night/constants'
+import { getNerdNightTheme, NERD_NIGHT_DEFAULT_TOPIC_PROMPT } from '@/lib/nerd-night/constants'
 import { buildNerdNightQrUrl, formatNerdNightDate, formatVnd } from '@/lib/nerd-night/format'
 import { prisma } from '@/lib/prisma'
 import { generateOfficialQR } from '@/lib/vietqr'
@@ -113,18 +113,10 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
     currentRegistration.paymentExpiresAt &&
     currentRegistration.paymentExpiresAt <= now,
   )
-  const topicExamples = event.themeCode === 'THEORY'
-    ? [
-        'Vì sao bài hát cũ luôn “đúng lúc” bật lên khi mình buồn',
-        'Lý thuyết riêng về việc tại sao nhóm bạn nào cũng có một người hay trễ giờ',
-        'Vì sao đồ ăn tự nấu ngon hơn hẳn dù công thức y hệt ngoài hàng',
-        'Một khung giải thích cho thói quen mua sách về rồi không đọc',
-        'Vì sao tin nhắn “đã xem” gây áp lực hơn cả cuộc gọi nhỡ',
-        'Lý thuyết cá nhân về việc review 1 sao luôn đáng tin hơn 5 sao',
-      ]
-    : event.topicSuggestions.length > 0
-      ? event.topicSuggestions.slice(0, 6)
-      : ['Một quan sát nhỏ trong đời sống khiến bạn tò mò và muốn kể lại']
+  const topicPrompt = event.topicPrompt || NERD_NIGHT_DEFAULT_TOPIC_PROMPT
+  const topicExamples = event.topicSuggestions.length > 0
+    ? event.topicSuggestions.slice(0, 12)
+    : ['Một quan sát nhỏ trong đời sống khiến bạn tò mò và muốn kể lại']
 
   return (
     <main className="nn-detail">
@@ -136,7 +128,7 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
             <h1 className="nn-section-title nn-detail-title">{event.title}</h1>
             <p className="nn-detail-description">{event.themeDescription || theme.description}</p>
             <aside className="nn-topic-callout">
-              <p>Nghe hơi trừu tượng? Vài chủ đề đời thường có thể kể theo hướng này:</p>
+              <p>{topicPrompt}</p>
               <ul>
                 {topicExamples.map((topic) => <li key={topic}>{topic}</li>)}
               </ul>

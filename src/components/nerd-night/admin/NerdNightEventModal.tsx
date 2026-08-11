@@ -1,6 +1,10 @@
 'use client'
 
-import { NERD_NIGHT_SEASON_ORDER } from '@/lib/nerd-night/constants'
+import {
+  NERD_NIGHT_DEFAULT_THEORY_EXAMPLES,
+  NERD_NIGHT_DEFAULT_TOPIC_PROMPT,
+  NERD_NIGHT_SEASON_ORDER,
+} from '@/lib/nerd-night/constants'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
 
@@ -10,6 +14,8 @@ export type NerdNightEventFormData = {
   themeCode: string
   title: string
   themeDescription: string | null
+  topicPrompt: string | null
+  topicSuggestions: string[]
   startsAt: string
   locationId: string | null
   venueName: string
@@ -146,6 +152,19 @@ export default function NerdNightEventModal({
             <Field label="Mô tả theme">
               <textarea name="themeDescription" defaultValue={initial?.themeDescription || ''} rows={3} />
             </Field>
+            <Field label="Dòng mở đầu khung gợi ý">
+              <textarea name="topicPrompt" defaultValue={initial?.topicPrompt || NERD_NIGHT_DEFAULT_TOPIC_PROMPT} rows={3} maxLength={240} />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Các chủ đề gợi ý (mỗi dòng một chủ đề)">
+                <textarea
+                  name="topicSuggestions"
+                  defaultValue={(initial ? initial.topicSuggestions : NERD_NIGHT_DEFAULT_THEORY_EXAMPLES).join('\n')}
+                  rows={7}
+                  placeholder="Nhập tối đa 12 chủ đề, mỗi chủ đề trên một dòng"
+                />
+              </Field>
+            </div>
             <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
               <input name="registrationOpen" type="checkbox" defaultChecked={initial?.registrationOpen ?? true} />
               Mở đăng ký khi công khai

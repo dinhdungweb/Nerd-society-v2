@@ -2,7 +2,12 @@
 
 import { audit } from '@/lib/audit'
 import { checkApiPermission } from '@/lib/apiPermissions'
-import { isNerdNightThemeCode, NERD_NIGHT_THEMES } from '@/lib/nerd-night/constants'
+import {
+  isNerdNightThemeCode,
+  NERD_NIGHT_DEFAULT_THEORY_EXAMPLES,
+  NERD_NIGHT_DEFAULT_TOPIC_PROMPT,
+  NERD_NIGHT_THEMES,
+} from '@/lib/nerd-night/constants'
 import { prisma } from '@/lib/prisma'
 import { isVietQRConfigured } from '@/lib/vietqr'
 import { ensureUserWalletAccount } from '@/lib/wallet-account'
@@ -17,6 +22,8 @@ const eventSchema = z.object({
   themeCode: z.string().trim().min(1).max(30),
   title: z.string().trim().max(160).optional(),
   themeDescription: z.string().trim().max(1200).optional(),
+  topicPrompt: z.string().trim().max(240).optional(),
+  topicSuggestions: z.array(z.string().trim().min(1).max(180)).max(12).optional(),
   startsAt: z.string().datetime(),
   locationId: z.string().nullable().optional(),
   venueName: z.string().trim().min(2).max(160),
@@ -78,7 +85,12 @@ export async function saveNerdNightEvent(rawInput: z.input<typeof eventSchema>):
       themeCode: parsed.data.themeCode.toUpperCase(),
       title,
       themeDescription: parsed.data.themeDescription || theme?.description || null,
-      topicSuggestions: theme?.suggestions || [],
+      topicPrompt: parsed.data.topicPrompt || NERD_NIGHT_DEFAULT_TOPIC_PROMPT,
+      topicSuggestions: parsed.data.topicSuggestions ?? (
+        parsed.data.themeCode.toUpperCase() === 'THEORY'
+          ? [...NERD_NIGHT_DEFAULT_THEORY_EXAMPLES]
+          : theme?.suggestions || []
+      ),
       startsAt: new Date(parsed.data.startsAt),
       locationId: parsed.data.locationId || null,
       venueName: parsed.data.venueName,

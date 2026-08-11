@@ -9,6 +9,18 @@ export const NERD_NIGHT_SEASON_ORDER = [
 
 export type NerdNightThemeCode = (typeof NERD_NIGHT_SEASON_ORDER)[number]
 
+export const NERD_NIGHT_DEFAULT_TOPIC_PROMPT =
+  'Nghe hơi trừu tượng? Vài chủ đề đời thường có thể kể theo hướng này:'
+
+export const NERD_NIGHT_DEFAULT_THEORY_EXAMPLES = [
+  'Vì sao bài hát cũ luôn “đúng lúc” bật lên khi mình buồn',
+  'Lý thuyết riêng về việc tại sao nhóm bạn nào cũng có một người hay trễ giờ',
+  'Vì sao đồ ăn tự nấu ngon hơn hẳn dù công thức y hệt ngoài hàng',
+  'Một khung giải thích cho thói quen mua sách về rồi không đọc',
+  'Vì sao tin nhắn “đã xem” gây áp lực hơn cả cuộc gọi nhỡ',
+  'Lý thuyết cá nhân về việc review 1 sao luôn đáng tin hơn 5 sao',
+] as const
+
 export const NERD_NIGHT_THEMES: Record<
   NerdNightThemeCode,
   { description: string; suggestions: string[]; color: 'clay' | 'moss' | 'gold' }

@@ -49,6 +49,11 @@ export default function NerdNightAdminDashboard({
         themeCode: String(formData.get('themeCode')),
         title: String(formData.get('title') || ''),
         themeDescription: String(formData.get('themeDescription') || ''),
+        topicPrompt: String(formData.get('topicPrompt') || ''),
+        topicSuggestions: String(formData.get('topicSuggestions') || '')
+          .split(/\r?\n/)
+          .map((item) => item.trim())
+          .filter(Boolean),
         startsAt: new Date(startsAt).toISOString(),
         locationId: String(formData.get('locationId') || '') || null,
         venueName: String(formData.get('venueName') || ''),

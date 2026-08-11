@@ -131,6 +131,7 @@ model NerdNightEvent {
   themeCode               String
   title                   String
   themeDescription        String?
+  topicPrompt             String?
   topicSuggestions        String[]
   startsAt                DateTime
   locationId              String?
