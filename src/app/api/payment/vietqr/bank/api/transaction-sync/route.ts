@@ -1,5 +1,6 @@
 import { sendBookingEmail } from '@/lib/email'
 import { extractNerdNightPaymentIdentity, normalizeBankAccount } from '@/lib/nerd-night/payment-matching'
+import { canNerdNightReceivePayment } from '@/lib/nerd-night/registration-state'
 import { prisma } from '@/lib/prisma'
 import { ensureUserWalletAccount } from '@/lib/wallet-account'
 import { applyWalletTransaction, processVietQRWalletTopup, recordBankTransaction } from '@/lib/wallet-ledger'
@@ -244,7 +245,7 @@ export async function POST(request: NextRequest) {
                         { transferContent: nerdNightIdentity.transferContent },
                     ],
                 },
-                include: { event: { select: { id: true, slug: true } } },
+                include: { event: { select: { id: true, slug: true, status: true, startsAt: true } } },
             })
 
             if (!registration) {
@@ -284,46 +285,57 @@ export async function POST(request: NextRequest) {
             }
 
             const paidAfterExpiry = Boolean(
-                registration.paymentStatus === 'UNPAID' &&
+                registration.paymentStatus !== 'CONFIRMED' &&
                 registration.paymentExpiresAt &&
                 finalPaidAt > registration.paymentExpiresAt
             )
-            if (registration.status !== 'ACTIVE' || paidAfterExpiry) {
-                await prisma.$transaction([
-                    prisma.nerdNightRegistration.update({
+            const eventCannotReceivePayment = !canNerdNightReceivePayment(registration.event, finalPaidAt)
+            if (registration.status !== 'ACTIVE' || paidAfterExpiry || eventCannotReceivePayment) {
+                const creditResult = await creditCancelledPaymentToWallet({
+                    bankTransactionId: bankTransaction.id,
+                    externalTransactionId: transactionid,
+                    amount: receivedAmount,
+                    userId: registration.userId,
+                    source: 'SYSTEM',
+                    referenceType: 'nerd_night_registration',
+                    referenceId: registration.id,
+                    description: `Cộng Ví Nerd cho khoản thanh toán không còn hợp lệ của ${registration.registrationCode}`,
+                    rawPayload: body,
+                })
+
+                if (registration.status === 'ACTIVE' && paidAfterExpiry) {
+                    await prisma.nerdNightRegistration.update({
                         where: { id: registration.id },
-                        data: {
-                            status: registration.status === 'ACTIVE' ? 'EXPIRED' : registration.status,
-                            refundStatus: 'PENDING',
-                            paymentReceivedAmount: receivedAmount,
-                        },
-                    }),
-                    prisma.bankTransaction.update({
-                        where: { id: bankTransaction.id },
-                        data: {
-                            status: 'ERROR',
-                            note: `Nerd Night payment received for inactive or expired registration ${registration.registrationCode}; refund required`,
-                        },
-                    }),
-                ])
-                return jsonOk('Nerd Night registration expired or inactive; refund required', transactionid)
+                        data: { status: 'EXPIRED' },
+                    })
+                }
+
+                return jsonOk(
+                    creditResult.credited
+                        ? 'Nerd Night payment is no longer valid and was credited to wallet'
+                        : 'Nerd Night payment is no longer valid and needs reconciliation',
+                    transactionid
+                )
             }
 
             if (registration.paymentStatus === 'CONFIRMED') {
-                await prisma.$transaction([
-                    prisma.nerdNightRegistration.update({
-                        where: { id: registration.id },
-                        data: { refundStatus: 'PENDING' },
-                    }),
-                    prisma.bankTransaction.update({
-                        where: { id: bankTransaction.id },
-                        data: {
-                            status: 'ERROR',
-                            note: `Additional Nerd Night payment for already confirmed registration ${registration.registrationCode}; refund required`,
-                        },
-                    }),
-                ])
-                return jsonOk('Nerd Night registration was already paid; refund required', transactionid)
+                const creditResult = await creditCancelledPaymentToWallet({
+                    bankTransactionId: bankTransaction.id,
+                    externalTransactionId: transactionid,
+                    amount: receivedAmount,
+                    userId: registration.userId,
+                    source: 'SYSTEM',
+                    referenceType: 'nerd_night_registration_extra_payment',
+                    referenceId: registration.id,
+                    description: `Cộng Ví Nerd cho khoản thanh toán thừa của ${registration.registrationCode}`,
+                    rawPayload: body,
+                })
+                return jsonOk(
+                    creditResult.credited
+                        ? 'Additional Nerd Night payment credited to wallet'
+                        : 'Additional Nerd Night payment needs reconciliation',
+                    transactionid
+                )
             }
 
             await prisma.$transaction([

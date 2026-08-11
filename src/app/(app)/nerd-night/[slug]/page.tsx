@@ -3,6 +3,11 @@ import NerdNightSiteFooter from '@/components/nerd-night/NerdNightSiteFooter'
 import { authOptions } from '@/lib/auth'
 import { getNerdNightTheme, NERD_NIGHT_DEFAULT_TOPIC_PROMPT } from '@/lib/nerd-night/constants'
 import { buildNerdNightQrUrl, formatNerdNightDate, formatVnd } from '@/lib/nerd-night/format'
+import {
+  canNerdNightReceivePayment,
+  holdsNerdNightSeat,
+  isNerdNightPaymentExpired,
+} from '@/lib/nerd-night/registration-state'
 import { prisma } from '@/lib/prisma'
 import { generateOfficialQR } from '@/lib/vietqr'
 import { getServerSession } from 'next-auth'
@@ -27,6 +32,9 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
           status: true,
           paymentStatus: true,
           paymentExpiresAt: true,
+          paymentTransactionId: true,
+          paymentReceivedAmount: true,
+          wantsToShare: true,
           speakerStatus: true,
           topicTitle: true,
           votesReceived: { select: { id: true } },
@@ -56,6 +64,7 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
   let currentPaymentQrUrl = currentRegistration?.paymentQrUrl || null
   if (
     currentRegistration &&
+    canNerdNightReceivePayment(event, now) &&
     currentRegistration.status === 'ACTIVE' &&
     currentRegistration.paymentStatus !== 'CONFIRMED' &&
     !currentPaymentQrUrl
@@ -82,12 +91,8 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
       }))
     : false
 
-  const holdingRegistrations = event.registrations.filter(
-    (registration) =>
-      registration.status === 'ACTIVE' &&
-      (registration.paymentStatus !== 'UNPAID' ||
-        !registration.paymentExpiresAt ||
-        registration.paymentExpiresAt > now),
+  const holdingRegistrations = event.registrations.filter((registration) =>
+    holdsNerdNightSeat(registration, now),
   )
   const speakers = event.registrations.filter(
     (registration) =>
@@ -96,23 +101,14 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
       registration.speakerStatus === 'APPROVED' &&
       registration.topicTitle,
   )
-  const heldSpeakerSlots = event.registrations.filter(
-    (registration) =>
-      registration.status === 'ACTIVE' &&
-      (registration.paymentStatus !== 'UNPAID' ||
-        !registration.paymentExpiresAt ||
-        registration.paymentExpiresAt > now) &&
-      ['PENDING', 'APPROVED'].includes(registration.speakerStatus),
-  ).length
+  const heldSpeakerSlots = holdingRegistrations.filter((registration) => registration.wantsToShare).length
   const heldListenerSlots = holdingRegistrations.length - heldSpeakerSlots
   const listenerCapacity = event.capacity - event.speakerCapacity
   const totalRemaining = Math.max(0, event.capacity - holdingRegistrations.length)
   const theme = getNerdNightTheme(event.themeCode)
-  const isExpired = Boolean(
-    currentRegistration?.paymentStatus === 'UNPAID' &&
-    currentRegistration.paymentExpiresAt &&
-    currentRegistration.paymentExpiresAt <= now,
-  )
+  const isExpired = currentRegistration
+    ? isNerdNightPaymentExpired(currentRegistration, now)
+    : false
   const topicPrompt = event.topicPrompt || NERD_NIGHT_DEFAULT_TOPIC_PROMPT
   const topicExamples = event.topicSuggestions.length > 0
     ? event.topicSuggestions.slice(0, 12)

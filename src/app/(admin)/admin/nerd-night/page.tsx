@@ -1,5 +1,6 @@
 import NerdNightAdminDashboard from '@/components/nerd-night/admin/NerdNightAdminDashboard'
 import { checkApiPermission } from '@/lib/apiPermissions'
+import { holdsNerdNightSeat } from '@/lib/nerd-night/registration-state'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 
@@ -12,7 +13,16 @@ export default async function NerdNightAdminPage() {
   const [events, locations] = await Promise.all([
     prisma.nerdNightEvent.findMany({
       include: {
-        registrations: { select: { status: true, paymentStatus: true, paymentExpiresAt: true, speakerStatus: true } },
+        registrations: {
+          select: {
+            status: true,
+            paymentStatus: true,
+            paymentExpiresAt: true,
+            paymentTransactionId: true,
+            paymentReceivedAmount: true,
+            speakerStatus: true,
+          },
+        },
       },
       orderBy: [{ season: 'desc' }, { episode: 'desc' }],
     }),
@@ -36,9 +46,9 @@ export default async function NerdNightAdminPage() {
         status: event.status,
         registrationOpen: event.registrationOpen,
         capacity: event.capacity,
-        activeCount: event.registrations.filter((item) => item.status === 'ACTIVE' && (item.paymentStatus !== 'UNPAID' || !item.paymentExpiresAt || item.paymentExpiresAt > new Date())).length,
-        pendingPayments: event.registrations.filter((item) => item.status === 'ACTIVE' && item.paymentStatus === 'PENDING').length,
-        pendingSpeakers: event.registrations.filter((item) => item.status === 'ACTIVE' && item.speakerStatus === 'PENDING' && (item.paymentStatus !== 'UNPAID' || !item.paymentExpiresAt || item.paymentExpiresAt > new Date())).length,
+        activeCount: event.registrations.filter((item) => holdsNerdNightSeat(item)).length,
+        pendingPayments: event.registrations.filter((item) => item.paymentStatus === 'PENDING' && holdsNerdNightSeat(item)).length,
+        pendingSpeakers: event.registrations.filter((item) => item.speakerStatus === 'PENDING' && holdsNerdNightSeat(item)).length,
       }))}
     />
   )

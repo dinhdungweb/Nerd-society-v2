@@ -13,7 +13,8 @@
     "db:backfill-wallets": "tsx prisma/backfill-wallets.ts",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:sync-mytime": "tsx scripts/sync-missing-subscribers.ts"
+    "db:sync-mytime": "tsx scripts/sync-missing-subscribers.ts",
+    "test:nerd-night": "tsx scripts/test-nerd-night-flows.ts"
 
   },
   "dependencies": {

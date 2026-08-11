@@ -8,6 +8,7 @@ import {
 import NerdNightSiteFooter from '@/components/nerd-night/NerdNightSiteFooter'
 import { getNerdNightTheme, NERD_NIGHT_SEASON_ORDER } from '@/lib/nerd-night/constants'
 import { formatNerdNightDate, formatVnd } from '@/lib/nerd-night/format'
+import { holdsNerdNightSeat } from '@/lib/nerd-night/registration-state'
 import {
   getNerdNightDisplayStatus,
   NERD_NIGHT_DISPLAY_STATUS_LABELS,
@@ -24,25 +25,19 @@ export const metadata: Metadata = {
   description: '5 phút để kể, cả tối để quen nhau tại Nerd Society.',
 }
 
-function holdsSeat(registration: {
-  status: string
-  paymentStatus: string
-  paymentExpiresAt: Date | null
-}) {
-  return (
-    registration.status === 'ACTIVE' &&
-    (registration.paymentStatus !== 'UNPAID' ||
-      !registration.paymentExpiresAt ||
-      registration.paymentExpiresAt > new Date())
-  )
-}
-
 async function getEvents() {
   const events = await prisma.nerdNightEvent.findMany({
     where: { status: { in: ['PUBLISHED', 'COMPLETED', 'CANCELLED'] } },
     include: {
       registrations: {
-        select: { status: true, paymentStatus: true, paymentExpiresAt: true, speakerStatus: true },
+        select: {
+          status: true,
+          paymentStatus: true,
+          paymentExpiresAt: true,
+          paymentTransactionId: true,
+          paymentReceivedAmount: true,
+          wantsToShare: true,
+        },
       },
       reviews: { where: { isVisible: true }, select: { rating: true } },
     },
@@ -50,9 +45,9 @@ async function getEvents() {
   })
 
   return events.map((event) => {
-    const holdingRegistrations = event.registrations.filter(holdsSeat)
+    const holdingRegistrations = event.registrations.filter((registration) => holdsNerdNightSeat(registration))
     const taken = holdingRegistrations.length
-    const speakerTaken = holdingRegistrations.filter((item) => ['PENDING', 'APPROVED'].includes(item.speakerStatus)).length
+    const speakerTaken = holdingRegistrations.filter((item) => item.wantsToShare).length
     const listenerCapacity = event.capacity - event.speakerCapacity
     const listenerTaken = taken - speakerTaken
     const totalRemaining = Math.max(0, event.capacity - taken)

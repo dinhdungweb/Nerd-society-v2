@@ -118,6 +118,7 @@ export default function NerdNightEventClient({
     () => [...speakers].sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0)),
     [speakers],
   )
+  const topVoteCount = Math.max(0, ...sortedSpeakers.map((speaker) => speaker.voteCount || 0))
 
   function toggleInterest(value: string) {
     setInterests((current) =>
@@ -276,7 +277,7 @@ export default function NerdNightEventClient({
                   {NERD_NIGHT_INTERESTS.map((interest) => <button key={interest} type="button" className={`nn-chip ${interests.includes(interest) ? 'selected' : ''}`} onClick={() => toggleInterest(interest)}>{interest}</button>)}
                 </div>
               </div>
-              <button className="nn-button nn-button-primary nn-button-block" disabled={pending}>{pending ? 'Đang giữ chỗ...' : 'Đăng ký'}</button>
+              <button className="nn-button nn-button-primary nn-button-block" disabled={pending || interests.length === 0}>{pending ? 'Đang giữ chỗ...' : 'Đăng ký'}</button>
               {message && <p className="nn-message error">{message}</p>}
             </form>
           )}
@@ -291,9 +292,9 @@ export default function NerdNightEventClient({
                 {event.votingStatus === 'RESULTS' ? 'Kết quả bình chọn' : hasVoted ? 'Bạn đã vote cho đêm này.' : canVote ? 'Chọn một phần chia sẻ bạn yêu thích nhất.' : 'Chỉ vé đã xác nhận mới được vote.'}
               </p>
               <div className="nn-speakers">
-                {sortedSpeakers.map((speaker, index) => (
-                  <button key={speaker.id} type="button" className={`nn-speaker ${event.votingStatus === 'RESULTS' && index === 0 ? 'selected' : ''}`} onClick={() => handleVote(speaker.id)} disabled={!canVote || pending}>
-                    <div className="nn-speaker-name">{event.votingStatus === 'RESULTS' && index === 0 ? '🏅 ' : ''}{speaker.name}</div>
+                {sortedSpeakers.map((speaker) => (
+                  <button key={speaker.id} type="button" className={`nn-speaker ${event.votingStatus === 'RESULTS' && topVoteCount > 0 && speaker.voteCount === topVoteCount ? 'selected' : ''}`} onClick={() => handleVote(speaker.id)} disabled={!canVote || pending}>
+                    <div className="nn-speaker-name">{event.votingStatus === 'RESULTS' && topVoteCount > 0 && speaker.voteCount === topVoteCount ? '🏅 ' : ''}{speaker.name}</div>
                     <div className="nn-speaker-topic">{speaker.topic}{speaker.voteCount !== null ? ` · ${speaker.voteCount} vote` : ''}</div>
                   </button>
                 ))}
@@ -355,6 +356,7 @@ function RegistrationStatus({ registration, pending, onReportPayment }: { regist
       <p className="nn-muted">{registration.paymentStatus === 'CONFIRMED' ? 'Hẹn gặp bạn ở Nerd Night. Bạn có thể xem vé trong trang tài khoản.' : 'Hệ thống đang tự động đối soát. Nếu giao dịch chưa cập nhật, Nerd Society sẽ kiểm tra thủ công.'}</p>
       {registration.speakerStatus === 'PENDING' && <p className="nn-message ok" style={{ textAlign: 'center' }}>Chủ đề chia sẻ của bạn đang chờ staff duyệt.</p>}
       {registration.speakerStatus === 'APPROVED' && <p className="nn-message ok" style={{ textAlign: 'center' }}>Chủ đề chia sẻ đã được duyệt.</p>}
+      {registration.speakerStatus === 'REJECTED' && <p className="nn-message error" style={{ textAlign: 'center' }}>Chủ đề chia sẻ chưa được duyệt. Nerd Society sẽ hỗ trợ xóa đăng ký và hoàn Ví Nerd nếu đã nhận tiền.</p>}
     </div>
   )
 }

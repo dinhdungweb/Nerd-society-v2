@@ -13,6 +13,10 @@ import {
   setNerdNightVotingStatus,
 } from '@/actions/admin-nerd-night'
 import {
+  hasNerdNightPaymentEvidence as hasRecordedPayment,
+  holdsNerdNightSeat as holdsSeat,
+} from '@/lib/nerd-night/registration-state'
+import {
   BanknotesIcon,
   ChatBubbleBottomCenterTextIcon,
   CheckCircleIcon,
@@ -66,6 +70,7 @@ type Registration = {
   amount: number
   paymentReportedAt: string | null
   paymentConfirmedAt: string | null
+  paymentExpiresAt: string | null
   paymentTransactionId: string | null
   paymentReceivedAmount: number | null
   speakerStatus: string
@@ -105,13 +110,15 @@ export default function NerdNightAdminDetail({
   const [editing, setEditing] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  const activeRegistrations = registrations.filter((item) => item.status === 'ACTIVE')
+  const activeRegistrations = registrations.filter((registration) => holdsSeat(registration))
   const confirmedRegistrations = activeRegistrations.filter((item) => item.paymentStatus === 'CONFIRMED')
   const pendingPayments = activeRegistrations.filter((item) => item.paymentStatus === 'PENDING')
   const speakerRegistrations = registrations.filter(
     (item) => item.topicTitle || item.wantsToShare || item.speakerStatus !== 'NONE',
   )
-  const approvedSpeakers = speakerRegistrations.filter((item) => item.speakerStatus === 'APPROVED')
+  const approvedSpeakers = activeRegistrations.filter((item) => item.speakerStatus === 'APPROVED')
+  const votingSpeakers = approvedSpeakers.filter((item) => item.paymentStatus === 'CONFIRMED')
+  const topVoteCount = Math.max(0, ...votingSpeakers.map((item) => item.voteCount))
   const totalVotes = speakerRegistrations.reduce((sum, item) => sum + item.voteCount, 0)
 
   const filteredRegistrations = useMemo(() => {
@@ -232,6 +239,16 @@ export default function NerdNightAdminDetail({
     run(() => resetNerdNightVotes(event.id), 'Đã reset toàn bộ lượt vote')
   }
 
+  function changeEventStatus(status: EventData['status']) {
+    if (
+      status === 'CANCELLED' &&
+      !window.confirm('Hủy đêm này? Toàn bộ đăng ký sẽ bị hủy và các khoản đã nhận sẽ chuyển sang chờ hoàn Ví Nerd.')
+    ) {
+      return
+    }
+    run(() => setNerdNightEventStatus(event.id, status), 'Đã đổi trạng thái sự kiện')
+  }
+
   const tabs: Array<{ id: AdminTab; label: string; count?: number }> = [
     { id: 'participants', label: 'Người tham dự', count: registrations.length },
     { id: 'speakers', label: 'Speaker & Vote', count: speakerRegistrations.length },
@@ -347,12 +364,12 @@ export default function NerdNightAdminDetail({
                       {registration.paymentTransactionId && <div className="mt-1 max-w-40 truncate font-mono text-[10px] text-neutral-400" title={registration.paymentTransactionId}>VietQR · {registration.paymentTransactionId}</div>}
                       {registration.refundStatus === 'PENDING' && <div className="mt-1 text-xs font-semibold text-red-600">Cần hoàn tiền</div>}
                     </td>
-                    <td className="px-5 py-4"><RegistrationStatusBadge status={registration.status} /></td>
+                    <td className="px-5 py-4"><RegistrationStatusBadge status={registration.status === 'ACTIVE' && !holdsSeat(registration) ? 'EXPIRED' : registration.status} /></td>
                     <td className="px-5 py-4">
                       <div className="flex min-w-36 flex-col items-end gap-1.5">
-                        {canConfirm && registration.paymentStatus === 'PENDING' && !registration.paymentTransactionId && <ActionButton onClick={() => run(() => confirmNerdNightPayment(registration.id, true), 'Đã xác nhận thanh toán')} tone="green">Xác nhận tiền</ActionButton>}
+                        {canConfirm && registration.paymentStatus === 'PENDING' && holdsSeat(registration) && <ActionButton onClick={() => run(() => confirmNerdNightPayment(registration.id, true), 'Đã xác nhận thanh toán')} tone="green">{registration.paymentTransactionId ? 'Xác nhận lại' : 'Xác nhận tiền'}</ActionButton>}
                         {canConfirm && registration.paymentStatus === 'CONFIRMED' && !registration.paymentTransactionId && <ActionButton onClick={() => undoPayment(registration)} tone="amber">Bỏ xác nhận</ActionButton>}
-                        {canConfirm && registration.refundStatus === 'PENDING' && <ActionButton onClick={() => run(() => completeNerdNightRefund(registration.id), 'Đã ghi nhận hoàn tiền')} tone="purple">Đã hoàn tiền</ActionButton>}
+                        {canConfirm && registration.refundStatus === 'PENDING' && hasRecordedPayment(registration) && <ActionButton onClick={() => run(() => completeNerdNightRefund(registration.id), 'Đã hoàn tiền vào Ví Nerd')} tone="purple">Hoàn vào Ví Nerd</ActionButton>}
                         {canManage && registration.speakerStatus === 'REJECTED' && (!hasRecordedPayment(registration) || registration.refundStatus === 'COMPLETED' || canConfirm) && <ActionButton onClick={() => deleteRejectedSpeaker(registration)} tone="red">{hasRecordedPayment(registration) && registration.refundStatus !== 'COMPLETED' ? 'Xóa & hoàn Ví Nerd' : 'Xóa đăng ký'}</ActionButton>}
                         {canManage && registration.speakerStatus !== 'REJECTED' && (!hasRecordedPayment(registration) || registration.refundStatus === 'COMPLETED' || canConfirm) && <ActionButton onClick={() => removeRegistration(registration)} tone="red">{hasRecordedPayment(registration) && registration.refundStatus !== 'COMPLETED' ? 'Xóa & hoàn Ví Nerd' : 'Xóa đăng ký'}</ActionButton>}
                       </div>
@@ -388,13 +405,13 @@ export default function NerdNightAdminDetail({
 
           {speakerRegistrations.length > 0 ? (
             <div className="grid gap-4 xl:grid-cols-2">
-              {[...speakerRegistrations].sort((a, b) => b.voteCount - a.voteCount).map((speaker, index) => (
+              {[...speakerRegistrations].sort((a, b) => b.voteCount - a.voteCount).map((speaker) => (
                 <article key={speaker.id} className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <SpeakerStatusBadge status={speaker.speakerStatus} />
-                        {event.votingStatus === 'RESULTS' && index === 0 && speaker.voteCount > 0 && <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Dẫn đầu</span>}
+                        {event.votingStatus === 'RESULTS' && topVoteCount > 0 && speaker.status === 'ACTIVE' && speaker.paymentStatus === 'CONFIRMED' && speaker.speakerStatus === 'APPROVED' && speaker.voteCount === topVoteCount && <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Dẫn đầu</span>}
                       </div>
                       <h3 className="mt-3 font-semibold text-neutral-900 dark:text-white">{speaker.name}</h3>
                       <p className="mt-1 text-lg font-medium text-primary-700 dark:text-primary-400">{speaker.topicTitle || 'Chưa nhập chủ đề'}</p>
@@ -449,7 +466,7 @@ export default function NerdNightAdminDetail({
           <section className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
             <div className="flex items-start gap-3"><div className="rounded-xl bg-neutral-100 p-2.5 dark:bg-neutral-800"><Cog6ToothIcon className="size-5" /></div><div><h2 className="font-semibold text-neutral-900 dark:text-white">Vận hành sự kiện</h2><p className="mt-1 text-sm text-neutral-500">Thay đổi trạng thái sẽ đóng/mở các chức năng tương ứng trên trang public.</p></div></div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <label className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800"><span className="block text-sm font-medium text-neutral-900 dark:text-white">Trạng thái đêm</span><span className="mt-1 block text-xs text-neutral-500">Công khai để khách xem và đăng ký; hoàn thành để mở feedback.</span><select value={event.status} onChange={(e) => run(() => setNerdNightEventStatus(event.id, e.target.value as EventData['status']), 'Đã đổi trạng thái sự kiện')} disabled={!canManage || pending} className="mt-3 w-full rounded-xl border-neutral-300 bg-transparent text-sm dark:border-neutral-700"><option value="DRAFT">Bản nháp</option><option value="PUBLISHED">Công khai</option><option value="COMPLETED">Đã diễn ra</option><option value="CANCELLED">Đã hủy</option></select></label>
+              <label className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800"><span className="block text-sm font-medium text-neutral-900 dark:text-white">Trạng thái đêm</span><span className="mt-1 block text-xs text-neutral-500">Công khai để khách xem và đăng ký; hoàn thành để mở feedback.</span><select value={event.status} onChange={(e) => changeEventStatus(e.target.value as EventData['status'])} disabled={!canManage || pending} className="mt-3 w-full rounded-xl border-neutral-300 bg-transparent text-sm dark:border-neutral-700"><option value="DRAFT">Bản nháp</option><option value="PUBLISHED">Công khai</option><option value="COMPLETED">Đã diễn ra</option><option value="CANCELLED">Đã hủy</option></select></label>
               <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800"><span className="block text-sm font-medium text-neutral-900 dark:text-white">Trạng thái đăng ký</span><div className="mt-3 flex flex-wrap gap-2"><BooleanBadge active={event.registrationOpen} label="Đăng ký tham dự" /><BooleanBadge active={event.speakerRegistrationOpen} label="Đăng ký speaker" /></div><button type="button" onClick={() => setEditing(true)} disabled={!canManage} className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-primary-600 disabled:opacity-50"><PencilSquareIcon className="size-4" /> Chỉnh trong thông tin sự kiện</button></div>
             </div>
             {event.notes && <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"><b>Ghi chú nội bộ:</b> {event.notes}</div>}
@@ -470,12 +487,6 @@ function MetricCard({ icon: Icon, label, value, note, tone = 'neutral', onClick 
 function ActionButton({ children, onClick, tone }: { children: React.ReactNode; onClick: () => void; tone: 'green' | 'amber' | 'purple' | 'red' }) {
   const classes = { green: 'text-green-700 hover:bg-green-50 dark:text-green-400', amber: 'text-amber-700 hover:bg-amber-50 dark:text-amber-400', purple: 'text-purple-700 hover:bg-purple-50 dark:text-purple-400', red: 'text-red-700 hover:bg-red-50 dark:text-red-400' }[tone]
   return <button type="button" onClick={onClick} className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold ${classes}`}>{children}</button>
-}
-
-function hasRecordedPayment(registration: Registration) {
-  return registration.paymentStatus === 'CONFIRMED'
-    || Boolean(registration.paymentTransactionId)
-    || Boolean(registration.paymentReceivedAmount && registration.paymentReceivedAmount > 0)
 }
 
 function EmptyState({ title, description }: { title: string; description: string }) {

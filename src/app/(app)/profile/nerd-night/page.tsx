@@ -1,6 +1,7 @@
 import NerdNightProfileActions from '@/components/nerd-night/NerdNightProfileActions'
 import { authOptions } from '@/lib/auth'
 import { formatNerdNightDate, formatVnd } from '@/lib/nerd-night/format'
+import { isNerdNightPaymentExpired } from '@/lib/nerd-night/registration-state'
 import { prisma } from '@/lib/prisma'
 import { CalendarDaysIcon, MapPinIcon, MoonIcon } from '@heroicons/react/24/outline'
 import { getServerSession } from 'next-auth'
@@ -48,6 +49,7 @@ export default async function NerdNightProfilePage() {
         <div className="space-y-4">
           {registrations.map((registration) => {
             const payment = paymentLabels[registration.paymentStatus]
+            const isExpired = isNerdNightPaymentExpired(registration)
             const needsReview = registration.event.status === 'COMPLETED' && registration.paymentStatus === 'CONFIRMED' && registration.status === 'ACTIVE' && !reviewedEventIds.has(registration.eventId)
             return (
               <article key={registration.id} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
@@ -55,7 +57,9 @@ export default async function NerdNightProfilePage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${payment.className}`}>{payment.label}</span>
-                      {registration.status !== 'ACTIVE' && <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">{registration.status === 'EXPIRED' ? 'Hết hạn giữ chỗ' : 'Đã huỷ'}</span>}
+                      {(registration.status !== 'ACTIVE' || isExpired) && <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">{registration.status === 'EXPIRED' || isExpired ? 'Hết hạn giữ chỗ' : 'Đã huỷ'}</span>}
+                      {registration.refundStatus === 'PENDING' && <span className="rounded-full bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Đang chờ hoàn Ví Nerd</span>}
+                      {registration.refundStatus === 'COMPLETED' && <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">Đã hoàn Ví Nerd</span>}
                       {needsReview && <span className="rounded-full bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Cần feedback</span>}
                     </div>
                     <h3 className="mt-3 text-lg font-semibold text-neutral-900 dark:text-white">{registration.event.title}</h3>
@@ -70,7 +74,7 @@ export default async function NerdNightProfilePage() {
                     <span className="font-mono text-xs text-neutral-500">{registration.registrationCode}</span>
                     <div className="mt-2 flex gap-3">
                       <Link href={`/nerd-night/${registration.event.slug}`} className="text-sm font-medium text-primary-600 hover:text-primary-700">{needsReview ? 'Gửi feedback' : 'Xem chi tiết'}</Link>
-                      <NerdNightProfileActions registrationId={registration.id} canCancel={registration.status === 'ACTIVE' && registration.paymentStatus !== 'CONFIRMED'} />
+                      <NerdNightProfileActions registrationId={registration.id} canCancel={registration.status === 'ACTIVE' && !isExpired && registration.paymentStatus !== 'CONFIRMED' && registration.event.status === 'PUBLISHED' && registration.event.startsAt > new Date()} />
                     </div>
                   </div>
                 </div>

@@ -6,12 +6,19 @@ import {
   isNerdNightThemeCode,
   NERD_NIGHT_DEFAULT_THEORY_EXAMPLES,
   NERD_NIGHT_DEFAULT_TOPIC_PROMPT,
+  NERD_NIGHT_PAYMENT_HOLD_MINUTES,
   NERD_NIGHT_THEMES,
 } from '@/lib/nerd-night/constants'
 import { prisma } from '@/lib/prisma'
+import {
+  canNerdNightReceivePayment,
+  canOpenNerdNightVoting,
+  hasNerdNightPaymentEvidence,
+} from '@/lib/nerd-night/registration-state'
 import { isVietQRConfigured } from '@/lib/vietqr'
 import { ensureUserWalletAccount } from '@/lib/wallet-account'
 import { applyWalletTransactionInTx } from '@/lib/wallet-ledger'
+import { addMinutes } from 'date-fns'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -63,6 +70,20 @@ function revalidateNerdNight(slug?: string) {
   if (slug) revalidatePath(`/nerd-night/${slug}`)
 }
 
+function getNerdNightRefundExternalId(registration: {
+  id: string
+  paymentTransactionId: string | null
+  paymentConfirmedAt: Date | null
+  paymentReportedAt: Date | null
+  updatedAt: Date
+}) {
+  const paymentAttempt = registration.paymentTransactionId
+    || registration.paymentConfirmedAt?.getTime()
+    || registration.paymentReportedAt?.getTime()
+    || registration.updatedAt.getTime()
+  return `REFUND-NERD-NIGHT-${registration.id}-${paymentAttempt}`
+}
+
 export async function saveNerdNightEvent(rawInput: z.input<typeof eventSchema>): Promise<AdminResult<{ id: string }>> {
   const session = await requirePermission('canManageNerdNight')
   if (!session) return { success: false, error: 'Bạn không có quyền quản lý Nerd Night' }
@@ -105,22 +126,48 @@ export async function saveNerdNightEvent(rawInput: z.input<typeof eventSchema>):
 
     let event
     if (parsed.data.id) {
+      const now = new Date()
+      const stalePendingBefore = addMinutes(now, -NERD_NIGHT_PAYMENT_HOLD_MINUTES)
       await prisma.nerdNightRegistration.updateMany({
         where: {
           eventId: parsed.data.id,
           status: 'ACTIVE',
-          paymentStatus: 'UNPAID',
-          paymentExpiresAt: { lt: new Date() },
+          OR: [
+            { paymentStatus: 'UNPAID', paymentExpiresAt: { lt: now } },
+            {
+              paymentStatus: 'PENDING',
+              paymentTransactionId: null,
+              paymentReceivedAmount: null,
+              OR: [
+                { paymentExpiresAt: { lt: now } },
+                { paymentExpiresAt: null, paymentReportedAt: { lt: stalePendingBefore } },
+                { paymentExpiresAt: null, paymentReportedAt: null },
+              ],
+            },
+          ],
         },
         data: { status: 'EXPIRED' },
       })
       const current = await prisma.nerdNightEvent.findUnique({
         where: { id: parsed.data.id },
-        include: { _count: { select: { registrations: { where: { status: 'ACTIVE' } } } } },
+        include: {
+          registrations: {
+            where: { status: 'ACTIVE' },
+            select: { wantsToShare: true },
+          },
+        },
       })
       if (!current) return { success: false, error: 'Không tìm thấy sự kiện' }
-      if (parsed.data.capacity < current._count.registrations) {
+      if (parsed.data.capacity < current.registrations.length) {
         return { success: false, error: 'Sức chứa mới nhỏ hơn số người đang giữ chỗ' }
+      }
+      const activeSpeakers = current.registrations.filter((item) => item.wantsToShare).length
+      const activeListeners = current.registrations.length - activeSpeakers
+      if (parsed.data.speakerCapacity < activeSpeakers) {
+        return { success: false, error: 'Số slot speaker mới nhỏ hơn số đăng ký speaker đang giữ chỗ' }
+      }
+      if (parsed.data.capacity - parsed.data.speakerCapacity < activeListeners) {
+        return { success: false, error: 'Số chỗ người nghe mới nhỏ hơn số người nghe đang giữ chỗ' }
       }
       event = await prisma.nerdNightEvent.update({ where: { id: current.id }, data: values })
       await audit.update(session.user.id, session.user.name || session.user.email || 'Staff', 'nerd-night-event', event.id, values)
@@ -155,15 +202,52 @@ export async function setNerdNightEventStatus(
     }
   }
 
-  const updated = await prisma.nerdNightEvent.update({
-    where: { id: event.id },
-    data: {
-      status,
-      completedAt: status === 'COMPLETED' ? new Date() : status === 'PUBLISHED' ? null : event.completedAt,
-      registrationOpen: status === 'PUBLISHED' ? event.registrationOpen : false,
-      speakerRegistrationOpen: status === 'PUBLISHED' ? event.speakerRegistrationOpen : false,
-      votingStatus: status === 'CANCELLED' ? 'CLOSED' : event.votingStatus,
-    },
+  const reopening = status === 'PUBLISHED' && event.status !== 'PUBLISHED'
+  const canOpenRegistration = status === 'PUBLISHED' && event.startsAt > new Date()
+  const votingStatus = status === 'COMPLETED'
+    ? 'RESULTS'
+    : status === 'PUBLISHED'
+      ? reopening ? 'CLOSED' : event.votingStatus
+      : 'CLOSED'
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const savedEvent = await tx.nerdNightEvent.update({
+      where: { id: event.id },
+      data: {
+        status,
+        completedAt: status === 'COMPLETED' ? new Date() : status === 'PUBLISHED' ? null : event.completedAt,
+        registrationOpen: canOpenRegistration ? (reopening || event.registrationOpen) : false,
+        speakerRegistrationOpen: canOpenRegistration
+          ? ((reopening && event.speakerCapacity > 0) || event.speakerRegistrationOpen)
+          : false,
+        votingStatus,
+      },
+    })
+
+    if (status === 'CANCELLED') {
+      await tx.nerdNightRegistration.updateMany({
+        where: { eventId: event.id, status: 'ACTIVE' },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: new Date(),
+          cancellationReason: 'Sự kiện đã bị hủy',
+        },
+      })
+      await tx.nerdNightRegistration.updateMany({
+        where: {
+          eventId: event.id,
+          refundStatus: { not: 'COMPLETED' },
+          OR: [
+            { paymentStatus: 'CONFIRMED' },
+            { paymentTransactionId: { not: null } },
+            { paymentReceivedAmount: { gt: 0 } },
+          ],
+        },
+        data: { refundStatus: 'PENDING' },
+      })
+    }
+
+    return savedEvent
   })
 
   await audit.update(session.user.id, session.user.name || session.user.email || 'Staff', 'nerd-night-event', event.id, {
@@ -180,6 +264,19 @@ export async function setNerdNightVotingStatus(
 ): Promise<AdminResult> {
   const session = await requirePermission('canManageNerdNight')
   if (!session) return { success: false, error: 'Bạn không có quyền' }
+
+  const current = await prisma.nerdNightEvent.findUnique({ where: { id: eventId } })
+  if (!current) return { success: false, error: 'Không tìm thấy đêm Nerd Night' }
+  if (votingStatus === 'OPEN' && !canOpenNerdNightVoting(current)) {
+    return { success: false, error: 'Chỉ có thể mở vote khi đêm đang diễn ra' }
+  }
+  if (
+    votingStatus === 'RESULTS' &&
+    current.status !== 'COMPLETED' &&
+    !canOpenNerdNightVoting(current)
+  ) {
+    return { success: false, error: 'Chỉ có thể công bố kết quả sau khi đêm bắt đầu' }
+  }
 
   const event = await prisma.nerdNightEvent.update({ where: { id: eventId }, data: { votingStatus } })
   await audit.update(session.user.id, session.user.name || session.user.email || 'Staff', 'nerd-night-voting', eventId, {
@@ -218,7 +315,12 @@ export async function deleteNerdNightEvent(eventId: string): Promise<AdminResult
     where: { id: eventId },
     include: {
       registrations: {
-        select: { paymentStatus: true, refundStatus: true, paymentTransactionId: true },
+        select: {
+          paymentStatus: true,
+          refundStatus: true,
+          paymentTransactionId: true,
+          paymentReceivedAmount: true,
+        },
       },
     },
   })
@@ -226,9 +328,10 @@ export async function deleteNerdNightEvent(eventId: string): Promise<AdminResult
 
   const hasFinancialRecords = event.registrations.some(
     (registration) =>
-      registration.paymentStatus !== 'UNPAID' ||
-      registration.refundStatus === 'PENDING' ||
-      Boolean(registration.paymentTransactionId),
+      registration.paymentStatus === 'CONFIRMED' ||
+      registration.refundStatus !== 'NOT_REQUIRED' ||
+      Boolean(registration.paymentTransactionId) ||
+      (registration.paymentReceivedAmount || 0) > 0,
   )
   if (hasFinancialRecords) {
     return {
@@ -260,10 +363,7 @@ export async function deleteNerdNightRegistration(
   })
   if (!registration) return { success: false, error: 'Không tìm thấy slot đăng ký' }
 
-  const hasPaymentEvidence =
-    registration.paymentStatus === 'CONFIRMED' ||
-    Boolean(registration.paymentTransactionId) ||
-    (registration.paymentReceivedAmount || 0) > 0
+  const hasPaymentEvidence = hasNerdNightPaymentEvidence(registration)
   const shouldRefund = hasPaymentEvidence && registration.refundStatus !== 'COMPLETED'
 
   let refundWalletId: string | null = null
@@ -282,10 +382,7 @@ export async function deleteNerdNightRegistration(
       const current = await tx.nerdNightRegistration.findUnique({ where: { id: registration.id } })
       if (!current) throw new Error('REGISTRATION_NOT_FOUND')
 
-      const currentHasPaymentEvidence =
-        current.paymentStatus === 'CONFIRMED' ||
-        Boolean(current.paymentTransactionId) ||
-        (current.paymentReceivedAmount || 0) > 0
+      const currentHasPaymentEvidence = hasNerdNightPaymentEvidence(current)
       const refundedAmount = currentHasPaymentEvidence && current.refundStatus !== 'COMPLETED'
         ? Math.round(current.paymentReceivedAmount || current.amount)
         : 0
@@ -300,7 +397,7 @@ export async function deleteNerdNightRegistration(
           source: 'SYSTEM',
           referenceType: 'nerd_night_registration',
           referenceId: current.id,
-          externalTransactionId: `REFUND-NERD-NIGHT-${current.id}`,
+          externalTransactionId: getNerdNightRefundExternalId(current),
           description: `Hoàn tiền Nerd Night ${current.registrationCode} khi xóa đăng ký`,
           createdById: session.user.id,
         })
@@ -358,11 +455,7 @@ export async function deleteRejectedNerdNightSpeaker(
   if (registration.speakerStatus !== 'REJECTED') {
     return { success: false, error: 'Chỉ có thể xóa speaker đã bị từ chối' }
   }
-  const shouldRefund = (
-    registration.paymentStatus === 'CONFIRMED' ||
-    Boolean(registration.paymentTransactionId) ||
-    (registration.paymentReceivedAmount || 0) > 0
-  ) && registration.refundStatus !== 'COMPLETED'
+  const shouldRefund = hasNerdNightPaymentEvidence(registration) && registration.refundStatus !== 'COMPLETED'
   let refundWalletId: string | null = null
   if (shouldRefund) {
     const paymentSession = await requirePermission('canConfirmNerdNightPayments')
@@ -383,11 +476,7 @@ export async function deleteRejectedNerdNightSpeaker(
       if (!current || current.speakerStatus !== 'REJECTED') throw new Error('INVALID_SPEAKER_STATE')
 
       const refundedAmount =
-        (
-          current.paymentStatus === 'CONFIRMED' ||
-          Boolean(current.paymentTransactionId) ||
-          (current.paymentReceivedAmount || 0) > 0
-        ) && current.refundStatus !== 'COMPLETED'
+        hasNerdNightPaymentEvidence(current) && current.refundStatus !== 'COMPLETED'
           ? Math.round(current.paymentReceivedAmount || current.amount)
           : 0
       let newWalletBalance: number | undefined
@@ -401,7 +490,7 @@ export async function deleteRejectedNerdNightSpeaker(
           source: 'SYSTEM',
           referenceType: 'nerd_night_registration',
           referenceId: current.id,
-          externalTransactionId: `REFUND-NERD-NIGHT-${current.id}`,
+          externalTransactionId: getNerdNightRefundExternalId(current),
           description: `Hoàn tiền Nerd Night ${current.registrationCode} do speaker bị từ chối`,
           createdById: session.user.id,
         })
@@ -458,10 +547,32 @@ export async function reviewNerdNightSpeaker(
     include: { event: true },
   })
   if (!registration || !registration.wantsToShare) return { success: false, error: 'Đăng ký speaker không hợp lệ' }
+  if (registration.speakerStatus !== 'PENDING') {
+    return { success: false, error: 'Chỉ có thể duyệt đăng ký speaker đang chờ' }
+  }
+  if (registration.status !== 'ACTIVE') {
+    return { success: false, error: 'Đăng ký speaker không còn hiệu lực' }
+  }
+  if (!canNerdNightReceivePayment(registration.event)) {
+    return { success: false, error: 'Không thể duyệt speaker sau khi đêm đã bắt đầu hoặc kết thúc' }
+  }
+  if (
+    registration.paymentStatus !== 'CONFIRMED' &&
+    registration.paymentExpiresAt &&
+    registration.paymentExpiresAt <= new Date() &&
+    !hasNerdNightPaymentEvidence(registration)
+  ) {
+    await prisma.nerdNightRegistration.update({
+      where: { id: registration.id },
+      data: { status: 'EXPIRED' },
+    })
+    revalidateNerdNight(registration.event.slug)
+    return { success: false, error: 'Đăng ký speaker đã hết thời gian giữ chỗ' }
+  }
 
   await prisma.nerdNightRegistration.update({
     where: { id: registration.id },
-    data: { speakerStatus: decision, wantsToShare: decision === 'APPROVED' },
+    data: { speakerStatus: decision },
   })
   await audit.update(session.user.id, session.user.name || session.user.email || 'Staff', 'nerd-night-speaker', registration.id, {
     decision,
@@ -483,12 +594,34 @@ export async function confirmNerdNightPayment(
     include: { event: true },
   })
   if (!registration) return { success: false, error: 'Không tìm thấy đăng ký' }
+  if (registration.status !== 'ACTIVE') {
+    return { success: false, error: 'Đăng ký không còn hiệu lực' }
+  }
+  if (confirmed && registration.event.status !== 'PUBLISHED') {
+    return { success: false, error: 'Không thể xác nhận tiền cho sự kiện chưa công khai, đã hoàn thành hoặc đã hủy' }
+  }
+  if (
+    confirmed &&
+    registration.paymentExpiresAt &&
+    registration.paymentExpiresAt <= new Date() &&
+    !hasNerdNightPaymentEvidence(registration)
+  ) {
+    await prisma.nerdNightRegistration.update({
+      where: { id: registration.id },
+      data: { status: 'EXPIRED' },
+    })
+    revalidateNerdNight(registration.event.slug)
+    return { success: false, error: 'Thời gian giữ chỗ đã hết; không thể xác nhận thủ công' }
+  }
 
   if (confirmed && registration.paymentStatus !== 'PENDING') {
     return { success: false, error: 'Chỉ có thể xác nhận giao dịch đang chờ' }
   }
   if (!confirmed && registration.paymentStatus !== 'CONFIRMED') {
     return { success: false, error: 'Giao dịch chưa được xác nhận' }
+  }
+  if (!confirmed && registration.paymentTransactionId) {
+    return { success: false, error: 'Thanh toán VietQR tự động không thể bỏ xác nhận thủ công' }
   }
   if (!confirmed && (!reason || reason.trim().length < 3)) {
     return { success: false, error: 'Cần nhập lý do bỏ xác nhận' }
@@ -501,11 +634,13 @@ export async function confirmNerdNightPayment(
           paymentStatus: 'CONFIRMED',
           paymentConfirmedAt: new Date(),
           paymentConfirmedById: session.user.id,
+          paymentExpiresAt: null,
         }
       : {
           paymentStatus: 'PENDING',
           paymentConfirmedAt: null,
           paymentConfirmedById: null,
+          paymentExpiresAt: addMinutes(new Date(), NERD_NIGHT_PAYMENT_HOLD_MINUTES),
         },
   })
 
@@ -519,18 +654,73 @@ export async function confirmNerdNightPayment(
   return { success: true }
 }
 
-export async function completeNerdNightRefund(registrationId: string): Promise<AdminResult> {
+export async function completeNerdNightRefund(
+  registrationId: string,
+): Promise<AdminResult<{ refundedAmount: number; newWalletBalance: number }>> {
   const session = await requirePermission('canConfirmNerdNightPayments')
   if (!session) return { success: false, error: 'Bạn không có quyền' }
 
-  const registration = await prisma.nerdNightRegistration.update({
+  const registration = await prisma.nerdNightRegistration.findUnique({
     where: { id: registrationId },
-    data: { refundStatus: 'COMPLETED' },
     include: { event: true },
   })
+  if (!registration) return { success: false, error: 'Không tìm thấy đăng ký' }
+  if (registration.refundStatus !== 'PENDING') {
+    return { success: false, error: 'Đăng ký không có khoản hoàn tiền đang chờ xử lý' }
+  }
+  const hasPaymentEvidence = hasNerdNightPaymentEvidence(registration)
+  if (!hasPaymentEvidence) {
+    return { success: false, error: 'Chưa có bằng chứng đã nhận tiền để hoàn vào Ví Nerd' }
+  }
+
+  const walletAccount = await ensureUserWalletAccount(registration.userId)
+  if (!walletAccount.success) return { success: false, error: walletAccount.message }
+
+  let result: { refundedAmount: number; newWalletBalance: number }
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      const current = await tx.nerdNightRegistration.findUnique({ where: { id: registration.id } })
+      if (!current || current.refundStatus !== 'PENDING') throw new Error('INVALID_REFUND_STATE')
+
+      const currentHasPaymentEvidence = hasNerdNightPaymentEvidence(current)
+      if (!currentHasPaymentEvidence) throw new Error('PAYMENT_NOT_RECORDED')
+
+      const refundedAmount = Math.round(current.paymentReceivedAmount || current.amount)
+      const walletResult = await applyWalletTransactionInTx(tx, {
+        walletId: walletAccount.wallet.id,
+        type: 'REFUND',
+        amount: refundedAmount,
+        source: 'SYSTEM',
+        referenceType: 'nerd_night_registration',
+        referenceId: current.id,
+        externalTransactionId: getNerdNightRefundExternalId(current),
+        description: `Hoàn tiền Nerd Night ${current.registrationCode}`,
+        createdById: session.user.id,
+      })
+
+      await tx.nerdNightRegistration.update({
+        where: { id: current.id },
+        data: { refundStatus: 'COMPLETED' },
+      })
+
+      return { refundedAmount, newWalletBalance: walletResult.balanceAfter }
+    })
+  } catch (error) {
+    console.error('[completeNerdNightRefund] Error:', error)
+    return { success: false, error: 'Không thể hoàn tiền vào Ví Nerd lúc này' }
+  }
+
   await audit.update(session.user.id, session.user.name || session.user.email || 'Staff', 'nerd-night-refund', registration.id, {
     status: 'COMPLETED',
+    refundedToWallet: result.refundedAmount,
+    newWalletBalance: result.newWalletBalance,
   })
   revalidateNerdNight(registration.event.slug)
-  return { success: true }
+  revalidatePath('/profile/wallet')
+  revalidatePath('/admin/wallets')
+  return {
+    success: true,
+    data: result,
+    message: `Đã hoàn ${result.refundedAmount.toLocaleString('vi-VN')}đ vào Ví Nerd`,
+  }
 }
