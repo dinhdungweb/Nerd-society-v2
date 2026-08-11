@@ -289,11 +289,8 @@ export async function deleteRejectedNerdNightSpeaker(
   if (registration.speakerStatus !== 'REJECTED') {
     return { success: false, error: 'Chỉ có thể xóa speaker đã bị từ chối' }
   }
-  if (registration.paymentStatus === 'PENDING') {
-    return { success: false, error: 'Hãy xác nhận tiền trước khi xóa và hoàn vào Ví Nerd' }
-  }
-
-  const shouldRefund = registration.paymentStatus === 'CONFIRMED' && registration.refundStatus !== 'COMPLETED'
+  const shouldRefund =
+    ['PENDING', 'CONFIRMED'].includes(registration.paymentStatus) && registration.refundStatus !== 'COMPLETED'
   let refundWalletId: string | null = null
   if (shouldRefund) {
     const paymentSession = await requirePermission('canConfirmNerdNightPayments')
@@ -312,10 +309,9 @@ export async function deleteRejectedNerdNightSpeaker(
     result = await prisma.$transaction(async (tx) => {
       const current = await tx.nerdNightRegistration.findUnique({ where: { id: registration.id } })
       if (!current || current.speakerStatus !== 'REJECTED') throw new Error('INVALID_SPEAKER_STATE')
-      if (current.paymentStatus === 'PENDING') throw new Error('PAYMENT_PENDING')
 
       const refundedAmount =
-        current.paymentStatus === 'CONFIRMED' && current.refundStatus !== 'COMPLETED'
+        ['PENDING', 'CONFIRMED'].includes(current.paymentStatus) && current.refundStatus !== 'COMPLETED'
           ? Math.round(current.paymentReceivedAmount || current.amount)
           : 0
       let newWalletBalance: number | undefined
@@ -343,7 +339,6 @@ export async function deleteRejectedNerdNightSpeaker(
     console.error('[deleteRejectedNerdNightSpeaker] Error:', error)
     const code = error instanceof Error ? error.message : ''
     if (code === 'INVALID_SPEAKER_STATE') return { success: false, error: 'Speaker không còn ở trạng thái bị từ chối' }
-    if (code === 'PAYMENT_PENDING') return { success: false, error: 'Hãy xác nhận tiền trước khi xóa và hoàn vào Ví Nerd' }
     return { success: false, error: 'Không thể xóa và hoàn tiền Speaker lúc này' }
   }
 
