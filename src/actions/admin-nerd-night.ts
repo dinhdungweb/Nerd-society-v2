@@ -5,6 +5,8 @@ import { checkApiPermission } from '@/lib/apiPermissions'
 import { isNerdNightThemeCode, NERD_NIGHT_THEMES } from '@/lib/nerd-night/constants'
 import { prisma } from '@/lib/prisma'
 import { isVietQRConfigured } from '@/lib/vietqr'
+import { ensureUserWalletAccount } from '@/lib/wallet-account'
+import { applyWalletTransactionInTx } from '@/lib/wallet-ledger'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -271,6 +273,106 @@ export async function deleteNerdNightRegistration(registrationId: string): Promi
   revalidateNerdNight(registration.event.slug)
   revalidatePath(`/admin/nerd-night/${registration.event.id}`)
   return { success: true }
+}
+
+export async function deleteRejectedNerdNightSpeaker(
+  registrationId: string,
+): Promise<AdminResult<{ refundedAmount: number; newWalletBalance?: number }>> {
+  const session = await requirePermission('canManageNerdNight')
+  if (!session) return { success: false, error: 'Bạn không có quyền xóa speaker' }
+
+  const registration = await prisma.nerdNightRegistration.findUnique({
+    where: { id: registrationId },
+    include: { event: { select: { id: true, slug: true, title: true } } },
+  })
+  if (!registration) return { success: false, error: 'Không tìm thấy đăng ký speaker' }
+  if (registration.speakerStatus !== 'REJECTED') {
+    return { success: false, error: 'Chỉ có thể xóa speaker đã bị từ chối' }
+  }
+  if (registration.paymentStatus === 'PENDING') {
+    return { success: false, error: 'Hãy xác nhận tiền trước khi xóa và hoàn vào Ví Nerd' }
+  }
+
+  const shouldRefund = registration.paymentStatus === 'CONFIRMED' && registration.refundStatus !== 'COMPLETED'
+  let refundWalletId: string | null = null
+  if (shouldRefund) {
+    const paymentSession = await requirePermission('canConfirmNerdNightPayments')
+    if (!paymentSession) {
+      return { success: false, error: 'Bạn không có quyền hoàn tiền vào Ví Nerd' }
+    }
+    const walletAccount = await ensureUserWalletAccount(registration.userId)
+    if (!walletAccount.success) {
+      return { success: false, error: walletAccount.message }
+    }
+    refundWalletId = walletAccount.wallet.id
+  }
+
+  let result: { refundedAmount: number; newWalletBalance?: number }
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      const current = await tx.nerdNightRegistration.findUnique({ where: { id: registration.id } })
+      if (!current || current.speakerStatus !== 'REJECTED') throw new Error('INVALID_SPEAKER_STATE')
+      if (current.paymentStatus === 'PENDING') throw new Error('PAYMENT_PENDING')
+
+      const refundedAmount =
+        current.paymentStatus === 'CONFIRMED' && current.refundStatus !== 'COMPLETED'
+          ? Math.round(current.paymentReceivedAmount || current.amount)
+          : 0
+      let newWalletBalance: number | undefined
+
+      if (refundedAmount > 0) {
+        if (!refundWalletId) throw new Error('WALLET_REQUIRED')
+        const walletResult = await applyWalletTransactionInTx(tx, {
+          walletId: refundWalletId,
+          type: 'REFUND',
+          amount: refundedAmount,
+          source: 'SYSTEM',
+          referenceType: 'nerd_night_registration',
+          referenceId: current.id,
+          externalTransactionId: `REFUND-NERD-NIGHT-${current.id}`,
+          description: `Hoàn tiền Nerd Night ${current.registrationCode} do speaker bị từ chối`,
+          createdById: session.user.id,
+        })
+        newWalletBalance = walletResult.balanceAfter
+      }
+
+      await tx.nerdNightRegistration.delete({ where: { id: current.id } })
+      return { refundedAmount, newWalletBalance }
+    })
+  } catch (error) {
+    console.error('[deleteRejectedNerdNightSpeaker] Error:', error)
+    const code = error instanceof Error ? error.message : ''
+    if (code === 'INVALID_SPEAKER_STATE') return { success: false, error: 'Speaker không còn ở trạng thái bị từ chối' }
+    if (code === 'PAYMENT_PENDING') return { success: false, error: 'Hãy xác nhận tiền trước khi xóa và hoàn vào Ví Nerd' }
+    return { success: false, error: 'Không thể xóa và hoàn tiền Speaker lúc này' }
+  }
+
+  await audit.delete(
+    session.user.id,
+    session.user.name || session.user.email || 'Staff',
+    'nerd-night-speaker',
+    registration.id,
+    {
+      eventId: registration.event.id,
+      eventTitle: registration.event.title,
+      registrationCode: registration.registrationCode,
+      attendeeName: registration.attendeeName,
+      previousTopicTitle: registration.topicTitle,
+      refundedToWallet: result.refundedAmount,
+      newWalletBalance: result.newWalletBalance,
+    },
+  )
+  revalidateNerdNight(registration.event.slug)
+  revalidatePath(`/admin/nerd-night/${registration.event.id}`)
+  revalidatePath('/profile/wallet')
+  revalidatePath('/admin/wallets')
+  return {
+    success: true,
+    data: result,
+    message: result.refundedAmount > 0
+      ? `Đã xóa đăng ký và hoàn ${result.refundedAmount.toLocaleString('vi-VN')}đ vào Ví Nerd`
+      : 'Đã xóa đăng ký Speaker; người dùng có thể đăng ký lại',
+  }
 }
 
 export async function reviewNerdNightSpeaker(
