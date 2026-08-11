@@ -241,7 +241,7 @@ export default function NerdNightAdminDetail({
         <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <EventStatusBadge status={event.status} />
+              <EventStatusBadge status={event.status} startsAt={event.startsAt} />
               <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
                 S{event.season}E{String(event.episode).padStart(2, '0')} · {event.themeCode}
               </span>
@@ -469,7 +469,10 @@ function EmptyState({ title, description }: { title: string; description: string
   return <div className="rounded-2xl border border-dashed border-neutral-300 bg-white px-6 py-12 text-center dark:border-neutral-700 dark:bg-neutral-900"><p className="font-medium text-neutral-900 dark:text-white">{title}</p><p className="mt-1 text-sm text-neutral-500">{description}</p></div>
 }
 
-function EventStatusBadge({ status }: { status: EventData['status'] }) {
+function EventStatusBadge({ status, startsAt }: { status: EventData['status']; startsAt: string }) {
+  if (status === 'PUBLISHED' && new Date(startsAt) <= new Date()) {
+    return <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Đang diễn ra</span>
+  }
   const config = { DRAFT: ['Bản nháp', 'bg-neutral-100 text-neutral-600'], PUBLISHED: ['Công khai', 'bg-green-100 text-green-700'], COMPLETED: ['Đã diễn ra', 'bg-purple-100 text-purple-700'], CANCELLED: ['Đã hủy', 'bg-red-100 text-red-700'] }[status]
   return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${config[1]}`}>{config[0]}</span>
 }

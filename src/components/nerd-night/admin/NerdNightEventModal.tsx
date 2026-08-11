@@ -109,75 +109,99 @@ export default function NerdNightEventModal({
         </div>
 
         <form action={onSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-5 py-5 sm:grid-cols-2 sm:px-6">
-            <Field label="Season">
-              <input name="season" type="number" min="1" defaultValue={initial?.season || 1} required autoFocus />
-            </Field>
-            <Field label="Số đêm">
-              <input name="episode" type="number" min="1" defaultValue={initial?.episode} required />
-            </Field>
-            <Field label="Chủ đề">
-              <select name="themeCode" defaultValue={initial?.themeCode || NERD_NIGHT_SEASON_ORDER[0]} required>
-                {NERD_NIGHT_SEASON_ORDER.map((item) => <option key={item}>{item}</option>)}
-              </select>
-            </Field>
-            <Field label={mode === 'create' ? 'Tiêu đề (để trống để tự sinh)' : 'Tiêu đề'}>
-              <input name="title" defaultValue={initial?.title || ''} placeholder="Đêm 01 — Theory" required={mode === 'edit'} />
-            </Field>
-            <Field label="Thời gian">
-              <input name="startsAt" type="datetime-local" defaultValue={toLocalInput(initial?.startsAt)} required />
-            </Field>
-            <Field label="Cơ sở">
-              <select name="locationId" value={locationId} onChange={(event) => selectLocation(event.target.value)}>
-                <option value="">Địa điểm khác</option>
-                {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Tên địa điểm">
-              <input name="venueName" value={venueName} onChange={(event) => setVenueName(event.target.value)} placeholder="Nerd Society, Hồ Tùng Mậu" required />
-            </Field>
-            <Field label="Địa chỉ">
-              <input name="venueAddress" value={venueAddress} onChange={(event) => setVenueAddress(event.target.value)} />
-            </Field>
-            <Field label="Giá vé">
-              <input name="price" type="number" min="0" step="1000" defaultValue={initial?.price ?? 120000} required />
-            </Field>
-            <Field label="Sức chứa">
-              <input name="capacity" type="number" min="1" defaultValue={initial?.capacity ?? 15} required />
-            </Field>
-            <Field label="Slot dành riêng cho speaker">
-              <input name="speakerCapacity" type="number" min="0" defaultValue={initial?.speakerCapacity ?? 6} required />
-              <p className="mt-1.5 text-xs font-normal text-neutral-500">Số chỗ người nghe bằng sức chứa trừ số slot này.</p>
-            </Field>
-            <Field label="Mô tả theme">
-              <textarea name="themeDescription" defaultValue={initial?.themeDescription || ''} rows={3} />
-            </Field>
-            <Field label="Dòng mở đầu khung gợi ý">
-              <textarea name="topicPrompt" defaultValue={initial?.topicPrompt || NERD_NIGHT_DEFAULT_TOPIC_PROMPT} rows={3} maxLength={240} />
-            </Field>
-            <div className="sm:col-span-2">
-              <Field label="Các chủ đề gợi ý (mỗi dòng một chủ đề)">
-                <textarea
-                  name="topicSuggestions"
-                  defaultValue={(initial ? initial.topicSuggestions : NERD_NIGHT_DEFAULT_THEORY_EXAMPLES).join('\n')}
-                  rows={7}
-                  placeholder="Nhập tối đa 12 chủ đề, mỗi chủ đề trên một dòng"
-                />
-              </Field>
-            </div>
-            <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
-              <input name="registrationOpen" type="checkbox" defaultChecked={initial?.registrationOpen ?? true} />
-              Mở đăng ký khi công khai
-            </label>
-            <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
-              <input name="speakerRegistrationOpen" type="checkbox" defaultChecked={initial?.speakerRegistrationOpen ?? true} />
-              Mở đăng ký speaker
-            </label>
-            <div className="sm:col-span-2">
-              <Field label="Ghi chú nội bộ">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-neutral-50/60 px-5 py-5 dark:bg-neutral-950/40 sm:px-6">
+            <FormSection title="Thông tin cơ bản" description="Định danh đêm trong season và tiêu đề hiển thị trên trang public.">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Field label="Season">
+                  <input name="season" type="number" min="1" defaultValue={initial?.season || 1} required autoFocus />
+                </Field>
+                <Field label="Số đêm">
+                  <input name="episode" type="number" min="1" defaultValue={initial?.episode} required />
+                </Field>
+                <Field label="Chủ đề">
+                  <select name="themeCode" defaultValue={initial?.themeCode || NERD_NIGHT_SEASON_ORDER[0]} required>
+                    {NERD_NIGHT_SEASON_ORDER.map((item) => <option key={item}>{item}</option>)}
+                  </select>
+                </Field>
+                <Field label={mode === 'create' ? 'Tiêu đề (có thể để trống)' : 'Tiêu đề'}>
+                  <input name="title" defaultValue={initial?.title || ''} placeholder="Đêm 01 — Theory" required={mode === 'edit'} />
+                </Field>
+              </div>
+            </FormSection>
+
+            <FormSection title="Thời gian & địa điểm">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Thời gian bắt đầu">
+                  <input name="startsAt" type="datetime-local" defaultValue={toLocalInput(initial?.startsAt)} required />
+                </Field>
+                <Field label="Cơ sở">
+                  <select name="locationId" value={locationId} onChange={(event) => selectLocation(event.target.value)}>
+                    <option value="">Địa điểm khác</option>
+                    {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+                  </select>
+                </Field>
+                <Field label="Tên địa điểm">
+                  <input name="venueName" value={venueName} onChange={(event) => setVenueName(event.target.value)} placeholder="Nerd Society, Hồ Tùng Mậu" required />
+                </Field>
+                <Field label="Địa chỉ">
+                  <input name="venueAddress" value={venueAddress} onChange={(event) => setVenueAddress(event.target.value)} />
+                </Field>
+              </div>
+            </FormSection>
+
+            <FormSection title="Vé & sức chứa" description="Số chỗ người nghe được tính bằng sức chứa trừ số slot speaker.">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="Giá vé">
+                  <input name="price" type="number" min="0" step="1000" defaultValue={initial?.price ?? 120000} required />
+                </Field>
+                <Field label="Sức chứa">
+                  <input name="capacity" type="number" min="1" defaultValue={initial?.capacity ?? 15} required />
+                </Field>
+                <Field label="Slot speaker">
+                  <input name="speakerCapacity" type="number" min="0" defaultValue={initial?.speakerCapacity ?? 6} required />
+                </Field>
+              </div>
+            </FormSection>
+
+            <FormSection title="Nội dung hiển thị" description="Nội dung giới thiệu theme và khung gợi ý trên trang chi tiết sự kiện.">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Field label="Mô tả theme">
+                  <textarea name="themeDescription" defaultValue={initial?.themeDescription || ''} rows={4} />
+                </Field>
+                <Field label="Dòng mở đầu khung gợi ý">
+                  <textarea name="topicPrompt" defaultValue={initial?.topicPrompt || NERD_NIGHT_DEFAULT_TOPIC_PROMPT} rows={4} maxLength={240} />
+                </Field>
+                <div className="lg:col-span-2">
+                  <Field label="Các chủ đề gợi ý (mỗi dòng một chủ đề)">
+                    <textarea
+                      name="topicSuggestions"
+                      defaultValue={(initial ? initial.topicSuggestions : NERD_NIGHT_DEFAULT_THEORY_EXAMPLES).join('\n')}
+                      rows={7}
+                      placeholder="Nhập tối đa 12 chủ đề, mỗi chủ đề trên một dòng"
+                    />
+                  </Field>
+                </div>
+              </div>
+            </FormSection>
+
+            <FormSection title="Trạng thái đăng ký">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 transition hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300">
+                  <input className="mt-0.5" name="registrationOpen" type="checkbox" defaultChecked={initial?.registrationOpen ?? true} />
+                  <span><b className="block font-semibold text-neutral-900 dark:text-white">Đăng ký tham dự</b><span className="mt-1 block text-xs text-neutral-500">Cho phép người nghe giữ chỗ khi sự kiện công khai.</span></span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 transition hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-300">
+                  <input className="mt-0.5" name="speakerRegistrationOpen" type="checkbox" defaultChecked={initial?.speakerRegistrationOpen ?? true} />
+                  <span><b className="block font-semibold text-neutral-900 dark:text-white">Đăng ký speaker</b><span className="mt-1 block text-xs text-neutral-500">Cho phép gửi chủ đề chia sẻ nếu vẫn còn slot speaker.</span></span>
+                </label>
+              </div>
+            </FormSection>
+
+            <FormSection title="Ghi chú nội bộ" description="Chỉ staff thấy nội dung này.">
+              <Field label="Ghi chú">
                 <textarea name="notes" defaultValue={initial?.notes || ''} rows={3} />
               </Field>
-            </div>
+            </FormSection>
           </div>
 
           <div className="flex flex-col-reverse gap-3 border-t border-neutral-200 px-5 py-4 dark:border-neutral-800 sm:flex-row sm:justify-end sm:px-6">
@@ -191,6 +215,18 @@ export default function NerdNightEventModal({
         </form>
       </div>
     </div>
+  )
+}
+
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 sm:p-5">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">{title}</h3>
+        {description && <p className="mt-1 text-xs leading-5 text-neutral-500">{description}</p>}
+      </div>
+      {children}
+    </section>
   )
 }
 

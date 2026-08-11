@@ -248,7 +248,13 @@
   background: var(--nn-cream-deep);
   text-decoration: none;
 }
-.nn-roadmap-item.available { border-color: var(--nn-oxblood); color: var(--nn-cream); }
+.nn-roadmap-item.available { border-color: var(--nn-oxblood); }
+.nn-roadmap-item.nn-state-open { background: var(--nn-oxblood); color: var(--nn-cream); }
+.nn-roadmap-item.nn-state-ongoing { background: var(--nn-gold); border-color: var(--nn-gold); color: var(--nn-ink); }
+.nn-roadmap-item.nn-state-full { background: transparent; border-color: var(--nn-err); color: var(--nn-err); }
+.nn-roadmap-item.nn-state-upcoming { background: var(--nn-cream-deep); color: var(--nn-ink-soft); }
+.nn-roadmap-item.nn-state-completed { background: var(--nn-moss); border-color: var(--nn-moss); color: var(--nn-cream); opacity: .78; }
+.nn-roadmap-item.nn-state-cancelled { background: transparent; border-color: var(--nn-err); color: var(--nn-err); opacity: .72; }
 .nn-color-clay { background: var(--nn-oxblood) !important; }
 .nn-color-moss { background: var(--nn-moss) !important; }
 .nn-color-gold { background: var(--nn-gold) !important; }
@@ -266,6 +272,7 @@
 }
 .nn-event-card + .nn-event-card { border-top: 0; }
 .nn-event-main { flex: 1 1 280px; }
+.nn-event-labels { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
 .nn-theme-tag {
   display: inline-block;
   font-family: var(--font-nn-mono), monospace;
@@ -273,9 +280,25 @@
   letter-spacing: .08em;
   text-transform: uppercase;
   padding: 4px 10px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
   color: var(--nn-cream);
 }
+.nn-event-status {
+  display: inline-block;
+  font-family: var(--font-nn-mono), monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+}
+.nn-event-status.nn-state-open { color: var(--nn-moss); }
+.nn-event-status.nn-state-ongoing { color: var(--nn-gold); }
+.nn-event-status.nn-state-full { color: var(--nn-err); }
+.nn-event-status.nn-state-upcoming { color: var(--nn-ink-soft); }
+.nn-event-status.nn-state-completed { color: var(--nn-moss); }
+.nn-event-status.nn-state-cancelled { color: var(--nn-err); }
 .nn-event-title { font-family: var(--font-nn-serif), Georgia, serif; font-style: italic; font-weight: 400; font-size: clamp(21px, 3svh, 27px); margin: 0 0 6px; line-height: 1.15; }
 .nn-event-meta { font-size: 13px; color: var(--nn-ink-soft); display: flex; gap: 16px; flex-wrap: wrap; }
 .nn-event-meta b { color: var(--nn-ink); }

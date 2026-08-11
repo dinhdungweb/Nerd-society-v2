@@ -8,6 +8,10 @@ import {
 import NerdNightSiteFooter from '@/components/nerd-night/NerdNightSiteFooter'
 import { getNerdNightTheme, NERD_NIGHT_SEASON_ORDER } from '@/lib/nerd-night/constants'
 import { formatNerdNightDate, formatVnd } from '@/lib/nerd-night/format'
+import {
+  getNerdNightDisplayStatus,
+  NERD_NIGHT_DISPLAY_STATUS_LABELS,
+} from '@/lib/nerd-night/status'
 import { prisma } from '@/lib/prisma'
 import type { Metadata } from 'next'
 import Image from 'next/image'
@@ -35,7 +39,7 @@ function holdsSeat(registration: {
 
 async function getEvents() {
   const events = await prisma.nerdNightEvent.findMany({
-    where: { status: { in: ['PUBLISHED', 'COMPLETED'] } },
+    where: { status: { in: ['PUBLISHED', 'COMPLETED', 'CANCELLED'] } },
     include: {
       registrations: {
         select: { status: true, paymentStatus: true, paymentExpiresAt: true, speakerStatus: true },
@@ -63,12 +67,16 @@ async function getEvents() {
 
 function EventCard({ event }: { event: Awaited<ReturnType<typeof getEvents>>[number] }) {
   const theme = getNerdNightTheme(event.themeCode)
-  const isCompleted = event.status === 'COMPLETED'
+  const displayStatus = getNerdNightDisplayStatus(event)
+  const statusLabel = NERD_NIGHT_DISPLAY_STATUS_LABELS[displayStatus]
 
   return (
     <article className="nn-event-card">
       <div className="nn-event-main">
-        <span className={`nn-theme-tag nn-color-${theme.color}`}>{event.themeCode}</span>
+        <div className="nn-event-labels">
+          <span className={`nn-theme-tag nn-color-${theme.color}`}>{event.themeCode}</span>
+          <span className={`nn-event-status nn-state-${displayStatus.toLowerCase()}`}>{statusLabel}</span>
+        </div>
         <h3 className="nn-event-title">{event.title}</h3>
         <div className="nn-event-meta">
           <span><b>{formatNerdNightDate(event.startsAt)}</b></span>
@@ -77,17 +85,31 @@ function EventCard({ event }: { event: Awaited<ReturnType<typeof getEvents>>[num
       </div>
       <div className="nn-event-side">
         <div className="nn-event-price">{formatVnd(event.price)}</div>
-        <div className={`nn-event-slots ${!isCompleted && event.remaining <= 3 ? 'low' : ''}`}>
-          {isCompleted
+        <div className={`nn-event-slots ${displayStatus === 'OPEN' && event.remaining <= 3 ? 'low' : ''}`}>
+          {displayStatus === 'COMPLETED'
             ? event.averageRating
               ? `${event.averageRating.toFixed(1)}/5 · ${event.reviews.length} feedback`
-              : 'Đã diễn ra'
-            : event.listenerRemaining > 0 || event.speakerRemaining > 0
+              : 'Đã kết thúc'
+            : displayStatus === 'CANCELLED'
+              ? 'Đêm này đã hủy'
+            : displayStatus === 'ONGOING'
+              ? 'Chương trình đang diễn ra'
+            : displayStatus === 'UPCOMING'
+              ? 'Chưa mở đăng ký'
+            : displayStatus === 'OPEN' && (event.listenerRemaining > 0 || event.speakerRemaining > 0)
               ? `còn ${event.listenerRemaining} chỗ nghe · ${event.speakerRemaining} speaker`
               : 'đã hết chỗ'}
         </div>
         <Link href={`/nerd-night/${event.slug}`} className="nn-button nn-button-primary nn-button-small">
-          {isCompleted ? 'Xem lại đêm này' : 'Xem & đăng ký'}
+          {displayStatus === 'COMPLETED'
+            ? 'Xem lại đêm này'
+            : displayStatus === 'CANCELLED'
+              ? 'Xem thông báo'
+            : displayStatus === 'OPEN'
+              ? 'Xem & đăng ký'
+              : displayStatus === 'ONGOING'
+                ? 'Xem chương trình'
+                : 'Xem thông tin'}
         </Link>
       </div>
     </article>
@@ -140,9 +162,9 @@ const perks = [
 
 export default async function NerdNightPage() {
   const events = await getEvents()
-  const upcoming = events.filter((event) => event.status === 'PUBLISHED')
+  const scheduled = events.filter((event) => ['PUBLISHED', 'CANCELLED'].includes(event.status))
   const completed = events.filter((event) => event.status === 'COMPLETED').reverse()
-  const roadmapSeason = upcoming[0]?.season || completed[0]?.season || 1
+  const roadmapSeason = scheduled[0]?.season || completed[0]?.season || 1
 
   return (
     <main className="nn-scroll-root">
@@ -247,7 +269,7 @@ export default async function NerdNightPage() {
         <div className="nn-wrap">
           <div className="nn-section-head nn-section-head-left">
             <div className="nn-kicker">Season {roadmapSeason}</div>
-            <h2 className="nn-section-title">Các đêm sắp tới</h2>
+            <h2 className="nn-section-title">Lịch các đêm</h2>
             <p className="nn-section-sub">
               Season đi qua sáu chủ đề nối tiếp nhau như một mạch tư duy — từ lý thuyết đến thực hành.
             </p>
@@ -255,19 +277,22 @@ export default async function NerdNightPage() {
           <div className="nn-roadmap">
             {NERD_NIGHT_SEASON_ORDER.map((code) => {
               const event = events.find((item) => item.season === roadmapSeason && item.themeCode === code)
-              const theme = getNerdNightTheme(code)
-              return event ? (
-                <Link key={code} href={`/nerd-night/${event.slug}`} className={`nn-roadmap-item available nn-color-${theme.color}`}>
-                  {code}
-                </Link>
-              ) : (
+              if (event) {
+                const displayStatus = getNerdNightDisplayStatus(event)
+                return (
+                  <Link key={code} href={`/nerd-night/${event.slug}`} className={`nn-roadmap-item available nn-state-${displayStatus.toLowerCase()}`}>
+                    {code} · {NERD_NIGHT_DISPLAY_STATUS_LABELS[displayStatus]}
+                  </Link>
+                )
+              }
+              return (
                 <span key={code} className="nn-roadmap-item">{code} · sắp có</span>
               )
             })}
           </div>
           <div className="nn-event-list">
-            {upcoming.length
-              ? upcoming.map((event) => <EventCard key={event.id} event={event} />)
+            {scheduled.length
+              ? scheduled.map((event) => <EventCard key={event.id} event={event} />)
               : <p className="nn-empty">Chưa có đêm nào được mở đăng ký.</p>}
           </div>
           <p className="nn-events-note">Chọn đêm bạn muốn rồi đến thôi — một chủ đề, một tối, một cộng đồng.</p>

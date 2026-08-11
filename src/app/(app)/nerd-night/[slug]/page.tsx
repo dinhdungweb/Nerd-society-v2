@@ -40,7 +40,7 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
     },
   })
 
-  if (!event || !['PUBLISHED', 'COMPLETED'].includes(event.status)) notFound()
+  if (!event || !['PUBLISHED', 'COMPLETED', 'CANCELLED'].includes(event.status)) notFound()
 
   const currentRegistration = session?.user?.id
     ? await prisma.nerdNightRegistration.findUnique({
@@ -148,6 +148,7 @@ export default async function NerdNightEventPage({ params }: { params: Promise<{
           event={{
             id: event.id,
             status: event.status,
+            hasStarted: event.status === 'PUBLISHED' && event.startsAt <= now,
             registrationOpen: event.registrationOpen,
             speakerRegistrationOpen: event.speakerRegistrationOpen,
             votingStatus: event.votingStatus,

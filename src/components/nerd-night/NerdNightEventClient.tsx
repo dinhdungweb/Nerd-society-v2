@@ -43,6 +43,7 @@ export interface NerdNightEventClientProps {
   event: {
     id: string
     status: string
+    hasStarted: boolean
     registrationOpen: boolean
     speakerRegistrationOpen: boolean
     votingStatus: string
@@ -200,15 +201,27 @@ export default function NerdNightEventClient({
 
       {tab === 'register' && (
         <div className="nn-panel">
-          {!isLoggedIn ? (
+          {event.status === 'CANCELLED' ? (
+            <div className="nn-status">
+              <NerdNightMedal size={72} />
+              <p className="nn-badge-name">Đêm này đã hủy</p>
+              <p className="nn-muted">Nerd Society sẽ liên hệ với người đã đăng ký để hỗ trợ các bước tiếp theo.</p>
+            </div>
+          ) : activeRegistration ? (
+            <RegistrationStatus registration={registration!} pending={pending} onReportPayment={handleReportPayment} />
+          ) : event.hasStarted ? (
+            <div className="nn-status">
+              <NerdNightMedal size={72} />
+              <p className="nn-badge-name">Đêm này đang diễn ra</p>
+              <p className="nn-muted">Đăng ký đã đóng từ giờ bắt đầu chương trình. Hẹn bạn ở đêm Nerd Night tiếp theo nhé!</p>
+            </div>
+          ) : !isLoggedIn ? (
             <div className="nn-status">
               <NerdNightMedal size={72} />
               <p className="nn-badge-name">Đăng nhập để giữ chỗ</p>
               <p className="nn-muted">Bạn vẫn có thể xem lịch, speaker và feedback mà không cần đăng nhập.</p>
               <a className="nn-button nn-button-primary nn-button-block" style={{ marginTop: 20 }} href={loginUrl}>Đăng nhập</a>
             </div>
-          ) : activeRegistration ? (
-            <RegistrationStatus registration={registration!} pending={pending} onReportPayment={handleReportPayment} />
           ) : !event.registrationOpen || event.status !== 'PUBLISHED' ? (
             <p className="nn-empty">Đêm này hiện không mở đăng ký.</p>
           ) : event.listenerRemaining <= 0 && (!event.speakerRegistrationOpen || event.speakerRemaining <= 0) ? (

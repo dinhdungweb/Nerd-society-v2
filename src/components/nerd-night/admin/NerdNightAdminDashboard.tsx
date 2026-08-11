@@ -110,7 +110,7 @@ export default function NerdNightAdminDashboard({
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">S{event.season}E{String(event.episode).padStart(2, '0')}</span>
-                  <StatusBadge status={event.status} />
+                  <StatusBadge status={event.status} startsAt={event.startsAt} />
                 </div>
                 <h2 className="mt-3 text-lg font-semibold text-neutral-900 dark:text-white">{event.title}</h2>
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-500"><CalendarDaysIcon className="size-4" />{new Date(event.startsAt).toLocaleString('vi-VN')}</p>
@@ -151,7 +151,10 @@ function Stat({ label, value, warning = false }: { label: string; value: string 
   return <div className={`rounded-xl p-3 ${warning ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20' : 'bg-neutral-50 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'}`}><div className="text-lg font-bold">{value}</div><div className="text-xs opacity-70">{label}</div></div>
 }
 
-function StatusBadge({ status }: { status: EventItem['status'] }) {
+function StatusBadge({ status, startsAt }: { status: EventItem['status']; startsAt: string }) {
+  if (status === 'PUBLISHED' && new Date(startsAt) <= new Date()) {
+    return <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">Đang diễn ra</span>
+  }
   const style = { DRAFT: 'bg-neutral-100 text-neutral-600', PUBLISHED: 'bg-green-100 text-green-700', COMPLETED: 'bg-purple-100 text-purple-700', CANCELLED: 'bg-red-100 text-red-700' }[status]
   const label = { DRAFT: 'Bản nháp', PUBLISHED: 'Công khai', COMPLETED: 'Đã diễn ra', CANCELLED: 'Đã huỷ' }[status]
   return <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${style}`}>{label}</span>
