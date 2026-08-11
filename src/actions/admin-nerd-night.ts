@@ -248,7 +248,9 @@ export async function deleteNerdNightEvent(eventId: string): Promise<AdminResult
   return { success: true }
 }
 
-export async function deleteNerdNightRegistration(registrationId: string): Promise<AdminResult> {
+export async function deleteNerdNightRegistration(
+  registrationId: string,
+): Promise<AdminResult<{ refundedAmount: number; newWalletBalance?: number }>> {
   const session = await requirePermission('canManageNerdNight')
   if (!session) return { success: false, error: 'Bạn không có quyền xóa slot Nerd Night' }
 
@@ -258,19 +260,61 @@ export async function deleteNerdNightRegistration(registrationId: string): Promi
   })
   if (!registration) return { success: false, error: 'Không tìm thấy slot đăng ký' }
 
-  if (
-    !['UNPAID', 'PENDING'].includes(registration.paymentStatus) ||
-    registration.refundStatus === 'PENDING' ||
-    registration.paymentTransactionId ||
+  const hasPaymentEvidence =
+    registration.paymentStatus === 'CONFIRMED' ||
+    Boolean(registration.paymentTransactionId) ||
     (registration.paymentReceivedAmount || 0) > 0
-  ) {
-    return {
-      success: false,
-      error: 'Slot đã phát sinh giao dịch nên không thể xóa. Hãy xử lý thanh toán hoặc hoàn tiền trước.',
-    }
+  const shouldRefund = hasPaymentEvidence && registration.refundStatus !== 'COMPLETED'
+
+  let refundWalletId: string | null = null
+  if (shouldRefund) {
+    const paymentSession = await requirePermission('canConfirmNerdNightPayments')
+    if (!paymentSession) return { success: false, error: 'Bạn không có quyền hoàn tiền vào Ví Nerd' }
+
+    const walletAccount = await ensureUserWalletAccount(registration.userId)
+    if (!walletAccount.success) return { success: false, error: walletAccount.message }
+    refundWalletId = walletAccount.wallet.id
   }
 
-  await prisma.nerdNightRegistration.delete({ where: { id: registration.id } })
+  let result: { refundedAmount: number; newWalletBalance?: number }
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      const current = await tx.nerdNightRegistration.findUnique({ where: { id: registration.id } })
+      if (!current) throw new Error('REGISTRATION_NOT_FOUND')
+
+      const currentHasPaymentEvidence =
+        current.paymentStatus === 'CONFIRMED' ||
+        Boolean(current.paymentTransactionId) ||
+        (current.paymentReceivedAmount || 0) > 0
+      const refundedAmount = currentHasPaymentEvidence && current.refundStatus !== 'COMPLETED'
+        ? Math.round(current.paymentReceivedAmount || current.amount)
+        : 0
+      let newWalletBalance: number | undefined
+
+      if (refundedAmount > 0) {
+        if (!refundWalletId) throw new Error('WALLET_REQUIRED')
+        const walletResult = await applyWalletTransactionInTx(tx, {
+          walletId: refundWalletId,
+          type: 'REFUND',
+          amount: refundedAmount,
+          source: 'SYSTEM',
+          referenceType: 'nerd_night_registration',
+          referenceId: current.id,
+          externalTransactionId: `REFUND-NERD-NIGHT-${current.id}`,
+          description: `Hoàn tiền Nerd Night ${current.registrationCode} khi xóa đăng ký`,
+          createdById: session.user.id,
+        })
+        newWalletBalance = walletResult.balanceAfter
+      }
+
+      await tx.nerdNightRegistration.delete({ where: { id: current.id } })
+      return { refundedAmount, newWalletBalance }
+    })
+  } catch (error) {
+    console.error('[deleteNerdNightRegistration] Error:', error)
+    return { success: false, error: 'Không thể xóa và xử lý hoàn tiền đăng ký lúc này' }
+  }
+
   await audit.delete(
     session.user.id,
     session.user.name || session.user.email || 'Staff',
@@ -282,11 +326,22 @@ export async function deleteNerdNightRegistration(registrationId: string): Promi
       registrationCode: registration.registrationCode,
       attendeeName: registration.attendeeName,
       paymentStatus: registration.paymentStatus,
+      paymentTransactionId: registration.paymentTransactionId,
+      refundedToWallet: result.refundedAmount,
+      newWalletBalance: result.newWalletBalance,
     },
   )
   revalidateNerdNight(registration.event.slug)
   revalidatePath(`/admin/nerd-night/${registration.event.id}`)
-  return { success: true }
+  revalidatePath('/profile/wallet')
+  revalidatePath('/admin/wallets')
+  return {
+    success: true,
+    data: result,
+    message: result.refundedAmount > 0
+      ? `Đã xóa đăng ký và hoàn ${result.refundedAmount.toLocaleString('vi-VN')}đ vào Ví Nerd`
+      : 'Đã xóa đăng ký',
+  }
 }
 
 export async function deleteRejectedNerdNightSpeaker(
@@ -303,7 +358,11 @@ export async function deleteRejectedNerdNightSpeaker(
   if (registration.speakerStatus !== 'REJECTED') {
     return { success: false, error: 'Chỉ có thể xóa speaker đã bị từ chối' }
   }
-  const shouldRefund = registration.paymentStatus === 'CONFIRMED' && registration.refundStatus !== 'COMPLETED'
+  const shouldRefund = (
+    registration.paymentStatus === 'CONFIRMED' ||
+    Boolean(registration.paymentTransactionId) ||
+    (registration.paymentReceivedAmount || 0) > 0
+  ) && registration.refundStatus !== 'COMPLETED'
   let refundWalletId: string | null = null
   if (shouldRefund) {
     const paymentSession = await requirePermission('canConfirmNerdNightPayments')
@@ -324,7 +383,11 @@ export async function deleteRejectedNerdNightSpeaker(
       if (!current || current.speakerStatus !== 'REJECTED') throw new Error('INVALID_SPEAKER_STATE')
 
       const refundedAmount =
-        current.paymentStatus === 'CONFIRMED' && current.refundStatus !== 'COMPLETED'
+        (
+          current.paymentStatus === 'CONFIRMED' ||
+          Boolean(current.paymentTransactionId) ||
+          (current.paymentReceivedAmount || 0) > 0
+        ) && current.refundStatus !== 'COMPLETED'
           ? Math.round(current.paymentReceivedAmount || current.amount)
           : 0
       let newWalletBalance: number | undefined
