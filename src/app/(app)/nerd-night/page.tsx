@@ -278,10 +278,10 @@ export default async function NerdNightPage() {
             {NERD_NIGHT_SEASON_ORDER.map((code) => {
               const event = events.find((item) => item.season === roadmapSeason && item.themeCode === code)
               if (event) {
-                const displayStatus = getNerdNightDisplayStatus(event)
+                const theme = getNerdNightTheme(code)
                 return (
-                  <Link key={code} href={`/nerd-night/${event.slug}`} className={`nn-roadmap-item available nn-state-${displayStatus.toLowerCase()}`}>
-                    {code} · {NERD_NIGHT_DISPLAY_STATUS_LABELS[displayStatus]}
+                  <Link key={code} href={`/nerd-night/${event.slug}`} className={`nn-roadmap-item available nn-color-${theme.color}`}>
+                    {code}
                   </Link>
                 )
               }

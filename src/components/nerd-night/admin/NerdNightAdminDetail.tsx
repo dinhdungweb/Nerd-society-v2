@@ -196,8 +196,11 @@ export default function NerdNightAdminDetail({
   }
 
   function removeRegistration(registration: Registration) {
-    if (!window.confirm(`Xóa slot của ${registration.name} (${registration.code})?`)) return
-    run(() => deleteNerdNightRegistration(registration.id), 'Đã xóa slot đăng ký')
+    const paymentWarning = registration.paymentStatus === 'PENDING'
+      ? ' Khoản tiền chưa được xác nhận nên Ví Nerd sẽ không được cộng tiền.'
+      : ''
+    if (!window.confirm(`Xóa đăng ký của ${registration.name} (${registration.code})?${paymentWarning}`)) return
+    run(() => deleteNerdNightRegistration(registration.id), 'Đã xóa đăng ký')
   }
 
   function deleteRejectedSpeaker(registration: Registration) {
@@ -347,7 +350,7 @@ export default function NerdNightAdminDetail({
                         {canConfirm && registration.paymentStatus === 'CONFIRMED' && <ActionButton onClick={() => undoPayment(registration)} tone="amber">Bỏ xác nhận</ActionButton>}
                         {canConfirm && registration.refundStatus === 'PENDING' && <ActionButton onClick={() => run(() => completeNerdNightRefund(registration.id), 'Đã ghi nhận hoàn tiền')} tone="purple">Đã hoàn tiền</ActionButton>}
                         {canManage && registration.speakerStatus === 'REJECTED' && (registration.paymentStatus !== 'CONFIRMED' || registration.refundStatus === 'COMPLETED' || canConfirm) && <ActionButton onClick={() => deleteRejectedSpeaker(registration)} tone="red">{registration.paymentStatus === 'CONFIRMED' && registration.refundStatus !== 'COMPLETED' ? 'Xóa & hoàn Ví Nerd' : 'Xóa đăng ký'}</ActionButton>}
-                        {canManage && registration.speakerStatus !== 'REJECTED' && registration.paymentStatus === 'UNPAID' && registration.refundStatus !== 'PENDING' && <ActionButton onClick={() => removeRegistration(registration)} tone="red">Xóa slot</ActionButton>}
+                        {canManage && registration.speakerStatus !== 'REJECTED' && ['UNPAID', 'PENDING'].includes(registration.paymentStatus) && registration.refundStatus !== 'PENDING' && !registration.paymentTransactionId && !(registration.paymentReceivedAmount && registration.paymentReceivedAmount > 0) && <ActionButton onClick={() => removeRegistration(registration)} tone="red">Xóa đăng ký</ActionButton>}
                       </div>
                     </td>
                   </tr>

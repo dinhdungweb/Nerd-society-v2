@@ -109,7 +109,7 @@ export default function NerdNightEventModal({
         </div>
 
         <form action={onSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-neutral-50/60 px-5 py-5 dark:bg-neutral-950/40 sm:px-6">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
             <FormSection title="Thông tin cơ bản" description="Định danh đêm trong season và tiêu đề hiển thị trên trang public.">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Field label="Season">
@@ -220,7 +220,7 @@ export default function NerdNightEventModal({
 
 function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 sm:p-5">
+    <section className="border-b border-neutral-200 pb-6 last:border-b-0 last:pb-0 dark:border-neutral-800">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">{title}</h3>
         {description && <p className="mt-1 text-xs leading-5 text-neutral-500">{description}</p>}

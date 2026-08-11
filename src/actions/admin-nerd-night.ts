@@ -259,9 +259,10 @@ export async function deleteNerdNightRegistration(registrationId: string): Promi
   if (!registration) return { success: false, error: 'Không tìm thấy slot đăng ký' }
 
   if (
-    registration.paymentStatus !== 'UNPAID' ||
+    !['UNPAID', 'PENDING'].includes(registration.paymentStatus) ||
     registration.refundStatus === 'PENDING' ||
-    registration.paymentTransactionId
+    registration.paymentTransactionId ||
+    (registration.paymentReceivedAmount || 0) > 0
   ) {
     return {
       success: false,
@@ -280,6 +281,7 @@ export async function deleteNerdNightRegistration(registrationId: string): Promi
       eventTitle: registration.event.title,
       registrationCode: registration.registrationCode,
       attendeeName: registration.attendeeName,
+      paymentStatus: registration.paymentStatus,
     },
   )
   revalidateNerdNight(registration.event.slug)
