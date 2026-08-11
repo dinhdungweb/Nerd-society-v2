@@ -202,10 +202,10 @@ export default function NerdNightAdminDetail({
 
   function deleteRejectedSpeaker(registration: Registration) {
     const refundAmount = registration.paymentReceivedAmount || registration.amount
-    const willRefund = ['PENDING', 'CONFIRMED'].includes(registration.paymentStatus) && registration.refundStatus !== 'COMPLETED'
+    const willRefund = registration.paymentStatus === 'CONFIRMED' && registration.refundStatus !== 'COMPLETED'
     const refundMessage = willRefund
-      ? `, xác nhận đã nhận ${formatCurrency(refundAmount)} và hoàn số tiền này vào Ví Nerd`
-      : ''
+      ? ` và hoàn ${formatCurrency(refundAmount)} vào Ví Nerd`
+      : '. Khoản tiền chưa được xác nhận nên Ví Nerd sẽ không được cộng tiền'
     if (!window.confirm(`Xóa toàn bộ đăng ký Speaker của ${registration.name}${refundMessage}? Người này có thể đăng ký lại sau đó.`)) return
     run(() => deleteRejectedNerdNightSpeaker(registration.id), 'Đã xóa đăng ký Speaker')
   }
@@ -346,7 +346,7 @@ export default function NerdNightAdminDetail({
                         {canConfirm && registration.paymentStatus === 'PENDING' && <ActionButton onClick={() => run(() => confirmNerdNightPayment(registration.id, true), 'Đã xác nhận thanh toán')} tone="green">Xác nhận tiền</ActionButton>}
                         {canConfirm && registration.paymentStatus === 'CONFIRMED' && <ActionButton onClick={() => undoPayment(registration)} tone="amber">Bỏ xác nhận</ActionButton>}
                         {canConfirm && registration.refundStatus === 'PENDING' && <ActionButton onClick={() => run(() => completeNerdNightRefund(registration.id), 'Đã ghi nhận hoàn tiền')} tone="purple">Đã hoàn tiền</ActionButton>}
-                        {canManage && registration.speakerStatus === 'REJECTED' && (!['PENDING', 'CONFIRMED'].includes(registration.paymentStatus) || registration.refundStatus === 'COMPLETED' || canConfirm) && <ActionButton onClick={() => deleteRejectedSpeaker(registration)} tone="red">{['PENDING', 'CONFIRMED'].includes(registration.paymentStatus) && registration.refundStatus !== 'COMPLETED' ? 'Xóa & hoàn Ví Nerd' : 'Xóa đăng ký'}</ActionButton>}
+                        {canManage && registration.speakerStatus === 'REJECTED' && (registration.paymentStatus !== 'CONFIRMED' || registration.refundStatus === 'COMPLETED' || canConfirm) && <ActionButton onClick={() => deleteRejectedSpeaker(registration)} tone="red">{registration.paymentStatus === 'CONFIRMED' && registration.refundStatus !== 'COMPLETED' ? 'Xóa & hoàn Ví Nerd' : 'Xóa đăng ký'}</ActionButton>}
                         {canManage && registration.speakerStatus !== 'REJECTED' && registration.paymentStatus === 'UNPAID' && registration.refundStatus !== 'PENDING' && <ActionButton onClick={() => removeRegistration(registration)} tone="red">Xóa slot</ActionButton>}
                       </div>
                     </td>
@@ -411,11 +411,11 @@ export default function NerdNightAdminDetail({
                   )}
                   {canManage && speaker.speakerStatus === 'REJECTED' && (
                     <div className="mt-5 border-t border-neutral-100 pt-4 dark:border-neutral-800">
-                      {['PENDING', 'CONFIRMED'].includes(speaker.paymentStatus) && speaker.refundStatus !== 'COMPLETED' && !canConfirm ? (
+                      {speaker.paymentStatus === 'CONFIRMED' && speaker.refundStatus !== 'COMPLETED' && !canConfirm ? (
                         <p className="text-sm text-amber-600">Bạn cần quyền xác nhận thanh toán để hoàn tiền vào Ví Nerd.</p>
                       ) : (
                         <button type="button" onClick={() => deleteRejectedSpeaker(speaker)} disabled={pending} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30">
-                          <TrashIcon className="size-4" /> {['PENDING', 'CONFIRMED'].includes(speaker.paymentStatus) && speaker.refundStatus !== 'COMPLETED' ? 'Xóa & hoàn Ví Nerd' : 'Xóa đăng ký'}
+                          <TrashIcon className="size-4" /> {speaker.paymentStatus === 'CONFIRMED' && speaker.refundStatus !== 'COMPLETED' ? 'Xóa & hoàn Ví Nerd' : 'Xóa đăng ký'}
                         </button>
                       )}
                     </div>

@@ -301,8 +301,7 @@ export async function deleteRejectedNerdNightSpeaker(
   if (registration.speakerStatus !== 'REJECTED') {
     return { success: false, error: 'Chỉ có thể xóa speaker đã bị từ chối' }
   }
-  const shouldRefund =
-    ['PENDING', 'CONFIRMED'].includes(registration.paymentStatus) && registration.refundStatus !== 'COMPLETED'
+  const shouldRefund = registration.paymentStatus === 'CONFIRMED' && registration.refundStatus !== 'COMPLETED'
   let refundWalletId: string | null = null
   if (shouldRefund) {
     const paymentSession = await requirePermission('canConfirmNerdNightPayments')
@@ -323,7 +322,7 @@ export async function deleteRejectedNerdNightSpeaker(
       if (!current || current.speakerStatus !== 'REJECTED') throw new Error('INVALID_SPEAKER_STATE')
 
       const refundedAmount =
-        ['PENDING', 'CONFIRMED'].includes(current.paymentStatus) && current.refundStatus !== 'COMPLETED'
+        current.paymentStatus === 'CONFIRMED' && current.refundStatus !== 'COMPLETED'
           ? Math.round(current.paymentReceivedAmount || current.amount)
           : 0
       let newWalletBalance: number | undefined
