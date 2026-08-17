@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { 
   MagnifyingGlassIcon, 
   FunnelIcon,
@@ -36,7 +37,20 @@ const INITIAL_PAGINATION: PaginationMeta = {
 };
 
 export default function SubscriptionsAdminClient() {
-  const [activeTab, setActiveTab] = useState<TabType>('orders');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
+  const tabParam = (searchParams.get('tab') as TabType) || 'orders';
+  const [activeTab, setActiveTab] = useState<TabType>(tabParam);
+
+  // Đồng bộ URL với state khi người dùng dùng nút back/forward
+  useEffect(() => {
+    const currentTab = searchParams.get('tab') as TabType;
+    if (currentTab && currentTab !== activeTab) {
+      setActiveTab(currentTab);
+    }
+  }, [searchParams]);
   const [orders, setOrders] = useState<RegistrationOrder[]>([]);
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [orderPage, setOrderPage] = useState(1);
@@ -235,6 +249,10 @@ export default function SubscriptionsAdminClient() {
             <button
               key={tab.key}
               onClick={() => {
+                const params = new URLSearchParams(searchParams.toString());
+                params.set('tab', tab.key);
+                router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+                
                 setActiveTab(tab.key);
                 if (tab.key === 'orders') setOrderPage(1);
                 if (tab.key === 'subscribers') setSubscriberPage(1);
