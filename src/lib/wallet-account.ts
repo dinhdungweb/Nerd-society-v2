@@ -22,7 +22,6 @@ export type WalletAccountResult =
             fullName: string
             phone: string
             email: string | null
-            mytimeEmpId: string | null
             outstandingBalance: number
         } | null
     }
@@ -83,7 +82,6 @@ async function linkExistingSubscriberByPhone(user: {
             email: true,
             walletCode: true,
             walletBalance: true,
-            mytimeEmpId: true,
             outstandingBalance: true,
         },
     })
@@ -106,7 +104,6 @@ async function linkExistingSubscriberByPhone(user: {
             email: true,
             walletCode: true,
             walletBalance: true,
-            mytimeEmpId: true,
             outstandingBalance: true,
         },
     })
@@ -136,7 +133,6 @@ export async function ensureUserWalletAccount(userId: string): Promise<WalletAcc
                     email: true,
                     walletCode: true,
                     walletBalance: true,
-                    mytimeEmpId: true,
                     outstandingBalance: true,
                 },
             },
@@ -210,7 +206,6 @@ export async function ensureUserWalletAccount(userId: string): Promise<WalletAcc
             fullName: subscriber.fullName,
             phone: subscriber.phone,
             email: subscriber.email,
-            mytimeEmpId: subscriber.mytimeEmpId,
             outstandingBalance: subscriber.outstandingBalance,
         } : null,
     }

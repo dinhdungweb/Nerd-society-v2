@@ -1,4 +1,5 @@
-const BUSINESS_TIME_ZONE = process.env.BUSINESS_TIME_ZONE || 'Asia/Ho_Chi_Minh'
+export const BUSINESS_TIME_ZONE = 'Asia/Ho_Chi_Minh'
+const BUSINESS_UTC_OFFSET_MS = 7 * 60 * 60 * 1000
 
 export function formatBusinessDate(date: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -29,9 +30,7 @@ export function businessDateOnly(date: Date = new Date()): Date {
 }
 
 export function localStartOfDay(date: Date = new Date()): Date {
-  const start = new Date(date)
-  start.setHours(0, 0, 0, 0)
-  return start
+  return new Date(businessDateOnly(date).getTime() - BUSINESS_UTC_OFFSET_MS)
 }
 
 export function localDateOnly(date: Date): Date {
@@ -138,44 +137,21 @@ export function splitMinutesByLocalDay(start: Date, end: Date, totalMinutes: num
   if (totalMinutes <= 0) return []
 
   if (end <= start) {
-    return [{ usageDate: localDateOnly(start), minutes: totalMinutes }]
+    return [{ usageDate: businessDateOnly(start), minutes: totalMinutes }]
   }
 
-  const segments: Array<{ usageDate: Date; rawMinutes: number }> = []
-  let cursor = new Date(start)
-
-  while (cursor < end) {
-    const nextMidnight = new Date(cursor)
-    nextMidnight.setHours(24, 0, 0, 0)
-
-    const segmentEnd = nextMidnight < end ? nextMidnight : end
-    const rawMinutes = Math.max(0, Math.round((segmentEnd.getTime() - cursor.getTime()) / 60000))
-
-    if (rawMinutes > 0) {
-      segments.push({
-        usageDate: localDateOnly(cursor),
-        rawMinutes,
-      })
-    }
-
-    cursor = segmentEnd
+  // Session lengths are stored in whole minutes. Assign each minute using the
+  // configured business timezone so deployment server timezone cannot change
+  // the day boundary (notably when the server runs in UTC).
+  const minuteCountByDate = new Map<string, number>()
+  for (let minute = 0; minute < totalMinutes; minute += 1) {
+    const instant = new Date(start.getTime() + minute * 60_000)
+    const key = formatBusinessDate(instant)
+    minuteCountByDate.set(key, (minuteCountByDate.get(key) || 0) + 1)
   }
 
-  if (segments.length === 0) {
-    return [{ usageDate: localDateOnly(start), minutes: totalMinutes }]
-  }
-
-  let assigned = 0
-  return segments
-    .map((segment, index) => {
-      const isLast = index === segments.length - 1
-      const minutes = isLast ? Math.max(0, totalMinutes - assigned) : segment.rawMinutes
-      assigned += minutes
-
-      return {
-        usageDate: segment.usageDate,
-        minutes,
-      }
-    })
-    .filter((segment) => segment.minutes > 0)
+  return Array.from(minuteCountByDate, ([key, minutes]) => ({
+    usageDate: dateOnlyFromYmd(key),
+    minutes,
+  }))
 }

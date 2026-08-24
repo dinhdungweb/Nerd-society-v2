@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 
 // All staff-like roles (not CUSTOMER, not ADMIN)
 const STAFF_ROLES = ['STAFF', 'MANAGER', 'CONTENT_EDITOR']
+const CHECKIN_ROLES = ['STAFF', 'MANAGER', 'ADMIN']
 
 // Routes that are ONLY for ADMIN (never for other roles regardless of permissions)
 // Note: /admin/staff is now permission-based (canViewStaff), not admin-only
@@ -22,6 +23,13 @@ export default withAuth(
     function middleware(req) {
         const pathname = req.nextUrl.pathname
         const role = req.nextauth.token?.role as string
+
+        if (pathname.startsWith('/staff')) {
+            if (!CHECKIN_ROLES.includes(role)) {
+                return NextResponse.redirect(new URL('/?error=access_denied', req.url))
+            }
+            return
+        }
 
         if (pathname.startsWith('/admin')) {
             // Block customers from all admin routes
@@ -80,5 +88,5 @@ export default withAuth(
 )
 
 export const config = {
-    matcher: ['/admin/:path*', '/profile/:path*'],
+    matcher: ['/admin/:path*', '/profile/:path*', '/staff/:path*'],
 }

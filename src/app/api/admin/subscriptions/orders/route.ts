@@ -5,9 +5,19 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getRegistrationOrders, confirmPayment, assignCardAndCreate, cancelOrder } from '@/actions/subscription-actions';
+import { getRegistrationOrders, confirmPayment, issueQrAndCreate, cancelOrder } from '@/actions/subscription-actions';
 import { getStaffSession } from '@/lib/authHelpers';
+import { getRolePermissions } from '@/lib/apiPermissions';
 import { prisma } from '@/lib/prisma';
+
+async function authorize(permission: 'canViewCustomers' | 'canManageCustomers') {
+  const session = await getStaffSession();
+  if (!session) return null;
+  const role = session.user.role as string;
+  if (role === 'ADMIN') return session;
+  const permissions = await getRolePermissions(role);
+  return permissions[permission] ? session : null;
+}
 
 export async function GET(request: Request) {
   try {
@@ -25,7 +35,7 @@ export async function GET(request: Request) {
       return NextResponse.json(order);
     }
 
-    const session = await getStaffSession();
+    const session = await authorize('canViewCustomers');
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const status = url.searchParams.get('status') || undefined;
@@ -45,7 +55,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getStaffSession();
+    const session = await authorize('canManageCustomers');
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
@@ -55,8 +65,8 @@ export async function POST(request: Request) {
         const result = await confirmPayment(body.orderId, body.paymentRef);
         return NextResponse.json(result);
       }
-      case 'assign_card': {
-        const result = await assignCardAndCreate(body.orderId, body.cardNo, body.staffName || 'admin');
+      case 'issue_qr': {
+        const result = await issueQrAndCreate(body.orderId, session.user.name || body.staffName || 'admin');
         return NextResponse.json(result);
       }
       case 'cancel': {

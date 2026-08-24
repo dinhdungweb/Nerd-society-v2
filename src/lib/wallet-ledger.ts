@@ -234,7 +234,7 @@ export async function refundRegistrationOrderToWallet(input: {
         return { refunded: false, reason: 'ORDER_NOT_FOUND' }
     }
 
-    const isPaid = !!order.paidAt || !!order.paymentRef || ['PAID', 'CARD_ASSIGNED', 'ACTIVATED'].includes(order.orderStatus)
+    const isPaid = !!order.paidAt || !!order.paymentRef || ['PAID', 'QR_ISSUED', 'CARD_ASSIGNED', 'ACTIVATED'].includes(order.orderStatus)
     if (!isPaid) {
         return { refunded: false, reason: 'ORDER_NOT_PAID' }
     }

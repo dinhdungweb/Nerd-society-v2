@@ -33,8 +33,6 @@ export interface Subscriber {
   phone: string;
   email?: string;
   photoUrl?: string;
-  cardNo?: string;
-  mytimeEmpId?: string | null;
   branchPrimary?: string;
   status: string;
   todayUsedMin?: number;
@@ -61,14 +59,15 @@ export const PLAN_LABELS: Record<string, string> = {
 export const STATUS_LABELS: Record<string, { label: string; color: any; bg?: string }> = {
   PENDING_PAYMENT: { label: 'Chờ thanh toán', color: 'amber' },
   PAID: { label: 'Đã thanh toán', color: 'blue' },
+  QR_ISSUED: { label: 'Đã cấp QR', color: 'emerald' },
   CARD_ASSIGNED: { label: 'Đã gán thẻ', color: 'emerald' },
   ACTIVATED: { label: 'Đã kích hoạt', color: 'green' },
   CANCELLED: { label: 'Đã hủy', color: 'red' },
   ORDER_EXPIRED: { label: 'Hết hạn', color: 'zinc' },
   // Sub status
-  PENDING_ACTIVATION: { label: 'Chờ kích hoạt', color: 'amber' },
+  PENDING_ACTIVATION: { label: 'Chờ cấp QR', color: 'amber' },
   ACTIVE: { label: 'Active', color: 'emerald' },
   EXPIRED: { label: 'Hết hạn', color: 'red' },
   RENEWED: { label: 'Đã gia hạn', color: 'blue' },
-  NO_SUBSCRIPTION: { label: 'Chưa gán thẻ', color: 'amber' },
+  NO_SUBSCRIPTION: { label: 'Dùng Ví Nerd', color: 'amber' },
 };

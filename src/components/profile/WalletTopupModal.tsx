@@ -7,7 +7,6 @@ import toast from 'react-hot-toast'
 
 interface WalletTopupModalProps {
     walletCode?: string | null
-    legacyEmpId?: string | null
     bankConfig: {
         bankCode: string
         accountNumber: string
@@ -26,7 +25,6 @@ interface QRData {
 
 export default function WalletTopupModal({
     walletCode,
-    legacyEmpId,
     bankConfig: initialBankConfig,
     buttonLabel = 'Nạp tiền vào Ví',
 }: WalletTopupModalProps) {
@@ -38,11 +36,10 @@ export default function WalletTopupModal({
 
     const query = useMemo(() => {
         if (walletCode) return `walletCode=${encodeURIComponent(walletCode)}`
-        if (legacyEmpId) return `empId=${encodeURIComponent(legacyEmpId)}`
         return ''
-    }, [legacyEmpId, walletCode])
+    }, [walletCode])
 
-    const transferContent = qrData?.description || (walletCode ? `VI ${walletCode}` : `TU ${legacyEmpId}`)
+    const transferContent = qrData?.description || (walletCode ? `VI ${walletCode}` : '')
 
     useEffect(() => {
         if (isOpen && !qrData && query) {

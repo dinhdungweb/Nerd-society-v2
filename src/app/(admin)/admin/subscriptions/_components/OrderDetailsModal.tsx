@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { UserIcon, MapPinIcon, DevicePhoneMobileIcon, EnvelopeIcon, CreditCardIcon, CalendarIcon, IdentificationIcon } from '@heroicons/react/24/outline';
 import NcModal from '@/shared/NcModal';
 import { Button } from '@/shared/Button';
-import Input from '@/shared/Input';
 import { Badge } from '@/shared/Badge';
 import { RegistrationOrder, PLAN_LABELS, STATUS_LABELS } from './constants';
 
@@ -12,7 +11,7 @@ interface OrderDetailsModalProps {
   order: RegistrationOrder | null;
   onClose: () => void;
   onConfirmPayment: (orderId: string) => Promise<void>;
-  onAssignCard: (orderId: string, cardNo: string) => Promise<void>;
+  onIssueQr: (orderId: string) => Promise<void>;
   onCancelOrder: (orderId: string) => Promise<void>;
   actionLoading: boolean;
 }
@@ -21,12 +20,10 @@ export default function OrderDetailsModal({
   order,
   onClose,
   onConfirmPayment,
-  onAssignCard,
+  onIssueQr,
   onCancelOrder,
   actionLoading,
 }: OrderDetailsModalProps) {
-  const [cardInput, setCardInput] = useState('');
-
   if (!order) return null;
 
   const getStatusBadge = (status: string) => {
@@ -142,25 +139,11 @@ export default function OrderDetailsModal({
 
         {order.orderStatus === 'PAID' && (
           <div className="rounded-2xl bg-emerald-50/50 p-4 dark:bg-emerald-900/10">
-            <label className="mb-2 block text-sm font-semibold text-neutral-800 dark:text-neutral-200">Gán mã thẻ vật lý cho khách</label>
-            <div className="flex gap-3">
-              <Input
-                value={cardInput}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCardInput(e.target.value)}
-                placeholder="Mã thẻ ( proximity / barcode )..."
-                className="bg-white dark:bg-neutral-900"
-              />
-              <Button
-                onClick={() => onAssignCard(order.id, cardInput)}
-                disabled={!cardInput.trim() || actionLoading}
-                loading={actionLoading}
-                color="emerald"
-                className="shrink-0"
-              >
-                Gán thẻ & Hoàn tất
-              </Button>
-            </div>
-            <p className="mt-2 text-xs text-neutral-500">Mã thẻ sẽ dùng để check-in tại các cơ sở Nerd Society</p>
+            <label className="mb-2 block text-sm font-semibold text-neutral-800 dark:text-neutral-200">Cấp QR thành viên</label>
+            <Button onClick={() => onIssueQr(order.id)} disabled={actionLoading} loading={actionLoading} color="emerald" className="w-full">
+              Cấp QR & hoàn tất
+            </Button>
+            <p className="mt-2 text-xs text-neutral-500">QR sẽ hiển thị trong tài khoản khách hoặc có thể in từ danh sách hội viên.</p>
           </div>
         )}
 

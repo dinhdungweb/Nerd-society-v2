@@ -6,17 +6,55 @@
 
 import { prisma } from '@/lib/prisma';
 import { localStartOfDay } from '@/lib/subscription/date-utils';
-import { checkoutSubscriptionSession } from '@/lib/subscription/session-manager';
-import { getWarnings, manualCheckIn, verifySession } from '@/lib/subscription-logic';
+import { checkInSubscriber, checkoutSubscriptionSession } from '@/lib/subscription/session-manager';
+import { getWarnings, verifySession } from '@/lib/subscription/staff-session-tools';
+import { getStaffSession } from '@/lib/authHelpers';
+import { getRolePermissions } from '@/lib/apiPermissions';
 import { NextResponse } from 'next/server';
+
+async function authorizeDashboard() {
+  const session = await getStaffSession();
+  if (!session) return null;
+  const role = session.user.role as string;
+  const permissions = await getRolePermissions(role);
+  if (role !== 'ADMIN' && (!permissions.canCheckIn || !permissions.canCheckOut)) return null;
+  return { session, role };
+}
+
+async function resolveBranch(userId: string, role: string, requestedBranch: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { assignedLocationId: true },
+  });
+  const location = await prisma.location.findFirst({
+    where: { code: requestedBranch, isActive: true },
+    select: { id: true, code: true },
+  });
+  if (!location) return null;
+  if (role === 'STAFF' && user?.assignedLocationId !== location.id) return null;
+  return location.code;
+}
+
+async function canAccessSession(userId: string, role: string, sessionId: string) {
+  const session = await prisma.subscriptionSession.findUnique({
+    where: { id: sessionId },
+    select: { branch: true },
+  });
+  if (!session) return false;
+  return Boolean(await resolveBranch(userId, role, session.branch));
+}
 
 export async function GET(request: Request) {
   try {
+    const auth = await authorizeDashboard();
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const url = new URL(request.url);
-    const branch = url.searchParams.get('branch') || 'HTM';
+    const requestedBranch = url.searchParams.get('branch') || 'HTM';
+    const branch = await resolveBranch(auth.session.user.id, auth.role, requestedBranch);
+    if (!branch) return NextResponse.json({ error: 'Location is not allowed' }, { status: 403 });
 
     const activeSessions = await prisma.subscriptionSession.findMany({
-      where: { checkOutTime: null, status: 'ACTIVE' },
+      where: { checkOutTime: null, status: 'ACTIVE', branch },
       orderBy: { checkInTime: 'desc' },
       include: {
         subscriber: true,
@@ -33,11 +71,12 @@ export async function GET(request: Request) {
       take: 10,
     });
 
-    const warnings = await getWarnings();
+    const warnings = await getWarnings(branch);
     const activeCount = activeSessions.length;
     const todayCheckIns = await prisma.subscriptionSession.count({
       where: {
         checkInTime: { gte: localStartOfDay() },
+        branch,
       },
     });
 
@@ -74,6 +113,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await authorizeDashboard();
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const body = await request.json();
     const { action } = body;
 
@@ -84,7 +125,14 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: 'Thieu SDT hoac branch' }, { status: 400 });
         }
 
-        const result = await manualCheckIn(phone, branch, staffName || 'staff');
+        const allowedBranch = await resolveBranch(auth.session.user.id, auth.role, branch);
+        if (!allowedBranch) return NextResponse.json({ error: 'Location is not allowed' }, { status: 403 });
+        const subscriber = await prisma.subscriber.findUnique({ where: { phone }, select: { id: true } });
+        if (!subscriber) return NextResponse.json({ success: false, errorType: 'NOT_FOUND', message: 'Không tìm thấy hội viên.' }, { status: 404 });
+        const result = await checkInSubscriber(subscriber.id, allowedBranch, {
+          source: 'manual',
+          performedBy: auth.session.user.name || staffName || 'staff',
+        });
         return NextResponse.json(result);
       }
 
@@ -93,8 +141,11 @@ export async function POST(request: Request) {
         if (!sessionId) {
           return NextResponse.json({ error: 'Thieu sessionId' }, { status: 400 });
         }
+        if (!(await canAccessSession(auth.session.user.id, auth.role, sessionId))) {
+          return NextResponse.json({ error: 'Session is not allowed' }, { status: 403 });
+        }
 
-        const result = await verifySession(sessionId, verified, staffName || 'staff');
+        const result = await verifySession(sessionId, verified, auth.session.user.name || staffName || 'staff');
         return NextResponse.json(result);
       }
 
@@ -103,10 +154,13 @@ export async function POST(request: Request) {
         if (!sessionId) {
           return NextResponse.json({ error: 'Thieu sessionId' }, { status: 400 });
         }
+        if (!(await canAccessSession(auth.session.user.id, auth.role, sessionId))) {
+          return NextResponse.json({ error: 'Session is not allowed' }, { status: 403 });
+        }
 
         const result = await checkoutSubscriptionSession(sessionId, {
           source: 'manual',
-          performedBy: staffName || 'staff',
+          performedBy: auth.session.user.name || staffName || 'staff',
         });
 
         return NextResponse.json(result, { status: result.success ? 200 : 400 });

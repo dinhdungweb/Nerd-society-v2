@@ -44,7 +44,6 @@ export async function GET(request: NextRequest) {
                                     id: true,
                                     fullName: true,
                                     outstandingBalance: true,
-                                    mytimeEmpId: true,
                                 },
                             },
                         },

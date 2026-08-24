@@ -596,7 +596,7 @@ export async function sendSubscriptionOrderEmail(order: any) {
                 <div class="info-header">${ICONS.info}Thông tin đăng ký</div>
                 <div class="info-item"><span class="info-label">Mã đơn</span><span class="info-value">#${variables.orderCode}</span></div>
                 <div class="info-item"><span class="info-label">Gói đăng ký</span><span class="info-value">${variables.planName}</span></div>
-                <div class="info-item"><span class="info-label">Cơ sở nhận thẻ</span><span class="info-value">${variables.branchName}</span></div>
+                <div class="info-item"><span class="info-label">Cơ sở đăng ký</span><span class="info-value">${variables.branchName}</span></div>
                 <div class="info-item"><span class="info-label">Phương thức</span><span class="info-value">${variables.paymentMethod}</span></div>
                 <div class="info-item"><span class="info-label">Số tiền</span><span class="info-value" style="color: #9B7850; font-weight: 700;">${variables.amount}</span></div>
             </div>
@@ -638,7 +638,7 @@ export async function sendAdminNewSubscriptionOrderEmail(order: any) {
             <div class="info-item"><span class="info-label">SĐT</span><span class="info-value">${variables.phone}</span></div>
             <div class="info-item"><span class="info-label">Email</span><span class="info-value">${variables.email}</span></div>
             <div class="info-item"><span class="info-label">Gói đăng ký</span><span class="info-value">${variables.planName}</span></div>
-            <div class="info-item"><span class="info-label">Cơ sở nhận thẻ</span><span class="info-value">${variables.branchName}</span></div>
+            <div class="info-item"><span class="info-label">Cơ sở đăng ký</span><span class="info-value">${variables.branchName}</span></div>
             <div class="info-item"><span class="info-label">Thanh toán</span><span class="info-value">${variables.paymentMethod}</span></div>
             <div class="info-item"><span class="info-label">Số tiền</span><span class="info-value" style="color: #9B7850; font-weight: 700;">${variables.amount}</span></div>
         </div>
@@ -782,7 +782,7 @@ export async function sendSubscriptionPaidEmail(order: any) {
         <p class="p">4 voucher được kẹp sẵn trong phong bì này. Mỗi voucher đổi được 1 đồ uống pha chế tại quầy. Voucher hết hạn vào cuối tháng — mỗi tháng bạn sẽ nhận bộ voucher mới.</p>
         
         <h2 style="color: #9B7850; font-size: 16px; margin-top: 32px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">GIA HẠN</h2>
-        <p class="p">Chúng mình sẽ nhắc bạn trước 7 ngày, 3 ngày và 1 ngày trước khi gói hết hạn. Gia hạn trước khi hết hạn thì thời gian được cộng dồn tiếp — không gián đoạn.</p>
+        <p class="p">Nút gia hạn sẽ xuất hiện trước 3 ngày và thời gian gia hạn được cộng nối tiếp ngày hết hạn hiện tại.</p>
         
         <h2 style="color: #9B7850; font-size: 16px; margin-top: 32px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">MỘT LƯU Ý NHỎ</h2>
         <p class="p">Thẻ thành viên gắn với riêng bạn và không chia sẻ được — chúng mình có lưu ảnh để đối chiếu khi check-in, mong bạn thông cảm nhé.</p>

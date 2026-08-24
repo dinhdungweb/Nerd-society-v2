@@ -5,13 +5,15 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { importEmployee, deleteEmployee, generateNextEmployeeId } from '@/lib/mytime-api';
 import { revalidatePath } from 'next/cache';
 import { ensureUserWalletAccount } from '@/lib/wallet-account';
 import { applyWalletTransactionInTx, refundRegistrationOrderToWallet } from '@/lib/wallet-ledger';
 import { authOptions } from '@/lib/auth';
 import { businessDateOnly } from '@/lib/subscription/date-utils';
+import { getRenewalEligibility, RENEWAL_WINDOW_DAYS } from '@/lib/subscription/renewal-policy';
+import { buildMembershipQrPayload, ensureMembershipQrCredential } from '@/lib/subscription/qr-credential';
 import { getServerSession } from 'next-auth';
+import { randomUUID } from 'crypto';
 import {
   sendAdminNewSubscriptionOrderEmail,
   sendSubscriptionOrderEmail,
@@ -33,11 +35,16 @@ const PLAN_HOURS_MIN: Record<string, number> = {
   MONTHLY_UNLIMITED: 0,
 };
 
+const PLAN_DURATION_DAYS: Record<string, number> = {
+  WEEKLY_LIMITED: 7,
+  MONTHLY_LIMITED: 30,
+  MONTHLY_UNLIMITED: 30,
+};
+
 function normalizePhone(phone?: string | null) {
   const digits = phone?.replace(/\D/g, '') || '';
   return digits.startsWith('84') && digits.length > 9 ? `0${digits.slice(2)}` : digits;
 }
-
 function contactMatches(
   order: { phone: string; email?: string | null },
   user: { phone?: string | null; email?: string | null } | null | undefined
@@ -293,7 +300,7 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
       await prisma.$transaction(async (tx) => {
         await processRenewalSubscription(tx, result.order.id, result.walletTransaction?.id || null);
       });
-      syncMyTimeRenewal(result.order.id).catch(console.error);
+      if (result.order.subscriberId) await ensureMembershipQrCredential(result.order.subscriberId);
     }
 
     try {
@@ -347,7 +354,7 @@ export async function confirmPayment(orderId: string, paymentRef?: string) {
     await prisma.$transaction(async (tx) => {
       await processRenewalSubscription(tx, order.id, paymentRef || null);
     });
-    syncMyTimeRenewal(order.id).catch(console.error);
+    await ensureMembershipQrCredential(order.subscriberId);
   }
 
   try {
@@ -361,174 +368,7 @@ export async function confirmPayment(orderId: string, paymentRef?: string) {
 }
 
 /**
- * Admin: Gán thẻ + Tạo subscriber + subscription
- */
-export async function assignCardAndCreate(orderId: string, cardNo: string, staffName: string) {
-  const order = await prisma.registrationOrder.findUnique({
-    where: { id: orderId },
-    include: {
-      user: {
-        select: {
-          id: true,
-          phone: true,
-          email: true,
-          dateOfBirth: true,
-          gender: true,
-        },
-      },
-    },
-  });
-  if (!order) return { success: false, error: 'Đơn không tồn tại' };
-  if (order.orderStatus !== 'PAID') return { success: false, error: 'Đơn chưa thanh toán' };
-
-  const orderBelongsToUser = contactMatches(order, order.user);
-
-  // Subscriber có thể đã tồn tại theo tài khoản dù số điện thoại trên đơn đã đổi.
-  // Nếu chỉ tìm theo phone, lệnh create bên dưới sẽ vi phạm unique(userId).
-  const [subscriberByUserId, subscriberByPhone] = await Promise.all([
-    order.userId && orderBelongsToUser
-      ? prisma.subscriber.findUnique({ where: { userId: order.userId } })
-      : Promise.resolve(null),
-    prisma.subscriber.findUnique({ where: { phone: order.phone } }),
-  ]);
-
-  if (
-    subscriberByUserId &&
-    subscriberByPhone &&
-    subscriberByUserId.id !== subscriberByPhone.id
-  ) {
-    return {
-      success: false,
-      error:
-        'Tài khoản và số điện thoại đang thuộc hai hồ sơ hội viên khác nhau. Vui lòng kiểm tra lại dữ liệu khách hàng.',
-    };
-  }
-
-  let subscriber = subscriberByUserId || subscriberByPhone;
-
-  if (
-    subscriber?.userId &&
-    order.userId &&
-    orderBelongsToUser &&
-    subscriber.userId !== order.userId
-  ) {
-    return {
-      success: false,
-      error: 'Số điện thoại này đã liên kết với tài khoản khác.',
-    };
-  }
-
-  // Cho phép chính subscriber đó tiếp tục dùng thẻ đã liên kết.
-  const existingCard = await prisma.subscriber.findUnique({ where: { cardNo } });
-  if (existingCard && existingCard.id !== subscriber?.id) {
-    return { success: false, error: 'Thẻ này đã được gán cho người khác' };
-  }
-
-  // Tạo MyTime employee ID
-  const empId = await generateNextEmployeeId(prisma);
-
-  // Tìm hoặc tạo subscriber
-  if (!subscriber) {
-    subscriber = await prisma.subscriber.create({
-      data: {
-        fullName: order.fullName,
-        phone: order.phone,
-        email: order.email,
-        photoUrl: order.selfieUrl,
-        cardNo,
-        mytimeEmpId: empId,
-        branchPrimary: order.branchPrimary,
-        userId: orderBelongsToUser ? order.userId : null,
-      },
-    });
-  } else {
-    subscriber = await prisma.subscriber.update({
-      where: { id: subscriber.id },
-      data: {
-        cardNo,
-        mytimeEmpId: empId,
-        photoUrl: order.selfieUrl,
-        ...(orderBelongsToUser && order.userId ? { userId: order.userId } : {}),
-      },
-    });
-  }
-
-  // Tạo subscription (pending_activation)
-  if (order.userId && orderBelongsToUser) {
-    await ensureUserWalletAccount(order.userId);
-  }
-
-  const totalMin = PLAN_HOURS_MIN[order.planType] || 0;
-  const activationDeadline = new Date();
-  activationDeadline.setDate(activationDeadline.getDate() + 30);
-
-  const subscription = await prisma.subscription.create({
-    data: {
-      subscriberId: subscriber.id,
-      planType: order.planType,
-      pricePaid: order.amount,
-      status: 'PENDING_ACTIVATION',
-      totalHoursMin: totalMin > 0 ? totalMin : null,
-      dailyLimitMin: (order.planType === 'MONTHLY_LIMITED' || order.planType === 'MONTHLY_UNLIMITED') ? 480 : null, // Daily cap 8h
-      paymentMethod: order.paymentMethod,
-      paymentRef: order.paymentRef,
-      cardAssigned: cardNo,
-      cardAssignedAt: new Date(),
-      activationDeadline,
-    },
-  });
-
-  // Truy vấn thông tin bổ sung từ User (nếu có) để đồng bộ đầy đủ sang MyTime
-  const linkedUser = orderBelongsToUser ? order.user : null;
-
-  // Gọi MyTime API tạo employee
-  try {
-    await importEmployee({
-      employeeId: empId,
-      fullName: order.fullName,
-      planType: order.planType,
-      accId: empId.replace('NS', ''),
-      cardNo,
-      birthday: linkedUser?.dateOfBirth || undefined,
-      gender: (linkedUser?.gender?.toLowerCase() === 'male' || linkedUser?.gender?.toLowerCase() === 'nam') ? 'male' :
-        (linkedUser?.gender?.toLowerCase() === 'female' || linkedUser?.gender?.toLowerCase() === 'nữ') ? 'female' : undefined,
-      branch: order.branchPrimary, // Đồng bộ vào đúng máy theo chi nhánh
-    });
-  } catch (err) {
-    console.error('MyTime API error (non-fatal):', err);
-    // Non-fatal: vẫn tạo subscriber, khi nào connect lại thì sync
-  }
-
-  // Cập nhật order
-  await prisma.registrationOrder.update({
-    where: { id: orderId },
-    data: {
-      orderStatus: 'CARD_ASSIGNED',
-      assignedCardNo: cardNo,
-      assignedBy: staffName,
-      assignedAt: new Date(),
-      subscriberId: subscriber.id,
-      subscriptionId: subscription.id,
-      userId: orderBelongsToUser ? order.userId : null,
-    },
-  });
-
-  await prisma.subscriptionAuditLog.create({
-    data: {
-      action: 'card_assigned',
-      entityType: 'registration_order',
-      entityId: orderId,
-      performedBy: staffName,
-      details: { cardNo, empId, subscriberName: order.fullName },
-    },
-  });
-
-  revalidatePath('/admin/subscriptions');
-  return { success: true, subscriber, subscription };
-}
-
-/**
- * Admin: Hủy đơn
+ * Admin: Hủy đơn đăng ký.
  */
 export async function cancelOrder(orderId: string, reason?: string) {
   const order = await prisma.registrationOrder.update({
@@ -570,25 +410,84 @@ async function processRenewalSubscription(tx: any, orderId: string, paymentRef: 
   if (!order || !order.subscriberId || order.orderStatus !== 'PAID') return null;
 
   const subscriber = await tx.subscriber.findUnique({ where: { id: order.subscriberId } });
-  if (!subscriber || !subscriber.cardNo) return null;
+  if (!subscriber) return null;
 
   const totalMin = PLAN_HOURS_MIN[order.planType] || 0;
-  const activationDeadline = new Date();
-  activationDeadline.setDate(activationDeadline.getDate() + 30);
+  const today = businessDateOnly();
+  const currentSubscription = await tx.subscription.findFirst({
+    where: {
+      subscriberId: subscriber.id,
+      status: 'ACTIVE',
+      endDate: { gte: today },
+    },
+    orderBy: { endDate: 'desc' },
+  });
+
+  if (currentSubscription) {
+    if (currentSubscription.planType !== order.planType) {
+      throw new Error('Chỉ có thể gia hạn đúng gói đang sử dụng khi gói hiện tại chưa hết hạn');
+    }
+
+    const endDate = new Date(currentSubscription.endDate);
+    endDate.setUTCDate(endDate.getUTCDate() + (PLAN_DURATION_DAYS[order.planType] || 30));
+
+    const subscription = await tx.subscription.update({
+      where: { id: currentSubscription.id },
+      data: {
+        endDate,
+        ...(totalMin > 0 ? { totalHoursMin: { increment: totalMin } } : {}),
+        paymentMethod: order.paymentMethod,
+        paymentRef,
+      },
+    });
+
+    await tx.registrationOrder.update({
+      where: { id: order.id },
+      data: {
+        subscriptionId: subscription.id,
+        orderStatus: 'ACTIVATED',
+        assignedBy: 'system',
+        assignedAt: new Date(),
+      },
+    });
+
+    await tx.subscriptionAuditLog.create({
+      data: {
+        action: 'renewal_subscription_extended',
+        entityType: 'registration_order',
+        entityId: order.id,
+        performedBy: 'system',
+        details: {
+          credential: 'qr',
+          planType: order.planType,
+          subscriptionId: subscription.id,
+          previousEndDate: currentSubscription.endDate,
+          newEndDate: endDate,
+        },
+      },
+    });
+
+    return subscription;
+  }
+
+  const issuedAt = new Date();
+  const startDate = businessDateOnly(issuedAt);
+  const endDate = new Date(startDate);
+  endDate.setUTCDate(endDate.getUTCDate() + (PLAN_DURATION_DAYS[order.planType] || 30));
 
   const subscription = await tx.subscription.create({
     data: {
       subscriberId: subscriber.id,
       planType: order.planType,
       pricePaid: order.amount,
-      status: 'PENDING_ACTIVATION',
+      status: 'ACTIVE',
+      activationDate: issuedAt,
+      startDate,
+      endDate,
       totalHoursMin: totalMin > 0 ? totalMin : null,
       dailyLimitMin: (order.planType === 'MONTHLY_LIMITED' || order.planType === 'MONTHLY_UNLIMITED') ? 480 : null,
       paymentMethod: order.paymentMethod,
       paymentRef: paymentRef,
-      cardAssigned: subscriber.cardNo,
-      cardAssignedAt: new Date(),
-      activationDeadline,
     },
   });
 
@@ -596,51 +495,30 @@ async function processRenewalSubscription(tx: any, orderId: string, paymentRef: 
     where: { id: order.id },
     data: {
       subscriptionId: subscription.id,
-      orderStatus: 'CARD_ASSIGNED',
-      assignedCardNo: subscriber.cardNo,
+      orderStatus: 'ACTIVATED',
       assignedBy: 'system',
-      assignedAt: new Date(),
+      assignedAt: issuedAt,
     },
   });
 
   await tx.subscriptionAuditLog.create({
     data: {
-      action: 'renewal_subscription_created',
+      action: 'renewal_subscription_activated',
       entityType: 'registration_order',
       entityId: order.id,
       performedBy: 'system',
-      details: { cardNo: subscriber.cardNo, planType: order.planType, subscriptionId: subscription.id },
+      details: {
+        credential: 'qr',
+        planType: order.planType,
+        subscriptionId: subscription.id,
+        activationPolicy: 'qr_issued',
+        startDate,
+        endDate,
+      },
     },
   });
 
   return subscription;
-}
-
-/**
- * Sync MyTime sau khi gia hạn
- */
-async function syncMyTimeRenewal(orderId: string) {
-  const order = await prisma.registrationOrder.findUnique({
-    where: { id: orderId },
-    include: { subscriber: { include: { user: true } } }
-  });
-  if (order?.subscriber?.mytimeEmpId && order.subscriber.cardNo) {
-    try {
-      await importEmployee({
-        employeeId: order.subscriber.mytimeEmpId,
-        fullName: order.subscriber.fullName,
-        planType: order.planType,
-        accId: order.subscriber.mytimeEmpId.replace('NS', ''),
-        cardNo: order.subscriber.cardNo,
-        birthday: order.subscriber.user?.dateOfBirth || undefined,
-        gender: (order.subscriber.user?.gender?.toLowerCase() === 'male' || order.subscriber.user?.gender?.toLowerCase() === 'nam') ? 'male' :
-          (order.subscriber.user?.gender?.toLowerCase() === 'female' || order.subscriber.user?.gender?.toLowerCase() === 'nữ') ? 'female' : undefined,
-        branch: order.branchPrimary || 'HTM',
-      });
-    } catch (err) {
-      console.error('[syncMyTimeRenewal] MyTime API error (non-fatal):', err);
-    }
-  }
 }
 
 /**
@@ -654,9 +532,51 @@ export async function createRenewalOrder(data: {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return { success: false, error: 'Chưa đăng nhập' };
 
-  const subscriber = await prisma.subscriber.findUnique({ where: { id: data.subscriberId } });
+  const subscriber = await prisma.subscriber.findUnique({
+    where: { id: data.subscriberId },
+    include: {
+      subscriptions: {
+        where: { status: { in: ['ACTIVE', 'PENDING_ACTIVATION'] } },
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+  });
   if (!subscriber) return { success: false, error: 'Không tìm thấy thông tin hội viên' };
   if (subscriber.userId !== session.user.id) return { success: false, error: 'Không có quyền thao tác' };
+
+  const pendingActivation = subscriber.subscriptions.find(
+    (subscription) => subscription.status === 'PENDING_ACTIVATION'
+  );
+  if (pendingActivation) {
+    return { success: false, error: 'Gói hiện tại đang chờ cấp QR nên chưa thể gia hạn' };
+  }
+
+  const activeSubscription = subscriber.subscriptions.find(
+    (subscription) => subscription.status === 'ACTIVE'
+  );
+  const renewalEligibility = getRenewalEligibility(activeSubscription);
+  if (!renewalEligibility.eligible) {
+    const availableFrom = renewalEligibility.availableFrom?.toLocaleDateString('vi-VN') || '';
+    return {
+      success: false,
+      error: `Chỉ có thể gia hạn trong ${RENEWAL_WINDOW_DAYS} ngày trước khi gói hết hạn${availableFrom ? `, từ ngày ${availableFrom}` : ''}`,
+    };
+  }
+
+  if (activeSubscription && activeSubscription.planType !== data.planType) {
+    return { success: false, error: 'Vui lòng gia hạn đúng gói hiện tại' };
+  }
+
+  const existingRenewalOrder = await prisma.registrationOrder.findFirst({
+    where: {
+      subscriberId: subscriber.id,
+      orderStatus: { in: ['PENDING_PAYMENT', 'PAID'] },
+    },
+    select: { id: true },
+  });
+  if (existingRenewalOrder) {
+    return { success: false, error: 'Bạn đang có một đơn gia hạn chưa hoàn tất' };
+  }
 
   const amount = PLAN_PRICES[data.planType];
   if (!amount) return { success: false, error: 'Gói không hợp lệ' };
@@ -755,6 +675,115 @@ export async function getRegistrationOrders(filters?: {
 }
 
 /**
+ * Admin: cấp QR và tạo hồ sơ membership.
+ */
+export async function issueQrAndCreate(orderId: string, staffName: string) {
+  const order = await prisma.registrationOrder.findUnique({
+    where: { id: orderId },
+    include: { user: { select: { id: true, phone: true, email: true } } },
+  });
+  if (!order) return { success: false, error: 'Đơn không tồn tại' };
+  if (order.orderStatus !== 'PAID') return { success: false, error: 'Đơn chưa thanh toán' };
+
+  const orderBelongsToUser = contactMatches(order, order.user);
+  const [byUser, byPhone] = await Promise.all([
+    order.userId && orderBelongsToUser
+      ? prisma.subscriber.findUnique({ where: { userId: order.userId } })
+      : Promise.resolve(null),
+    prisma.subscriber.findUnique({ where: { phone: order.phone } }),
+  ]);
+  if (byUser && byPhone && byUser.id !== byPhone.id) {
+    return { success: false, error: 'Tài khoản và số điện thoại đang thuộc hai hồ sơ khác nhau.' };
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    let subscriber = byUser || byPhone;
+    if (!subscriber) {
+      subscriber = await tx.subscriber.create({
+        data: {
+          fullName: order.fullName,
+          phone: order.phone,
+          email: order.email,
+          photoUrl: order.selfieUrl,
+          branchPrimary: order.branchPrimary,
+          userId: orderBelongsToUser ? order.userId : null,
+        },
+      });
+    } else {
+      subscriber = await tx.subscriber.update({
+        where: { id: subscriber.id },
+        data: {
+          fullName: order.fullName,
+          email: order.email,
+          photoUrl: order.selfieUrl,
+          branchPrimary: order.branchPrimary,
+          ...(orderBelongsToUser && order.userId ? { userId: order.userId } : {}),
+        },
+      });
+    }
+
+    const totalMin = PLAN_HOURS_MIN[order.planType] || 0;
+    const issuedAt = new Date();
+    const startDate = businessDateOnly(issuedAt);
+    const endDate = new Date(startDate);
+    endDate.setUTCDate(endDate.getUTCDate() + (PLAN_DURATION_DAYS[order.planType] || 30));
+    const subscription = await tx.subscription.create({
+      data: {
+        subscriberId: subscriber.id,
+        planType: order.planType,
+        pricePaid: order.amount,
+        status: 'ACTIVE',
+        activationDate: issuedAt,
+        startDate,
+        endDate,
+        totalHoursMin: totalMin > 0 ? totalMin : null,
+        dailyLimitMin: ['MONTHLY_LIMITED', 'MONTHLY_UNLIMITED'].includes(order.planType) ? 480 : null,
+        paymentMethod: order.paymentMethod,
+        paymentRef: order.paymentRef,
+      },
+    });
+    const existingCredential = await tx.membershipQrCredential.findUnique({
+      where: { subscriberId: subscriber.id },
+    });
+    const credential = existingCredential || await tx.membershipQrCredential.create({
+      data: { subscriberId: subscriber.id, publicId: randomUUID() },
+    });
+    await tx.registrationOrder.update({
+      where: { id: orderId },
+      data: {
+        orderStatus: 'ACTIVATED',
+        assignedBy: staffName,
+        assignedAt: issuedAt,
+        subscriberId: subscriber.id,
+        subscriptionId: subscription.id,
+        userId: orderBelongsToUser ? order.userId : null,
+      },
+    });
+    await tx.subscriptionAuditLog.create({
+      data: {
+        action: 'qr_issued',
+        entityType: 'registration_order',
+        entityId: orderId,
+        performedBy: staffName,
+        details: {
+          subscriberId: subscriber.id,
+          subscriberName: subscriber.fullName,
+          activationPolicy: 'qr_issued',
+          startDate,
+          endDate,
+        },
+      },
+    });
+    return { subscriber, subscription, credential };
+  });
+
+  if (order.userId && orderBelongsToUser) await ensureUserWalletAccount(order.userId);
+  revalidatePath('/admin/subscriptions');
+  revalidatePath('/profile/monthly-beaver');
+  return { success: true, ...result, qrPayload: buildMembershipQrPayload(result.credential) };
+}
+
+/**
  * Lấy danh sách subscribers
  */
 export async function getSubscribers(filters?: {
@@ -769,7 +798,6 @@ export async function getSubscribers(filters?: {
     where.OR = [
       { fullName: { contains: filters.search, mode: 'insensitive' } },
       { phone: { contains: filters.search } },
-      { mytimeEmpId: { contains: filters.search, mode: 'insensitive' } },
     ];
   }
 
@@ -869,7 +897,7 @@ export async function getMonthlyReport(year: number, month: number) {
     prisma.registrationOrder.count({
       where: {
         createdAt: { gte: startDate, lte: endDate },
-        orderStatus: { in: ['PAID', 'CARD_ASSIGNED', 'ACTIVATED'] },
+        orderStatus: { in: ['PAID', 'QR_ISSUED', 'CARD_ASSIGNED', 'ACTIVATED'] },
       },
     }),
     // Revenue
@@ -929,110 +957,11 @@ export async function deleteSubscriber(id: string) {
       prisma.subscriber.delete({ where: { id } }),
     ]);
 
-    // Đồng bộ xóa trên MyTime (không chặn nếu MyTime lỗi)
-    if (sub.mytimeEmpId) {
-      try {
-        await deleteEmployee(sub.mytimeEmpId);
-      } catch (err) {
-        console.error('[deleteSubscriber] MyTime Sync Error:', err);
-      }
-    }
-
     revalidatePath('/admin/subscriptions');
     return { success: true };
   } catch (err) {
     console.error('[deleteSubscriber] Error:', err);
     return { success: false, error: 'Không thể xóa hội viên. Có lỗi xảy ra.' };
-  }
-}
-
-/**
- * Admin: Gán lại thẻ (đổi thẻ mới) cho hội viên hiện tại
- */
-export async function reassignSubscriberCard(subscriberId: string, newCardNo: string, staffName: string) {
-  try {
-    // 1. Kiểm tra hội viên tồn tại
-    const subscriber = await prisma.subscriber.findUnique({
-      where: { id: subscriberId },
-      include: {
-        subscriptions: {
-          where: { status: { in: ['ACTIVE', 'PENDING_ACTIVATION'] } },
-          orderBy: { createdAt: 'desc' },
-          take: 1
-        },
-        user: {
-          select: {
-            dateOfBirth: true,
-            gender: true
-          }
-        }
-      }
-    });
-
-    if (!subscriber) return { success: false, error: 'Hội viên không tồn tại' };
-
-    // 2. Kiểm tra xem thẻ mới đã có người khác sử dụng chưa
-    const existingCard = await prisma.subscriber.findFirst({
-      where: {
-        cardNo: newCardNo,
-        id: { not: subscriberId }
-      }
-    });
-    if (existingCard) return { success: false, error: 'Thẻ này đã được gán cho hội viên khác' };
-
-    const oldCardNo = subscriber.cardNo;
-
-    // 3. Cập nhật thẻ mới cho hội viên và subscription đang hoạt động
-    await prisma.$transaction(async (tx) => {
-      await tx.subscriber.update({
-        where: { id: subscriberId },
-        data: { cardNo: newCardNo }
-      });
-
-      if (subscriber.subscriptions.length > 0) {
-        await tx.subscription.update({
-          where: { id: subscriber.subscriptions[0].id },
-          data: { cardAssigned: newCardNo }
-        });
-      }
-
-      await tx.subscriptionAuditLog.create({
-        data: {
-          action: 'card_reassigned',
-          entityType: 'subscriber',
-          entityId: subscriberId,
-          performedBy: staffName,
-          details: { oldCardNo, newCardNo, subscriberName: subscriber.fullName, empId: subscriber.mytimeEmpId }
-        }
-      });
-    });
-
-    // 4. Đồng bộ đổi thẻ sang MyTime PC app
-    if (subscriber.mytimeEmpId) {
-      const planType = subscriber.subscriptions[0]?.planType || 'WEEKLY_LIMITED';
-      try {
-        await importEmployee({
-          employeeId: subscriber.mytimeEmpId,
-          fullName: subscriber.fullName,
-          planType,
-          accId: subscriber.mytimeEmpId.replace('NS', ''),
-          cardNo: newCardNo,
-          birthday: subscriber.user?.dateOfBirth || undefined,
-          gender: (subscriber.user?.gender?.toLowerCase() === 'male' || subscriber.user?.gender?.toLowerCase() === 'nam') ? 'male' :
-            (subscriber.user?.gender?.toLowerCase() === 'female' || subscriber.user?.gender?.toLowerCase() === 'nữ') ? 'female' : undefined,
-          branch: subscriber.branchPrimary || 'HTM',
-        });
-      } catch (err) {
-        console.error('[reassignSubscriberCard] MyTime Sync Error (non-fatal):', err);
-        // Non-fatal: PostgreSQL đã lưu thẻ mới, chạy sync sau
-      }
-    }
-
-    revalidatePath('/admin/subscriptions');
-    return { success: true };
-  } catch (err) {
-    console.error('[reassignSubscriberCard] Error:', err);
-    return { success: false, error: 'Không thể gán lại thẻ. Có lỗi xảy ra.' };
   }
 }
 

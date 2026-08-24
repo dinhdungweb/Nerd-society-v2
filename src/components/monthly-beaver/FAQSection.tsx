@@ -15,19 +15,19 @@ const faqs = [
   },
   {
     q: 'Locker hết slot thì sao?',
-    a: 'HTM 12 slot, TS 6 slot — đăng ký sớm để giữ tủ riêng. Nếu hết slot, bạn vào waitlist nhưng vẫn nhận đầy đủ benefit khác (tap thẻ, voucher, giảm pod/MR). Nerd báo ngay khi mở thêm tủ.',
+    a: 'HTM 12 slot, TS 6 slot — đăng ký sớm để giữ tủ riêng. Nếu hết slot, bạn vào waitlist nhưng vẫn nhận đầy đủ benefit khác (QR check-in, voucher, giảm pod/MR). Nerd báo ngay khi mở thêm tủ.',
   },
   {
-    q: 'Mua xong mà chưa kịp đến nhận thẻ?',
-    a: '30 ngày kể từ ngày mua, gói tự động convert thành credit 549k giữ trong 90 ngày. Bạn dùng credit này cho lần đăng ký sau hoặc các sản phẩm khác tại Nerd. Không mất tiền.',
+    q: 'Thời hạn gói bắt đầu từ khi nào?',
+    a: 'Gói bắt đầu tính ngay khi Nerd cấp QR thành viên, không chờ đến lần check-in đầu tiên. Ngày bắt đầu và ngày hết hạn được hiển thị trong hồ sơ Monthly Beaver.',
   },
   {
     q: 'Refund được không?',
-    a: 'Chưa kích hoạt + trong 7 ngày từ ngày mua → refund 100%. Chưa kích hoạt + sau 7 ngày → convert thành credit giữ 90 ngày. Đã kích hoạt (tap thẻ lần đầu) → không refund.',
+    a: 'Sau khi QR được cấp, gói đã bắt đầu tính thời hạn. Nếu cần hủy trước lúc được cấp QR, vui lòng liên hệ quầy để được kiểm tra trạng thái đơn và chính sách hoàn tiền.',
   },
   {
-    q: 'Mất thẻ thì sao?',
-    a: 'Báo quầy bất kỳ lúc nào, Nerd cấp thẻ mới (50k). Thẻ cũ tự deactivate, không ai dùng được nữa.',
+    q: 'QR bị lộ hoặc bị mất thì sao?',
+    a: 'Báo quầy để Nerd cấp lại QR. QR cũ bị vô hiệu ngay và không thể dùng để check-in hoặc check-out.',
   },
   {
     q: 'Tôi đăng ký HTM nhưng đôi khi muốn qua TS?',
@@ -39,7 +39,7 @@ const faqs = [
   },
   {
     q: 'Có gia hạn tự động không?',
-    a: 'Không. Trước hết hạn 7 ngày Nerd nhắn Zalo. Bạn chủ động quyết. Không gia hạn cũng OK — locker giữ thêm 7 ngày để lấy đồ.',
+    a: 'Không. Nút gia hạn xuất hiện trong 3 ngày trước khi gói hết hạn. Bạn chủ động quyết định có tiếp tục hay không.',
   },
 ]
 

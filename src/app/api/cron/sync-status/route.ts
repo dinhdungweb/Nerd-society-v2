@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { syncAllSubscribersStatus } from '@/lib/subscription/sync-status';
+import { runSubscriptionMaintenance } from '@/lib/subscription/maintenance';
 
 /**
  * API Route để Cron Job (hàng ngày) gọi đồng bộ trạng thái hội viên
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
     try {
         console.log('[Cron] Starting All Subscribers Status Sync...');
-        const results = await syncAllSubscribersStatus();
+        const results = await runSubscriptionMaintenance();
         
         return NextResponse.json({ 
             success: true, 

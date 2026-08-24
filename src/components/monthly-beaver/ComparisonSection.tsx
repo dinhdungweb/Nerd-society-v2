@@ -8,7 +8,7 @@ const comparisonData = [
   { benefit: 'Wifi + ổ cắm', combo: true, beaver: true },
   { benefit: 'Mượn laptop stand', combo: true, beaver: true },
   { benefit: 'Locker', combo: 'Dùng chung', beaver: 'Tủ riêng cố định' },
-  { benefit: 'Check-in', combo: 'Đến quầy, thanh toán', beaver: 'Tap thẻ, ngồi luôn' },
+  { benefit: 'Check-in', combo: 'Đến quầy, thanh toán', beaver: 'Quét QR, ngồi luôn' },
   { benefit: 'Voucher đồ uống', combo: false, beaver: '4 voucher/tháng' },
 ]
 

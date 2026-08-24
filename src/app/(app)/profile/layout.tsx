@@ -48,7 +48,6 @@ export default async function ProfileLayout({ children }: { children: React.Reac
                     select: {
                         walletBalance: true,
                         outstandingBalance: true,
-                        mytimeEmpId: true,
                         walletCode: true,
                     }
                 }

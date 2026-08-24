@@ -27,6 +27,7 @@ async function main() {
         update: {},
         create: {
             id: 'loc-ho-tung-mau',
+            code: 'HTM',
             name: 'Cơ sở Hồ Tùng Mậu',
             address: 'Tập thể trường múa, Khu Văn hóa & Nghệ Thuật, đường Hồ Tùng Mậu, P. Mai Dịch, Hà Nội',
             phone: '0368483689',
@@ -40,6 +41,7 @@ async function main() {
         update: {},
         create: {
             id: 'loc-tay-son',
+            code: 'TS',
             name: 'Cơ sở Tây Sơn',
             address: 'Tầng 2, 3 ngõ 167 Tây Sơn, Hà Nội',
             phone: '0368483689',

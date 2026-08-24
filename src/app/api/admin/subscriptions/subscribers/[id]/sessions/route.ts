@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getStaffSession } from '@/lib/authHelpers';
+import { getRolePermissions } from '@/lib/apiPermissions';
 
 /**
  * GET /api/admin/subscriptions/subscribers/[id]/sessions
@@ -11,12 +13,26 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const staff = await getStaffSession();
+    if (!staff) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const role = staff.user.role as string;
+    const permissions = await getRolePermissions(role);
+    if (role !== 'ADMIN' && !permissions.canViewCustomers) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
     const where: any = { subscriberId: id };
+    if (role === 'STAFF') {
+      const user = await prisma.user.findUnique({
+        where: { id: staff.user.id },
+        select: { assignedLocation: { select: { code: true } } },
+      });
+      where.branch = user?.assignedLocation?.code || '__unassigned__';
+    }
 
     if (from || to) {
       where.checkInTime = {};

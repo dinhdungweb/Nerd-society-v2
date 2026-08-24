@@ -12,10 +12,14 @@ import {
     SparklesIcon,
     ClipboardDocumentIcon,
     CalendarDaysIcon,
-    IdentificationIcon,
+    QrCodeIcon,
+    UserIcon,
 } from '@heroicons/react/24/outline'
 import { ensureUserWalletAccount } from '@/lib/wallet-account'
 import { isMonthlyBeaverRegistrationOpen } from '@/lib/monthly-beaver-registration'
+import { ensureMembershipQrCredential } from '@/lib/subscription/qr-credential'
+import { getRenewalEligibility } from '@/lib/subscription/renewal-policy'
+import MembershipQrCard from './MembershipQrCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +31,7 @@ const planLabels: Record<string, string> = {
 
 const subStatusLabels: Record<string, { label: string; style: string }> = {
     ACTIVE: { label: 'Đang hoạt động', style: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
-    PENDING_ACTIVATION: { label: 'Chờ kích hoạt', style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    PENDING_ACTIVATION: { label: 'Chờ cấp QR', style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
     EXPIRED: { label: 'Đã hết hạn', style: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400' },
     SUSPENDED: { label: 'Tạm dừng', style: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
     CANCELLED: { label: 'Đã hủy', style: 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-500' },
@@ -86,10 +90,10 @@ export default async function MonthlyBeaverPage() {
             take: 3,
         })
 
-        // Có đơn hàng đã thanh toán → hiển thị trạng thái chờ gán thẻ
+        // Có đơn hàng đã thanh toán → hiển thị trạng thái chờ cấp QR
         if (pendingOrders.length > 0) {
             const orderStatusLabels: Record<string, { label: string; style: string; Icon: any }> = {
-                PAID: { label: 'Đã thanh toán — Chờ nhận thẻ', style: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800', Icon: ClockIcon },
+                PAID: { label: 'Đã thanh toán — Chờ cấp QR', style: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800', Icon: ClockIcon },
                 PENDING_PAYMENT: { label: 'Chờ thanh toán', style: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800', Icon: CreditCardIcon },
             }
 
@@ -103,7 +107,7 @@ export default async function MonthlyBeaverPage() {
                         <div>
                             <h3 className="font-bold text-neutral-900 dark:text-white">Đơn đăng ký Monthly Beaver đang được xử lý!</h3>
                             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-                                Bạn đã đăng ký thành công. Vui lòng đến quầy để nhận thẻ hội viên hoặc liên hệ nhân viên để được hỗ trợ.
+                                Bạn đã đăng ký thành công. QR sẽ xuất hiện tại đây sau khi hồ sơ được cấp; bạn cũng có thể nhận bản in tại quầy.
                             </p>
                         </div>
                     </div>
@@ -149,7 +153,7 @@ export default async function MonthlyBeaverPage() {
                             </div>
                             <div className="flex items-start gap-3">
                                 <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-600 dark:bg-primary-900/30">2</div>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400">Nhân viên sẽ gán thẻ hội viên cho bạn</p>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">Nhân viên sẽ cấp QR thành viên cho bạn</p>
                             </div>
                             <div className="flex items-start gap-3">
                                 <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-600 dark:bg-primary-900/30">3</div>
@@ -187,7 +191,10 @@ export default async function MonthlyBeaverPage() {
         )
     }
 
+    const { payload: membershipQrPayload } = await ensureMembershipQrCredential(subscriber.id)
+
     const activeSub = subscriber.subscriptions.find(s => s.status === 'ACTIVE' || s.status === 'PENDING_ACTIVATION')
+    const renewalEligibility = getRenewalEligibility(activeSub)
     const availableMinutes = activeSub?.totalHoursMin
         ? activeSub.totalHoursMin + activeSub.carriedHoursMin
         : null
@@ -198,6 +205,13 @@ export default async function MonthlyBeaverPage() {
     const usagePercent = availableMinutes
         ? Math.min(100, Math.round((usedMinutes / availableMinutes) * 100))
         : 0
+    const memberInitials = subscriber.fullName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(-2)
+        .map(part => part[0])
+        .join('')
+        .toUpperCase()
     const formatMinutes = (minutes: number) => {
         const hours = Math.floor(minutes / 60)
         const mins = minutes % 60
@@ -209,20 +223,20 @@ export default async function MonthlyBeaverPage() {
     return (
         <div className="space-y-5 sm:space-y-8">
             <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-                <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_340px]">
-                    <div className="min-w-0 bg-gradient-to-br from-primary-50 to-white p-4 dark:from-primary-950/30 dark:to-neutral-900 sm:p-7">
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex size-11 items-center justify-center rounded-xl bg-primary-500 text-white">
+                <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="flex min-w-0 flex-col bg-gradient-to-br from-primary-50 to-white p-4 dark:from-primary-950/30 dark:to-neutral-900 sm:p-7">
+                        <div className="flex items-start gap-3 sm:items-center">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-500 text-white sm:size-11">
                                 <BoltIcon className="size-6" />
                             </div>
-                            <div>
-                                <p className="text-sm font-semibold text-primary-700 dark:text-primary-300">Monthly Beaver</p>
-                                <h2 className="text-xl font-bold text-neutral-950 dark:text-white sm:text-2xl">
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-semibold text-primary-700 dark:text-primary-300 sm:text-sm">Monthly Beaver</p>
+                                <h2 className="truncate text-lg font-bold text-neutral-950 dark:text-white sm:text-2xl">
                                     {activeSub ? (planLabels[activeSub.planType] || activeSub.planType) : 'Chưa có gói hoạt động'}
                                 </h2>
                             </div>
                             {activeSub && (
-                                <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium sm:ml-auto ${subStatusLabels[activeSub.status]?.style || 'bg-neutral-100 text-neutral-600'}`}>
+                                <span className={`ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium sm:px-3 sm:text-xs ${subStatusLabels[activeSub.status]?.style || 'bg-neutral-100 text-neutral-600'}`}>
                                     {activeSub.status === 'ACTIVE' && <CheckCircleIcon className="size-3.5" />}
                                     {subStatusLabels[activeSub.status]?.label || activeSub.status}
                                 </span>
@@ -245,29 +259,29 @@ export default async function MonthlyBeaverPage() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="rounded-xl bg-white/70 p-4 text-sm text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300">
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-300">
                                         {activeSub.dailyLimitMin
                                             ? `Giới hạn ${activeSub.dailyLimitMin / 60}h/ngày. Không giới hạn tổng giờ theo tháng.`
                                             : 'Gói không giới hạn giờ. Hệ thống vẫn theo dõi giới hạn sử dụng trong ngày nếu có.'}
-                                    </div>
+                                    </p>
                                 )}
 
-                                <div className="grid gap-3 sm:grid-cols-3">
-                                    <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+                                <div className="grid grid-cols-2 border border-neutral-200 dark:border-neutral-800 sm:grid-cols-3">
+                                    <div className="border-r border-neutral-200 px-3 py-3 dark:border-neutral-800 sm:px-4 sm:py-4">
                                         <p className="text-xs font-semibold uppercase text-neutral-500">Đã dùng</p>
-                                        <p className="mt-1 text-lg font-bold text-neutral-950 dark:text-white">{formatMinutes(usedMinutes)}</p>
+                                        <p className="mt-1 text-base font-bold text-neutral-950 dark:text-white sm:text-lg">{formatMinutes(usedMinutes)}</p>
                                     </div>
-                                    <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+                                    <div className="px-3 py-3 sm:px-4 sm:py-4">
                                         <p className="text-xs font-semibold uppercase text-neutral-500">Còn lại</p>
-                                        <p className="mt-1 text-lg font-bold text-neutral-950 dark:text-white">
+                                        <p className="mt-1 text-base font-bold text-neutral-950 dark:text-white sm:text-lg">
                                             {remainingMinutes !== null ? formatMinutes(remainingMinutes) : 'Không giới hạn'}
                                         </p>
                                     </div>
-                                    <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+                                    <div className="col-span-2 border-t border-neutral-200 px-3 py-3 dark:border-neutral-800 sm:col-span-1 sm:border-l sm:border-t-0 sm:px-4 sm:py-4">
                                         <p className="text-xs font-semibold uppercase text-neutral-500">
                                             Hạn sử dụng
                                         </p>
-                                        <p className="mt-1 text-lg font-bold text-neutral-950 dark:text-white">
+                                        <p className="mt-1 text-base font-bold text-neutral-950 dark:text-white sm:text-lg">
                                             {activeSub.endDate
                                                 ? new Date(activeSub.endDate).toLocaleDateString('vi-VN')
                                                 : activeSub.activationDeadline
@@ -278,19 +292,21 @@ export default async function MonthlyBeaverPage() {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="mt-6">
-                                    <RenewPlanClientWrapper 
-                                        subscriberId={subscriber.id}
-                                        currentPlanType={activeSub.planType}
-                                        walletBalance={walletBalance}
-                                        walletStatus={walletStatus}
-                                    />
-                                </div>
+                                {renewalEligibility.eligible && (
+                                    <div className="mt-6">
+                                        <RenewPlanClientWrapper
+                                            subscriberId={subscriber.id}
+                                            currentPlanType={activeSub.planType}
+                                            walletBalance={walletBalance}
+                                            walletStatus={walletStatus}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="mt-6">
                                 <p className="max-w-xl text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-                                    Bạn chưa có gói Monthly Beaver đang hoạt động. Bạn có thể gia hạn lại gói trước đó bằng thẻ vật lý cũ của mình.
+                                    Bạn chưa có gói Monthly Beaver đang hoạt động. Bạn có thể gia hạn và tiếp tục sử dụng QR hiện tại.
                                 </p>
                                 <RenewPlanClientWrapper 
                                     subscriberId={subscriber.id}
@@ -299,58 +315,50 @@ export default async function MonthlyBeaverPage() {
                                 />
                             </div>
                         )}
-                    </div>
 
-                    <aside className="min-w-0 border-t border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-950 sm:p-6 lg:border-l lg:border-t-0">
-                        <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
-                            <IdentificationIcon className="size-5" />
-                            <span className="text-sm font-semibold">Thông tin hội viên</span>
-                        </div>
-                        <div className="mt-5 space-y-4">
-                            <div>
-                                <p className="text-xs font-semibold uppercase text-neutral-500">Mã hội viên</p>
-                                <p className="mt-1 text-3xl font-bold tracking-widest text-primary-600">
-                                    {subscriber.mytimeEmpId || '—'}
-                                </p>
-                            </div>
-                            <div className="relative flex aspect-[1.58/1] min-h-[164px] flex-col justify-between overflow-hidden rounded-2xl border border-primary-200 bg-neutral-950 p-4 text-white dark:border-primary-800 sm:min-h-[178px] sm:p-5">
-                                <div className="absolute inset-x-0 top-0 h-1 bg-primary-400" />
-
-                                <div className="flex items-start justify-between gap-4">
-                                    <div>
-                                        <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60">Thẻ vật lý</p>
-                                        <p className="mt-1 text-sm font-semibold text-white">Nerd Society</p>
+                        <div className="mt-auto pt-5">
+                            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 sm:flex sm:gap-4">
+                                {subscriber.photoUrl ? (
+                                    <img
+                                        src={subscriber.photoUrl}
+                                        alt={subscriber.fullName}
+                                        className="size-12 rounded-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="flex size-12 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700 dark:bg-primary-950/50 dark:text-primary-300">
+                                        {memberInitials || <UserIcon className="size-5" />}
                                     </div>
-                                    <CreditCardIcon className="size-6 shrink-0 text-white/70" />
-                                </div>
-
-                                <div className="flex items-end justify-between gap-4">
-                                    <div className="space-y-4">
-                                        <div className="h-8 w-11 rounded-md border border-white/25 bg-white/15">
-                                            <div className="h-full w-full rounded-md border border-black/10 bg-gradient-to-br from-primary-200 to-primary-500" />
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-medium uppercase tracking-widest text-white/50">Mã thẻ</p>
-                                            <p className="mt-1 font-mono text-xl font-bold tracking-widest">
-                                                {subscriber.cardNo
-                                                    ? subscriber.cardNo.replace(/(.{4})/g, '$1 ').trim()
-                                                    : 'CHƯA GÁN'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <p className="pb-0.5 text-right text-[10px] font-medium uppercase tracking-widest text-white/45">
-                                        Proximity
-                                        <br />
-                                        Barcode
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Hội viên</p>
+                                    <p className="truncate font-bold text-neutral-950 dark:text-white">{subscriber.fullName}</p>
+                                    <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                                        {[subscriber.phone, subscriber.email].filter(Boolean).join(' · ')}
                                     </p>
                                 </div>
+                                <dl className="col-span-2 grid w-full grid-cols-2 gap-x-6 pl-[60px] text-sm sm:ml-auto sm:w-auto sm:pl-0">
+                                    <div>
+                                        <dt className="text-xs text-neutral-500">Cơ sở chính</dt>
+                                        <dd className="mt-0.5 font-semibold text-neutral-900 dark:text-white">{subscriber.branchPrimary || '—'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-xs text-neutral-500">Ngày bắt đầu</dt>
+                                        <dd className="mt-0.5 font-semibold text-neutral-900 dark:text-white">
+                                            {activeSub?.startDate ? new Date(activeSub.startDate).toLocaleDateString('vi-VN') : '—'}
+                                        </dd>
+                                    </div>
+                                </dl>
                             </div>
-                            {subscriber.branchPrimary && (
-                                <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
-                                    <p className="text-xs font-semibold uppercase text-neutral-500">Cơ sở chính</p>
-                                    <p className="mt-1 font-semibold text-neutral-900 dark:text-white">{subscriber.branchPrimary}</p>
-                                </div>
-                            )}
+                        </div>
+                    </div>
+
+                    <aside className="min-w-0 border-t border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-950 sm:p-5 lg:border-l lg:border-t-0">
+                        <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
+                            <QrCodeIcon className="size-5" />
+                            <span className="text-sm font-semibold">QR thành viên</span>
+                        </div>
+                        <div className="mt-4">
+                            <MembershipQrCard payload={membershipQrPayload} memberName={subscriber.fullName} />
                         </div>
                     </aside>
                 </div>

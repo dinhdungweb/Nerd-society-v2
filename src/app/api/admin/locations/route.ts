@@ -44,6 +44,13 @@ export async function POST(req: Request) {
 
         const location = await prisma.location.create({
             data: {
+                code: String(body.code || name)
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-zA-Z0-9]+/g, '-')
+                    .replace(/(^-|-$)/g, '')
+                    .toUpperCase()
+                    .slice(0, 24),
                 name,
                 address,
                 phone,

@@ -123,25 +123,25 @@ export default function SubscriptionsAdminClient() {
     setSelectedOrder(null);
   };
 
-  const handleAssignCard = async (orderId: string, cardNo: string) => {
+  const handleIssueQr = async (orderId: string) => {
     setActionLoading(true);
     try {
       const res = await fetch('/api/admin/subscriptions/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'assign_card', orderId, cardNo, staffName: 'admin' }),
+        body: JSON.stringify({ action: 'issue_qr', orderId }),
       });
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        alert('Lỗi: ' + (data.error || 'Không thể gán thẻ'));
+        alert('Lỗi: ' + (data.error || 'Không thể cấp QR'));
         return;
       }
 
       await fetchData();
       setSelectedOrder(null);
     } catch (err) {
-      alert('Có lỗi xảy ra khi gán thẻ');
+      alert('Có lỗi xảy ra khi cấp QR');
     } finally {
       setActionLoading(false);
     }
@@ -161,7 +161,7 @@ export default function SubscriptionsAdminClient() {
   };
 
   const handleDeleteSubscriber = async (sub: Subscriber) => {
-    if (!confirm(`Bạn chắc chắn muốn xóa hội viên "${sub.fullName}"?\nLưu ý: Toàn bộ dữ liệu của người này trên Web và MyTime sẽ bị xóa sạch và không thể khôi phục.`)) return;
+    if (!confirm(`Bạn chắc chắn muốn xóa hội viên "${sub.fullName}"?\nLưu ý: Toàn bộ dữ liệu trên Web sẽ bị xóa và không thể khôi phục.`)) return;
     
     setActionLoading(true);
     try {
@@ -182,27 +182,6 @@ export default function SubscriptionsAdminClient() {
     setActionLoading(false);
   };
 
-  const handleReassignCard = async (sub: Subscriber, newCardNo: string) => {
-    setActionLoading(true);
-    try {
-      const res = await fetch('/api/admin/subscriptions/subscribers', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscriberId: sub.id, newCardNo }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('Gán lại thẻ thành công!');
-        fetchData();
-      } else {
-        alert('Lỗi: ' + (data.error || 'Không thể gán lại thẻ'));
-      }
-    } catch (err) {
-      alert('Có lỗi xảy ra khi gán lại thẻ');
-    }
-    setActionLoading(false);
-  };
-
   const tabs: Array<{ key: TabType, label: string, icon: any }> = [
     { key: 'orders', label: 'Đơn đăng ký', icon: ClipboardDocumentListIcon },
     { key: 'subscribers', label: 'Hội viên', icon: UserGroupIcon },
@@ -219,7 +198,7 @@ export default function SubscriptionsAdminClient() {
             Quản lý Subscription
           </h1>
           <p className="mt-1 text-sm font-medium text-neutral-500">
-            Hệ thống quản lý gói thành viên, thẻ vật lý và báo cáo doanh thu
+            Hệ thống quản lý gói thành viên, QR check-in và báo cáo doanh thu
           </p>
         </div>
         
@@ -288,7 +267,8 @@ export default function SubscriptionsAdminClient() {
                   >
                     <option value="">Tất cả trạng thái</option>
                     <option value="PENDING_PAYMENT">Chờ thanh toán</option>
-                    <option value="PAID">Chờ gán thẻ</option>
+                    <option value="PAID">Chờ cấp QR</option>
+                    <option value="QR_ISSUED">Đã cấp QR</option>
                     <option value="CARD_ASSIGNED">Đã gán thẻ</option>
                     <option value="ACTIVATED">Đã kích hoạt</option>
                   </select>
@@ -317,7 +297,6 @@ export default function SubscriptionsAdminClient() {
                 loading={loading}
                 onDelete={handleDeleteSubscriber}
                 onViewHistory={(sub) => setHistorySubscriber({ id: sub.id, name: sub.fullName })}
-                onReassignCard={handleReassignCard}
                 actionLoading={actionLoading}
               />
               <AdminPagination
@@ -347,7 +326,7 @@ export default function SubscriptionsAdminClient() {
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}
         onConfirmPayment={handleConfirmPayment}
-        onAssignCard={handleAssignCard}
+        onIssueQr={handleIssueQr}
         onCancelOrder={handleCancelOrder}
         actionLoading={actionLoading}
       />

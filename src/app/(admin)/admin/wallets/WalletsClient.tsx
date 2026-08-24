@@ -25,7 +25,6 @@ type WalletRow = {
             id: string
             fullName: string
             outstandingBalance: number
-            mytimeEmpId: string | null
         } | null
     }
     _count: { transactions: number }

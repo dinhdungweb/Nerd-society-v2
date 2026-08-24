@@ -9,10 +9,9 @@ async function checkSubscribers() {
         id: true,
         fullName: true,
         phone: true,
-        cardNo: true,
-        mytimeEmpId: true,
         branchPrimary: true,
         status: true,
+        qrCredential: { select: { status: true, version: true } },
         createdAt: true,
         subscriptions: {
           select: {
@@ -26,7 +25,7 @@ async function checkSubscribers() {
 
     console.log(`Tìm thấy tổng cộng ${subscribers.length} hội viên.`);
     for (const sub of subscribers) {
-      console.log(`- Tên: ${sub.fullName} | SĐT: ${sub.phone} | Mã thẻ: ${sub.cardNo || 'Chưa gán'} | MyTimeID: ${sub.mytimeEmpId || 'Chưa có'} | Chi nhánh: ${sub.branchPrimary || 'Chưa chọn'} | Trạng thái: ${sub.status}`);
+      console.log(`- Tên: ${sub.fullName} | SĐT: ${sub.phone} | QR: ${sub.qrCredential ? `${sub.qrCredential.status} v${sub.qrCredential.version}` : 'Chưa cấp'} | Chi nhánh: ${sub.branchPrimary || 'Chưa chọn'} | Trạng thái: ${sub.status}`);
       if (sub.subscriptions.length > 0) {
         console.log(`  Gói đăng ký: ${sub.subscriptions.map(s => `${s.planType} (${s.status})`).join(', ')}`);
       } else {

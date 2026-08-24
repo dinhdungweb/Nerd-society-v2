@@ -62,7 +62,7 @@ const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick, registrationOpen =
               transition={{ duration: 0.6, delay: 0.4 }}
               className="mt-6 max-w-lg text-lg text-neutral-300"
             >
-              Gói thành viên cho những ai xem Nerd như không gian thứ hai. Tap thẻ vào ngồi luôn, voucher đồ uống mỗi tháng và đặc quyền ưu tiên.
+              Gói thành viên cho những ai xem Nerd như không gian thứ hai. Quét QR vào ngồi luôn, voucher đồ uống mỗi tháng và đặc quyền ưu tiên.
             </motion.p>
 
             {/* Price pills */}
@@ -105,7 +105,7 @@ const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick, registrationOpen =
               transition={{ duration: 0.6, delay: 0.8 }}
               className="mt-4 text-sm text-neutral-400"
             >
-              Kích hoạt khi bạn tap thẻ lần đầu
+              Thời hạn bắt đầu khi QR thành viên được cấp
             </motion.p>
 
             {/* Stats */}
@@ -150,7 +150,7 @@ const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick, registrationOpen =
                 </div>
                 <div>
                   <p className="font-semibold text-white">Priority Check-in</p>
-                  <p className="text-sm text-neutral-300">Tap thẻ, ngồi luôn</p>
+                  <p className="text-sm text-neutral-300">Quét QR, ngồi luôn</p>
                 </div>
               </div>
             </motion.div>

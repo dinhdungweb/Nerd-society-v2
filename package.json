@@ -5,16 +5,20 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:backfill-wallets": "tsx prisma/backfill-wallets.ts",
+    "db:backfill-qr": "tsx scripts/backfill-membership-qr.ts",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:sync-mytime": "tsx scripts/sync-missing-subscribers.ts",
-    "test:nerd-night": "tsx scripts/test-nerd-night-flows.ts"
+    "test:nerd-night": "tsx scripts/test-nerd-night-flows.ts",
+    "test:qr-checkin": "tsx scripts/test-qr-checkin.ts",
+    "test:qr-checkin:integration": "tsx scripts/test-qr-checkin-integration.ts",
+    "test:qr-checkin:api": "tsx scripts/test-qr-checkin-api.ts"
 
   },
   "dependencies": {

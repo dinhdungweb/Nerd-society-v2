@@ -17,13 +17,13 @@ const steps = [
     icon: CursorArrowRaysIcon,
   },
   {
-    title: 'Đến Nerd nhận thẻ',
-    desc: 'Ghé cơ sở đã đăng ký để nhận thẻ ZKTeco, voucher đồ uống, chìa khóa locker.',
+    title: 'Nhận QR thành viên',
+    desc: 'QR xuất hiện trong tài khoản; nếu cần, ghé cơ sở để nhận bản in, voucher đồ uống và chìa khóa locker.',
     icon: MapPinIcon,
   },
   {
-    title: 'Tap thẻ kích hoạt',
-    desc: 'Lần đầu tap = gói có hiệu lực. 30 ngày tính từ tap đầu, bạn chủ động chọn.',
+    title: 'Nhận QR và kích hoạt',
+    desc: 'Gói có hiệu lực ngay khi QR được cấp. Thời hạn không phụ thuộc vào lần check-in đầu tiên.',
     icon: BoltIcon,
   },
   {
@@ -33,7 +33,7 @@ const steps = [
   },
   {
     title: 'Gia hạn cuối tháng',
-    desc: 'Nerd nhắn Zalo trước 7 ngày. Gia hạn để giữ nguyên locker và quyền lợi.',
+    desc: 'Nút gia hạn xuất hiện trước khi hết hạn 3 ngày để bạn giữ nguyên quyền lợi.',
     icon: CalendarDaysIcon,
   },
 ]

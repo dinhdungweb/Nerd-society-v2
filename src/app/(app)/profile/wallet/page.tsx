@@ -98,7 +98,6 @@ export default async function WalletPage() {
                         <div className="mt-5">
                             <WalletTopupModal
                                 walletCode={wallet.walletCode}
-                                legacyEmpId={walletAccount.subscriber?.mytimeEmpId || undefined}
                                 bankConfig={{
                                     bankCode: bankConfig.bankCode,
                                     accountNumber: bankConfig.accountNumber,

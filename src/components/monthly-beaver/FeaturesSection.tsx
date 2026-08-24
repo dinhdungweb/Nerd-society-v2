@@ -17,7 +17,7 @@ const features = [
   },
   {
     icon: IdentificationIcon,
-    title: 'Tap thẻ, ngồi luôn',
+    title: 'Quét QR, ngồi luôn',
     desc: 'Không cần đến quầy mỗi lần. Không thanh toán từng buổi. Nhân viên nhớ tên + góc quen',
   },
   {

@@ -80,7 +80,7 @@ const PLANS: PlanInfo[] = [
     icon: <SparklesSolidIcon className="h-5 w-5 text-primary-600" />,
     image: '/hero-banner-beaver.JPG',
     features: [
-      'Priority Check-in (Tap thẻ, ngồi luôn)',
+      'Priority Check-in (Quét QR, ngồi luôn)',
       'Inspiration Space (Có chỗ tại 2 cơ sở)',
       'Nerd Drinks (4 voucher mỗi tháng)',
       'The Essentials (Wifi, Locker, 24/7)',
@@ -799,20 +799,20 @@ export default function MonthlyBeaverPage() {
               <ul className="space-y-1.5 text-sm text-neutral-600">
                 <li className="flex items-start gap-2">
                   <MapPinIcon className="h-4 w-4 flex-shrink-0 text-primary-500 mt-0.5" />
-                  Ghé cơ sở <strong className="text-neutral-900">{branchName}</strong> để nhận thẻ Monthly Beaver
+                  QR thành viên sẽ xuất hiện trong tài khoản; bạn cũng có thể nhận bản in tại <strong className="text-neutral-900">{branchName}</strong>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckIcon className="h-4 w-4 flex-shrink-0 text-primary-500 mt-0.5" />
-                  Thẻ đã được chuẩn bị sẵn mang tên bạn
+                  Gói bắt đầu tính thời hạn ngay khi QR được cấp
                 </li>
                 <li className="flex items-start gap-2">
                   <BoltIcon className="h-4 w-4 flex-shrink-0 text-primary-500 mt-0.5" />
-                  Lần đầu tap thẻ vào máy = gói bắt đầu tính
+                  Dùng QR để check-in và check-out tại quầy
                 </li>
               </ul>
               <div className="flex items-center gap-1.5 mt-3 text-xs text-neutral-400">
                 <ClockIcon className="h-3.5 w-3.5" />
-                Hạn nhận thẻ: 30 ngày kể từ hôm nay
+                Không cần chờ lần check-in đầu tiên để kích hoạt
               </div>
             </div>
 
