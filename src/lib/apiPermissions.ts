@@ -1,177 +1,27 @@
+import {
+    ADMIN_PERMISSIONS,
+    AdminPermissionKey,
+    ConfigurableAdminRole,
+    DEFAULT_ROLE_PERMISSIONS,
+} from '@/config/admin'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
-// Permission key prefix in database
 const PERMISSION_KEY_PREFIX = 'role_permissions_'
 
-// Default permissions for each role (fallback if not in database)
-const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
-    MANAGER: {
-        canViewDashboard: true,
-        canViewReports: true,
-        canViewBookings: true,
-        canCreateBookings: true,
-        canEditBookings: true,
-        canDeleteBookings: true,
-        canCheckIn: true,
-        canCheckOut: true,
-        canViewChat: true,
-        canViewRooms: true,
-        canManageRooms: true,
-        canViewServices: true,
-        canManageServices: true,
-        canViewLocations: true,
-        canManageLocations: true,
-        canViewPosts: true,
-        canManagePosts: true,
-        canViewGallery: true,
-        canManageGallery: true,
-        canViewContent: true,
-        canManageContent: true,
-        canViewCustomers: true,
-        canManageCustomers: true,
-        canViewWallets: true,
-        canManageWallets: true,
-        canViewNerdCoin: true,
-        canManageNerdCoin: true,
-        canViewSettings: false,
-        canViewStaff: true,
-        canManageStaff: true,
-        canViewAuditLog: true,
-        canViewEmailTemplates: true,
-        canManageEmailTemplates: true,
-        canViewRecruitment: true,
-        canManageRecruitment: true,
-        canViewQrGenerator: true,
-        canViewFeedback: true,
-        canViewNerdNight: true,
-        canManageNerdNight: true,
-        canConfirmNerdNightPayments: true,
-    },
-    STAFF: {
-        canViewDashboard: true,
-        canViewReports: false,
-        canViewBookings: true,
-        canCreateBookings: true,
-        canEditBookings: true,
-        canDeleteBookings: false,
-        canCheckIn: true,
-        canCheckOut: true,
-        canViewChat: true,
-        canViewRooms: false,
-        canManageRooms: false,
-        canViewServices: false,
-        canManageServices: false,
-        canViewLocations: false,
-        canManageLocations: false,
-        canViewPosts: false,
-        canManagePosts: false,
-        canViewGallery: false,
-        canManageGallery: false,
-        canViewContent: false,
-        canManageContent: false,
-        canViewCustomers: true,
-        canManageCustomers: false,
-        canViewWallets: true,
-        canManageWallets: false,
-        canViewNerdCoin: false,
-        canManageNerdCoin: false,
-        canViewSettings: false,
-        canViewStaff: false,
-        canManageStaff: false,
-        canViewAuditLog: false,
-        canViewEmailTemplates: false,
-        canManageEmailTemplates: false,
-        canViewRecruitment: false,
-        canManageRecruitment: false,
-        canViewQrGenerator: false,
-        canViewFeedback: false,
-        canViewNerdNight: true,
-        canManageNerdNight: true,
-        canConfirmNerdNightPayments: true,
-    },
-    CONTENT_EDITOR: {
-        canViewDashboard: false,
-        canViewReports: false,
-        canViewBookings: false,
-        canCreateBookings: false,
-        canEditBookings: false,
-        canDeleteBookings: false,
-        canCheckIn: false,
-        canCheckOut: false,
-        canViewChat: false,
-        canViewRooms: false,
-        canManageRooms: false,
-        canViewServices: false,
-        canManageServices: false,
-        canViewLocations: false,
-        canManageLocations: false,
-        canViewPosts: true,
-        canManagePosts: true,
-        canViewGallery: true,
-        canManageGallery: true,
-        canViewContent: true,
-        canManageContent: true,
-        canViewCustomers: false,
-        canManageCustomers: false,
-        canViewWallets: false,
-        canManageWallets: false,
-        canViewNerdCoin: false,
-        canManageNerdCoin: false,
-        canViewSettings: false,
-        canViewStaff: false,
-        canManageStaff: false,
-        canViewAuditLog: false,
-        canViewEmailTemplates: false,
-        canManageEmailTemplates: false,
-        canViewRecruitment: false,
-        canManageRecruitment: false,
-        canViewQrGenerator: false,
-        canViewFeedback: false,
-        canViewNerdNight: false,
-        canManageNerdNight: false,
-        canConfirmNerdNightPayments: false,
-    },
+export type PermissionKey = AdminPermissionKey
+
+function isConfigurableRole(role: string): role is ConfigurableAdminRole {
+    return role === 'MANAGER' || role === 'STAFF' || role === 'CONTENT_EDITOR'
 }
 
-export type PermissionKey =
-    | 'canViewDashboard' | 'canViewReports'
-    | 'canViewBookings' | 'canCreateBookings' | 'canEditBookings' | 'canDeleteBookings' | 'canCheckIn' | 'canCheckOut'
-    | 'canViewChat'
-    | 'canViewRooms' | 'canManageRooms'
-    | 'canViewServices' | 'canManageServices'
-    | 'canViewLocations' | 'canManageLocations'
-    | 'canViewPosts' | 'canManagePosts'
-    | 'canViewGallery' | 'canManageGallery'
-    | 'canViewContent' | 'canManageContent'
-    | 'canViewCustomers' | 'canManageCustomers'
-    | 'canViewWallets' | 'canManageWallets'
-    | 'canViewNerdCoin' | 'canManageNerdCoin'
-    | 'canViewSettings'
-    | 'canViewStaff' | 'canManageStaff'
-    | 'canViewAuditLog'
-    | 'canViewEmailTemplates' | 'canManageEmailTemplates'
-    | 'canViewRecruitment' | 'canManageRecruitment'
-    | 'canViewQrGenerator'
-    | 'canViewFeedback'
-    | 'canViewNerdNight' | 'canManageNerdNight' | 'canConfirmNerdNightPayments'
-
-/**
- * Get permissions for a specific role from database
- * Falls back to defaults if not found
- */
 export async function getRolePermissions(role: string): Promise<Record<string, boolean>> {
-    // ADMIN always has all permissions
     if (role === 'ADMIN') {
-        return Object.keys(DEFAULT_ROLE_PERMISSIONS.MANAGER || {}).reduce((acc, key) => {
-            acc[key] = true
-            return acc
-        }, {} as Record<string, boolean>)
+        return ADMIN_PERMISSIONS
     }
 
-    // Check if role has custom permissions in database
-    if (!(role in DEFAULT_ROLE_PERMISSIONS)) {
+    if (!isConfigurableRole(role)) {
         return {}
     }
 
@@ -180,35 +30,23 @@ export async function getRolePermissions(role: string): Promise<Record<string, b
             where: { key: `${PERMISSION_KEY_PREFIX}${role}` },
         })
 
-        const defaultPerms = DEFAULT_ROLE_PERMISSIONS[role] || {}
-
-        if (setting) {
-            return { ...defaultPerms, ...JSON.parse(setting.value) }
-        }
-
-        return defaultPerms
+        const defaultPermissions = DEFAULT_ROLE_PERMISSIONS[role]
+        return setting
+            ? { ...defaultPermissions, ...JSON.parse(setting.value) }
+            : defaultPermissions
     } catch (error) {
         console.error(`Error fetching permissions for role ${role}:`, error)
-        return DEFAULT_ROLE_PERMISSIONS[role] || {}
+        return DEFAULT_ROLE_PERMISSIONS[role]
     }
 }
 
-/**
- * Check if a user has a specific permission
- * Returns true if user has the permission, false otherwise
- */
 export async function hasPermission(role: string, permission: PermissionKey): Promise<boolean> {
-    // ADMIN always has all permissions
     if (role === 'ADMIN') return true
 
     const permissions = await getRolePermissions(role)
     return permissions[permission] === true
 }
 
-/**
- * Get session and check if user has required permission
- * Returns { session, hasAccess } object
- */
 export async function checkApiPermission(requiredPermission: PermissionKey): Promise<{
     session: any | null
     hasAccess: boolean
@@ -221,8 +59,6 @@ export async function checkApiPermission(requiredPermission: PermissionKey): Pro
     }
 
     const role = session.user.role as string
-
-    // ADMIN always has access
     if (role === 'ADMIN') {
         return { session, hasAccess: true, role }
     }
@@ -231,10 +67,31 @@ export async function checkApiPermission(requiredPermission: PermissionKey): Pro
     return { session, hasAccess, role }
 }
 
-/**
- * Quick check for view permissions (commonly used pattern)
- */
-export async function canView(resource: 'Dashboard' | 'Reports' | 'Bookings' | 'Chat' | 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'Wallets' | 'NerdCoin' | 'Settings' | 'Staff' | 'AuditLog' | 'EmailTemplates' | 'Recruitment' | 'QrGenerator' | 'Feedback' | 'NerdNight'): Promise<{
+type ViewResource =
+    | 'Dashboard'
+    | 'Reports'
+    | 'Bookings'
+    | 'Chat'
+    | 'Rooms'
+    | 'Services'
+    | 'Locations'
+    | 'Posts'
+    | 'Gallery'
+    | 'Content'
+    | 'Customers'
+    | 'Wallets'
+    | 'NerdCoin'
+    | 'Settings'
+    | 'Staff'
+    | 'AuditLog'
+    | 'EmailTemplates'
+    | 'Recruitment'
+    | 'QrGenerator'
+    | 'Feedback'
+    | 'StudyDate'
+    | 'NerdNight'
+
+export async function canView(resource: ViewResource): Promise<{
     session: any | null
     hasAccess: boolean
     role: string | null
@@ -243,10 +100,23 @@ export async function canView(resource: 'Dashboard' | 'Reports' | 'Bookings' | '
     return checkApiPermission(permissionKey)
 }
 
-/**
- * Quick check for manage permissions (commonly used pattern)
- */
-export async function canManage(resource: 'Rooms' | 'Services' | 'Locations' | 'Posts' | 'Gallery' | 'Content' | 'Customers' | 'Wallets' | 'NerdCoin' | 'Staff' | 'EmailTemplates' | 'Recruitment' | 'NerdNight'): Promise<{
+type ManageResource =
+    | 'Rooms'
+    | 'Services'
+    | 'Locations'
+    | 'Posts'
+    | 'Gallery'
+    | 'Content'
+    | 'Customers'
+    | 'Wallets'
+    | 'NerdCoin'
+    | 'Staff'
+    | 'EmailTemplates'
+    | 'Recruitment'
+    | 'StudyDate'
+    | 'NerdNight'
+
+export async function canManage(resource: ManageResource): Promise<{
     session: any | null
     hasAccess: boolean
     role: string | null
@@ -255,9 +125,6 @@ export async function canManage(resource: 'Rooms' | 'Services' | 'Locations' | '
     return checkApiPermission(permissionKey)
 }
 
-/**
- * Check booking-specific permissions
- */
 export async function canBooking(action: 'View' | 'Create' | 'Edit' | 'Delete' | 'CheckIn' | 'CheckOut'): Promise<{
     session: any | null
     hasAccess: boolean

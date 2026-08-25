@@ -3,7 +3,6 @@
 import { ThemeContext } from '@/app/theme-provider'
 import {
     Bars3Icon,
-    MagnifyingGlassIcon,
     MoonIcon,
     SunIcon,
     ChevronDownIcon,
@@ -14,6 +13,7 @@ import Link from 'next/link'
 import { useContext, useState, useRef, useEffect } from 'react'
 import NotificationBell from './NotificationBell'
 import QuickChatPanel from './QuickChatPanel'
+import AdminCommandPalette from './AdminCommandPalette'
 
 interface AdminNavbarProps {
     onMenuClick: () => void
@@ -46,6 +46,7 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                 {/* Mobile menu toggle */}
                 <button
                     type="button"
+                    aria-label="Mở menu quản trị"
                     className="cursor-pointer rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 lg:hidden dark:text-neutral-400 dark:hover:bg-neutral-800"
                     onClick={onMenuClick}
                 >
@@ -55,26 +56,14 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                 {/* Desktop collapse toggle */}
                 <button
                     type="button"
+                    aria-label={isCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
                     className="hidden cursor-pointer rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 lg:block dark:text-neutral-400 dark:hover:bg-neutral-800"
                     onClick={() => onCollapse?.(!isCollapsed)}
                 >
                     <Bars3Icon className="size-5" />
                 </button>
 
-                {/* Search bar */}
-                <div className="hidden sm:block">
-                    <div className="relative">
-                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
-                        <input
-                            type="text"
-                            placeholder="Search or type command..."
-                            className="w-64 rounded-xl border border-neutral-200 bg-neutral-50 py-2 pl-10 pr-4 text-sm text-neutral-600 placeholder-neutral-400 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:bg-neutral-800 lg:w-80"
-                        />
-                        <kbd className="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 lg:inline-block dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-400">
-                            ⌘K
-                        </kbd>
-                    </div>
-                </div>
+                <AdminCommandPalette />
             </div>
 
             {/* Right side - Actions */}
@@ -82,6 +71,7 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                 {/* Theme toggle */}
                 <button
                     type="button"
+                    aria-label={isDarkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
                     onClick={() => themeContext?.toggleDarkMode()}
                     className="cursor-pointer rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
                     title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
@@ -102,6 +92,9 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
                 <div className="relative" ref={dropdownRef}>
                     <button
                         type="button"
+                        aria-label="Mở menu tài khoản"
+                        aria-expanded={userDropdownOpen}
+                        aria-haspopup="menu"
                         onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                         className="flex cursor-pointer items-center gap-3 rounded-lg p-1.5 pr-3 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
                     >
@@ -121,7 +114,7 @@ export default function AdminNavbar({ onMenuClick, isCollapsed, onCollapse }: Ad
 
                     {/* Dropdown menu */}
                     {userDropdownOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-neutral-200 bg-white py-2 shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+                        <div role="menu" className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-neutral-200 bg-white py-2 shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
                             {/* User info */}
                             <div className="border-b border-neutral-100 px-4 pb-3 dark:border-neutral-700">
                                 <div className="flex items-center gap-3">

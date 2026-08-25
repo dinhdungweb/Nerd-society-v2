@@ -16,61 +16,99 @@ import {
     ChartBarIcon,
 } from '@heroicons/react/24/outline'
 import { RevenueChart, BookingChart, RoomUsageChart } from '@/components/admin/DashboardCharts'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getRolePermissions } from '@/lib/apiPermissions'
+import type { AdminPermissionKey } from '@/config/admin'
 
-async function getStats() {
+async function getStats(locationId?: string | null) {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
 
+    const currentPeriodStart = startOfDay(subDays(today, 6))
+    const previousPeriodStart = startOfDay(subDays(today, 13))
+    const previousPeriodEnd = endOfDay(subDays(today, 7))
+    const bookingWhere = locationId ? { locationId } : {}
+
     const [
-        totalBookings,
         todayBookings,
         yesterdayBookings,
         pendingBookings,
         totalCustomers,
+        newCustomersToday,
+        currentRevenue,
+        previousRevenue,
     ] = await Promise.all([
-        prisma.booking.count(),
         prisma.booking.count({
             where: {
+                ...bookingWhere,
                 createdAt: { gte: today },
             },
         }),
         prisma.booking.count({
             where: {
+                ...bookingWhere,
                 createdAt: { gte: yesterday, lt: today },
             },
         }),
         prisma.booking.count({
-            where: { status: 'PENDING' },
+            where: { ...bookingWhere, status: 'PENDING' },
         }),
         prisma.user.count({
-            where: { role: 'CUSTOMER' },
+            where: {
+                role: 'CUSTOMER',
+                ...(locationId ? { bookings: { some: { locationId } } } : {}),
+            },
+        }),
+        prisma.user.count({
+            where: {
+                role: 'CUSTOMER',
+                createdAt: { gte: today },
+                ...(locationId ? { bookings: { some: { locationId } } } : {}),
+            },
+        }),
+        prisma.payment.aggregate({
+            where: {
+                status: 'COMPLETED',
+                paidAt: { gte: currentPeriodStart },
+                ...(locationId ? { booking: { locationId } } : {}),
+            },
+            _sum: { amount: true },
+        }),
+        prisma.payment.aggregate({
+            where: {
+                status: 'COMPLETED',
+                paidAt: { gte: previousPeriodStart, lte: previousPeriodEnd },
+                ...(locationId ? { booking: { locationId } } : {}),
+            },
+            _sum: { amount: true },
         }),
     ])
 
-    // Calculate revenue
-    const payments = await prisma.payment.aggregate({
-        where: { status: 'COMPLETED' },
-        _sum: { amount: true },
-    })
-
     // Calculate booking change
     const bookingChange = todayBookings - yesterdayBookings
+    const currentRevenueAmount = currentRevenue._sum.amount || 0
+    const previousRevenueAmount = previousRevenue._sum.amount || 0
 
     return {
-        totalBookings,
         todayBookings,
         bookingChange,
         pendingBookings,
         totalCustomers,
-        totalRevenue: payments._sum.amount || 0,
+        newCustomersToday,
+        currentRevenue: currentRevenueAmount,
+        revenueChange: previousRevenueAmount === 0
+            ? (currentRevenueAmount === 0 ? 0 : 100)
+            : ((currentRevenueAmount - previousRevenueAmount) / previousRevenueAmount) * 100,
     }
 }
 
-async function getRecentBookings() {
+async function getRecentBookings(locationId?: string | null) {
     const bookings = await prisma.booking.findMany({
+        where: locationId ? { locationId } : undefined,
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: {
@@ -90,7 +128,7 @@ async function getRecentBookings() {
     }))
 }
 
-async function getChartData() {
+async function getChartData(locationId?: string | null) {
     const today = new Date()
     const last7Days = Array.from({ length: 7 }, (_, i) => {
         const date = subDays(today, 6 - i)
@@ -108,6 +146,7 @@ async function getChartData() {
                 where: {
                     status: 'COMPLETED',
                     paidAt: { gte: start, lte: end },
+                    ...(locationId ? { booking: { locationId } } : {}),
                 },
                 _sum: { amount: true },
             })
@@ -123,6 +162,7 @@ async function getChartData() {
         last7Days.map(async ({ start, end, label }) => {
             const count = await prisma.booking.count({
                 where: {
+                    ...(locationId ? { locationId } : {}),
                     createdAt: { gte: start, lte: end },
                 },
             })
@@ -135,6 +175,7 @@ async function getChartData() {
 
     // Get top rooms by bookings
     const roomStats = await prisma.room.findMany({
+        where: locationId ? { locationId } : undefined,
         select: {
             name: true,
             _count: { select: { bookings: true } },
@@ -172,27 +213,39 @@ const statusStyles: Record<string, string> = {
 }
 
 const quickActions = [
-    { name: 'Thêm bài viết', href: '/admin/posts/new', icon: NewspaperIcon, color: 'bg-blue-500' },
-    { name: 'Upload Media', href: '/admin/media', icon: PhotoIcon, color: 'bg-purple-500' },
-    { name: 'Quản lý Booking', href: '/admin/bookings', icon: CalendarDaysIcon, color: 'bg-emerald-500' },
-    { name: 'Khách hàng', href: '/admin/customers', icon: UsersIcon, color: 'bg-orange-500' },
+    { name: 'Thêm bài viết', href: '/admin/posts/new', icon: NewspaperIcon, color: 'bg-blue-500', permission: 'canManagePosts' },
+    { name: 'Upload Media', href: '/admin/media', icon: PhotoIcon, color: 'bg-purple-500', permission: 'canManageGallery' },
+    { name: 'Quản lý Booking', href: '/admin/bookings', icon: CalendarDaysIcon, color: 'bg-emerald-500', permission: 'canViewBookings' },
+    { name: 'Khách hàng', href: '/admin/customers', icon: UsersIcon, color: 'bg-orange-500', permission: 'canViewCustomers' },
 ]
 
 export default async function AdminDashboard() {
-    const stats = await getStats()
-    const recentBookings = await getRecentBookings()
-    const chartData = await getChartData()
+    const session = await getServerSession(authOptions)
+    const role = session?.user?.role || ''
+    const permissions = await getRolePermissions(role)
+    const assignedLocationId = role === 'STAFF' || role === 'MANAGER'
+        ? (session?.user as { assignedLocationId?: string | null } | undefined)?.assignedLocationId
+        : null
+    const [stats, recentBookings, chartData] = await Promise.all([
+        getStats(assignedLocationId),
+        getRecentBookings(assignedLocationId),
+        getChartData(assignedLocationId),
+    ])
+    const can = (permission: AdminPermissionKey) => permissions[permission] === true
+    const allowedQuickActions = quickActions.filter(action => can(action.permission as AdminPermissionKey))
+    const revenueChange = `${stats.revenueChange >= 0 ? '+' : ''}${stats.revenueChange.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%`
 
     const statCards = [
         {
-            name: 'Tổng doanh thu',
-            value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats.totalRevenue),
-            change: '+12.5%',
-            trend: 'up',
+            name: 'Doanh thu 7 ngày',
+            value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats.currentRevenue),
+            change: revenueChange,
+            trend: stats.revenueChange >= 0 ? 'up' : 'down',
             icon: BanknotesIcon,
             gradient: 'from-emerald-500 to-teal-600',
             bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
             iconColor: 'text-emerald-600 dark:text-emerald-400',
+            permission: 'canViewReports' as AdminPermissionKey,
         },
         {
             name: 'Booking hôm nay',
@@ -203,6 +256,7 @@ export default async function AdminDashboard() {
             gradient: 'from-blue-500 to-indigo-600',
             bgColor: 'bg-blue-50 dark:bg-blue-900/20',
             iconColor: 'text-blue-600 dark:text-blue-400',
+            permission: 'canViewBookings' as AdminPermissionKey,
         },
         {
             name: 'Chờ xác nhận',
@@ -213,18 +267,20 @@ export default async function AdminDashboard() {
             gradient: 'from-amber-500 to-orange-600',
             bgColor: 'bg-amber-50 dark:bg-amber-900/20',
             iconColor: 'text-amber-600 dark:text-amber-400',
+            permission: 'canViewBookings' as AdminPermissionKey,
         },
         {
             name: 'Tổng khách hàng',
             value: stats.totalCustomers.toString(),
-            change: '+5',
+            change: stats.newCustomersToday > 0 ? `+${stats.newCustomersToday} hôm nay` : '0 hôm nay',
             trend: 'up',
             icon: UsersIcon,
             gradient: 'from-purple-500 to-pink-600',
             bgColor: 'bg-purple-50 dark:bg-purple-900/20',
             iconColor: 'text-purple-600 dark:text-purple-400',
+            permission: 'canViewCustomers' as AdminPermissionKey,
         },
-    ]
+    ].filter(stat => can(stat.permission))
 
     return (
         <div className="space-y-8">
@@ -238,13 +294,15 @@ export default async function AdminDashboard() {
                         {format(new Date(), "EEEE, 'ngày' d MMMM yyyy", { locale: vi })}
                     </p>
                 </div>
-                <Link
-                    href="/admin/posts/new"
-                    className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-primary-600/25 transition-all hover:bg-primary-700 hover:shadow-xl"
-                >
-                    <PlusIcon className="size-4" />
-                    Thêm bài viết
-                </Link>
+                {can('canManagePosts') && (
+                    <Link
+                        href="/admin/posts/new"
+                        className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-primary-600/25 transition-all hover:bg-primary-700 hover:shadow-xl"
+                    >
+                        <PlusIcon className="size-4" />
+                        Thêm bài viết
+                    </Link>
+                )}
             </div>
 
             {/* Stats Grid */}
@@ -280,9 +338,9 @@ export default async function AdminDashboard() {
             </div>
 
             {/* Charts Section */}
-            <div className="grid gap-6 lg:grid-cols-2">
+            {(can('canViewReports') || can('canViewBookings')) && <div className="grid gap-6 lg:grid-cols-2">
                 {/* Revenue Chart */}
-                <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                {can('canViewReports') && <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                     <div className="mb-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
@@ -295,10 +353,10 @@ export default async function AdminDashboard() {
                         </div>
                     </div>
                     <RevenueChart data={chartData.revenueData} />
-                </div>
+                </div>}
 
                 {/* Booking Chart */}
-                <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                {can('canViewBookings') && <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                     <div className="mb-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="flex size-10 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/30">
@@ -311,10 +369,10 @@ export default async function AdminDashboard() {
                         </div>
                     </div>
                     <BookingChart data={chartData.bookingData} />
-                </div>
+                </div>}
 
                 {/* Room Usage Chart */}
-                <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 lg:col-span-2">
+                {can('canViewBookings') && <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 lg:col-span-2">
                     <div className="mb-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="flex size-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/30">
@@ -327,14 +385,14 @@ export default async function AdminDashboard() {
                         </div>
                     </div>
                     <RoomUsageChart data={chartData.roomUsageData} />
-                </div>
-            </div>
+                </div>}
+            </div>}
 
             {/* Quick Actions */}
-            <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+            {allowedQuickActions.length > 0 && <div className="rounded-2xl border border-neutral-200/50 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                 <h2 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-white">Thao tác nhanh</h2>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    {quickActions.map((action) => (
+                    {allowedQuickActions.map((action) => (
                         <Link
                             key={action.name}
                             href={action.href}
@@ -349,10 +407,10 @@ export default async function AdminDashboard() {
                         </Link>
                     ))}
                 </div>
-            </div>
+            </div>}
 
             {/* Recent Bookings */}
-            <div className="rounded-2xl border border-neutral-200/50 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+            {can('canViewBookings') && <div className="rounded-2xl border border-neutral-200/50 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                 <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4 dark:border-neutral-800">
                     <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Booking gần đây</h2>
                     <Link
@@ -432,7 +490,7 @@ export default async function AdminDashboard() {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </div>}
         </div>
     )
 }

@@ -1,7 +1,7 @@
 'use client'
 
-import { Button } from '@/shared/Button'
 import { useState, useEffect, useRef } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import {
     PhotoIcon,
@@ -18,6 +18,8 @@ import {
 } from '@heroicons/react/24/outline'
 import MediaPickerModal from '@/components/admin/MediaPickerModal'
 import { usePermissions } from '@/contexts/PermissionsContext'
+import { AdminLoadingState, AdminPageHeader, AdminSaveBar } from '@/components/admin/ui'
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 
 // Feature interface
 interface AboutFeature {
@@ -153,7 +155,18 @@ const defaultFloatingCards: HeroFloatingCard[] = [
     { icon: 'BookOpenIcon', title: 'Học tập hiệu quả', subtitle: 'Không gian yên tĩnh' },
 ]
 
+type ContentTab = 'home' | 'content' | 'campaigns'
+
+const CONTENT_TABS: Array<{ id: ContentTab; label: string; description: string }> = [
+    { id: 'home', label: 'Trang chủ', description: 'Hero và câu chuyện thương hiệu' },
+    { id: 'content', label: 'Nội dung', description: 'Tin tức và thông tin liên hệ' },
+    { id: 'campaigns', label: 'Chiến dịch', description: 'Booking banner và popup' },
+]
+
 export default function AdminContentPage() {
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
     const { permissions } = usePermissions()
     const canManage = permissions.canManageContent
     const [loading, setLoading] = useState(true)
@@ -219,6 +232,30 @@ export default function AdminContentPage() {
         popupDelay: '2000',
         popupPosition: 'center',
     })
+    const [savedSettings, setSavedSettings] = useState<Settings | null>(null)
+    const [savedFeatures, setSavedFeatures] = useState<AboutFeature[]>(defaultFeatures)
+    const [savedHeroStats, setSavedHeroStats] = useState<HeroStat[]>(defaultHeroStats)
+    const [savedHeroFeaturePills, setSavedHeroFeaturePills] = useState<HeroFeaturePill[]>(defaultHeroFeaturePills)
+    const [savedHeroFloatingCards, setSavedHeroFloatingCards] = useState<HeroFloatingCard[]>(defaultFloatingCards)
+    const requestedTab = searchParams.get('tab')
+    const activeTab: ContentTab = CONTENT_TABS.some(tab => tab.id === requestedTab)
+        ? requestedTab as ContentTab
+        : 'home'
+    const isDirty = savedSettings !== null && JSON.stringify({
+        settings,
+        features,
+        heroStats,
+        heroFeaturePills,
+        heroFloatingCards,
+    }) !== JSON.stringify({
+        settings: savedSettings,
+        features: savedFeatures,
+        heroStats: savedHeroStats,
+        heroFeaturePills: savedHeroFeaturePills,
+        heroFloatingCards: savedHeroFloatingCards,
+    })
+
+    useUnsavedChangesWarning(isDirty)
 
     useEffect(() => {
         fetchSettings()
@@ -228,14 +265,19 @@ export default function AdminContentPage() {
         try {
             const res = await fetch('/api/admin/settings')
             const data = await res.json()
+            let nextSettings = settings
+            let nextFeatures = features
+            let nextHeroStats = heroStats
+            let nextHeroFeaturePills = heroFeaturePills
+            let nextHeroFloatingCards = heroFloatingCards
             if (res.ok && Object.keys(data).length > 0) {
-                setSettings(prev => ({ ...prev, ...data }))
+                nextSettings = { ...settings, ...data }
                 // Parse aboutFeatures if exists
                 if (data.aboutFeatures) {
                     try {
                         const parsedFeatures = JSON.parse(data.aboutFeatures)
                         if (Array.isArray(parsedFeatures)) {
-                            setFeatures(parsedFeatures)
+                            nextFeatures = parsedFeatures
                         }
                     } catch (e) {
                         console.error('Error parsing aboutFeatures:', e)
@@ -246,7 +288,7 @@ export default function AdminContentPage() {
                     try {
                         const parsedStats = JSON.parse(data.heroStats)
                         if (Array.isArray(parsedStats)) {
-                            setHeroStats(parsedStats)
+                            nextHeroStats = parsedStats
                         }
                     } catch (e) {
                         console.error('Error parsing heroStats:', e)
@@ -257,7 +299,7 @@ export default function AdminContentPage() {
                     try {
                         const parsedHeroFeatures = JSON.parse(data.heroFeatures)
                         if (Array.isArray(parsedHeroFeatures)) {
-                            setHeroFeaturePills(parsedHeroFeatures)
+                            nextHeroFeaturePills = parsedHeroFeatures
                         }
                     } catch (e) {
                         console.error('Error parsing heroFeatures:', e)
@@ -268,13 +310,23 @@ export default function AdminContentPage() {
                     try {
                         const parsedFloatingCards = JSON.parse(data.heroFloatingCards)
                         if (Array.isArray(parsedFloatingCards)) {
-                            setHeroFloatingCards(parsedFloatingCards)
+                            nextHeroFloatingCards = parsedFloatingCards
                         }
                     } catch (e) {
                         console.error('Error parsing heroFloatingCards:', e)
                     }
                 }
             }
+            setSettings(nextSettings)
+            setFeatures(nextFeatures)
+            setHeroStats(nextHeroStats)
+            setHeroFeaturePills(nextHeroFeaturePills)
+            setHeroFloatingCards(nextHeroFloatingCards)
+            setSavedSettings(nextSettings)
+            setSavedFeatures(nextFeatures)
+            setSavedHeroStats(nextHeroStats)
+            setSavedHeroFeaturePills(nextHeroFeaturePills)
+            setSavedHeroFloatingCards(nextHeroFloatingCards)
         } catch (error) {
             console.error('Failed to load settings', error)
             toast.error('Không thể tải cấu hình')
@@ -285,6 +337,22 @@ export default function AdminContentPage() {
 
     const handleChange = (key: keyof Settings, value: string) => {
         setSettings(prev => ({ ...prev, [key]: value }))
+    }
+
+    const changeTab = (tab: ContentTab) => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (tab === 'home') params.delete('tab')
+        else params.set('tab', tab)
+        router.replace(`${pathname}${params.size ? `?${params.toString()}` : ''}`, { scroll: false })
+    }
+
+    const resetChanges = () => {
+        if (!savedSettings) return
+        setSettings(savedSettings)
+        setFeatures(savedFeatures)
+        setHeroStats(savedHeroStats)
+        setHeroFeaturePills(savedHeroFeaturePills)
+        setHeroFloatingCards(savedHeroFloatingCards)
     }
 
     // Features CRUD handlers
@@ -463,6 +531,11 @@ export default function AdminContentPage() {
 
             if (!res.ok) throw new Error('Failed to save')
 
+            setSavedSettings(settings)
+            setSavedFeatures(features)
+            setSavedHeroStats(heroStats)
+            setSavedHeroFeaturePills(heroFeaturePills)
+            setSavedHeroFloatingCards(heroFloatingCards)
             toast.success('Đã lưu thay đổi!')
         } catch (error) {
             toast.error('Lỗi khi lưu!')
@@ -472,23 +545,41 @@ export default function AdminContentPage() {
     }
 
     if (loading) {
-        return (
-            <div className="flex min-h-[400px] items-center justify-center">
-                <div className="animate-pulse text-lg text-neutral-500 dark:text-neutral-400">Đang tải cấu hình...</div>
-            </div>
-        )
+        return <AdminLoadingState label="Đang tải cấu hình nội dung..." />
     }
 
     return (
         <div className="space-y-6">
-            {/* Page Header */}
-            <div className="flex flex-col gap-1">
-                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Quản lý nội dung</h1>
-                <p className="text-neutral-500 dark:text-neutral-400">Chỉnh sửa nội dung hiển thị trên trang chủ</p>
+            <AdminPageHeader
+                title="Quản lý nội dung"
+                description="Chỉnh sửa nội dung hiển thị trên website theo từng nhóm chức năng."
+                breadcrumbs={[{ label: 'Admin', href: '/admin' }, { label: 'Nội dung' }]}
+            />
+
+            <div className="overflow-x-auto border-b border-neutral-200 dark:border-neutral-800" role="tablist" aria-label="Nhóm nội dung">
+                <div className="flex min-w-max gap-1">
+                    {CONTENT_TABS.map(tab => (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={activeTab === tab.id}
+                            onClick={() => changeTab(tab.id)}
+                            className={`border-b-2 px-4 py-3 text-left transition-colors ${activeTab === tab.id
+                                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                                : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white'
+                                }`}
+                        >
+                            <span className="block text-sm font-semibold">{tab.label}</span>
+                            <span className="block text-xs opacity-75">{tab.description}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
 
+                {activeTab === 'home' && <>
                 {/* HERO SECTION CARD */}
                 <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
                     <div className="mb-6 flex items-center gap-3">
@@ -609,6 +700,7 @@ export default function AdminContentPage() {
                                         <button
                                             type="button"
                                             onClick={() => removeHeroFeaturePill(index)}
+                                            aria-label={`Xóa tiện ích hero ${index + 1}`}
                                             className="text-red-400 hover:text-red-600"
                                         >
                                             <TrashIcon className="size-4" />
@@ -653,6 +745,7 @@ export default function AdminContentPage() {
                                         <button
                                             type="button"
                                             onClick={() => removeHeroStat(index)}
+                                            aria-label={`Xóa thống kê hero ${index + 1}`}
                                             className="text-red-400 hover:text-red-600"
                                         >
                                             <TrashIcon className="size-4" />
@@ -707,6 +800,7 @@ export default function AdminContentPage() {
                                         <button
                                             type="button"
                                             onClick={() => removeHeroFloatingCard(index)}
+                                            aria-label={`Xóa thẻ nổi ${index + 1}`}
                                             className="text-red-400 hover:text-red-600"
                                         >
                                             <TrashIcon className="size-4" />
@@ -735,6 +829,7 @@ export default function AdminContentPage() {
                                             <button
                                                 type="button"
                                                 onClick={handleRemoveImage}
+                                                aria-label="Xóa ảnh nền hero"
                                                 className="absolute right-2 top-2 rounded-full bg-red-500 p-1.5 text-white shadow-lg transition hover:bg-red-600"
                                             >
                                                 <TrashIcon className="size-4" />
@@ -876,6 +971,7 @@ export default function AdminContentPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => removeFeature(index)}
+                                                    aria-label={`Xóa tiện ích giới thiệu ${index + 1}`}
                                                     className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                                                 >
                                                     <TrashIcon className="size-4" />
@@ -932,6 +1028,7 @@ export default function AdminContentPage() {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => updateFeature(index, 'image', '')}
+                                                                aria-label={`Xóa ảnh tiện ích ${index + 1}`}
                                                                 className="absolute right-1 top-1 rounded-full bg-red-500 p-1 text-white shadow hover:bg-red-600"
                                                             >
                                                                 <TrashIcon className="size-3" />
@@ -977,6 +1074,9 @@ export default function AdminContentPage() {
                     </div>
                 </div>
 
+                </>}
+
+                {activeTab === 'content' && <>
                 {/* NEWS CAROUSEL SECTION CARD */}
                 <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
                     <div className="mb-6 flex items-center gap-3">
@@ -1222,6 +1322,9 @@ export default function AdminContentPage() {
                     </div>
                 </div>
 
+                </>}
+
+                {activeTab === 'campaigns' && <>
                 {/* BOOKING BANNER CARD */}
                 <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
                     <div className="mb-6 flex items-center justify-between">
@@ -1266,6 +1369,7 @@ export default function AdminContentPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => handleChange('bookingBannerImage', '')}
+                                                    aria-label="Xóa ảnh booking banner"
                                                     className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
                                                 >
                                                     <TrashIcon className="size-4" />
@@ -1474,6 +1578,7 @@ export default function AdminContentPage() {
                                             <button
                                                 type="button"
                                                 onClick={() => handleChange('popupImage', '')}
+                                                aria-label="Xóa ảnh popup"
                                                 className="absolute right-2 top-2 rounded-full bg-red-500 p-1.5 text-white shadow-lg transition hover:bg-red-600"
                                             >
                                                 <TrashIcon className="size-4" />
@@ -1503,18 +1608,15 @@ export default function AdminContentPage() {
                     </div>
                 </div>
 
-                {/* Save Button - Only show if has canManageContent */}
+                </>}
+
                 {canManage && (
-                    <div className="flex justify-end">
-                        <Button
-                            type="submit"
-                            loading={saving}
-                            disabled={saving}
-                            className="px-6"
-                        >
-                            {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-                        </Button>
-                    </div>
+                    <AdminSaveBar
+                        visible={isDirty}
+                        saving={saving}
+                        onReset={resetChanges}
+                        saveLabel="Lưu nội dung"
+                    />
                 )}
             </form>
 

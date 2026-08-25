@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useCallback, useDeferredValue } from 'react'
 import {
     MagnifyingGlassIcon,
     UserIcon,
@@ -8,9 +8,6 @@ import {
     PhoneIcon,
     CalendarDaysIcon,
     XMarkIcon,
-    ChevronLeftIcon,
-    ChevronRightIcon,
-    FunnelIcon,
     ArrowDownTrayIcon,
     CheckBadgeIcon,
     MapPinIcon,
@@ -21,6 +18,9 @@ import {
     CurrencyDollarIcon,
 } from '@heroicons/react/24/outline'
 import NcModal from '@/shared/NcModal'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import toast from 'react-hot-toast'
+import { AdminErrorState, AdminLoadingState, AdminPagination } from '@/components/admin/ui'
 
 interface Customer {
     id: string
@@ -57,7 +57,22 @@ interface Booking {
     location: { name: string }
 }
 
-const ITEMS_PER_PAGE = 10
+interface CustomersResponse {
+    data: Customer[]
+    pagination: {
+        page: number
+        pageSize: number
+        total: number
+        totalPages: number
+    }
+    stats: {
+        total: number
+        completed: number
+        incomplete: number
+        regions: string[]
+        occupations: string[]
+    }
+}
 
 const statusLabels: Record<string, string> = {
     PENDING: 'Chờ cọc',
@@ -78,53 +93,75 @@ const statusStyles: Record<string, string> = {
 }
 
 export default function CustomersPage() {
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
     const [customers, setCustomers] = useState<Customer[]>([])
     const [loading, setLoading] = useState(true)
-    const [searchQuery, setSearchQuery] = useState('')
-    const [currentPage, setCurrentPage] = useState(1)
+    const [refreshing, setRefreshing] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
+    const deferredSearch = useDeferredValue(searchQuery)
+    const [currentPage, setCurrentPage] = useState(Math.max(1, Number(searchParams.get('page')) || 1))
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [loadingDetail, setLoadingDetail] = useState(false)
-    const [sortBy, setSortBy] = useState<'name' | 'createdAt' | 'bookings'>('createdAt')
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+    const [sortBy, setSortBy] = useState<'name' | 'createdAt' | 'bookings'>((searchParams.get('sortBy') as 'name' | 'createdAt' | 'bookings') || 'createdAt')
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc')
     // V2 Filters
-    const [filterRegion, setFilterRegion] = useState<string>('')
-    const [filterOccupation, setFilterOccupation] = useState<string>('')
-    const [filterProfileCompleted, setFilterProfileCompleted] = useState<'all' | 'completed' | 'incomplete'>('all')
+    const [filterRegion, setFilterRegion] = useState(searchParams.get('region') || '')
+    const [filterOccupation, setFilterOccupation] = useState(searchParams.get('occupation') || '')
+    const [filterProfileCompleted, setFilterProfileCompleted] = useState<'all' | 'completed' | 'incomplete'>((searchParams.get('profile') as 'all' | 'completed' | 'incomplete') || 'all')
+    const [pagination, setPagination] = useState<CustomersResponse['pagination']>({ page: currentPage, pageSize: 10, total: 0, totalPages: 1 })
+    const [stats, setStats] = useState<CustomersResponse['stats']>({ total: 0, completed: 0, incomplete: 0, regions: [], occupations: [] })
 
-    // V2 Statistics
-    const stats = useMemo(() => {
-        const total = customers.length
-        const completed = customers.filter(c =>
-            c.dateOfBirth &&
-            c.region &&
-            c.occupation &&
-            c.visitPurpose &&
-            c.visitPurpose.length > 0
-        ).length
-        const incomplete = total - completed
-        const regions = [...new Set(customers.map(c => c.region).filter(Boolean))]
-        const occupations = [...new Set(customers.map(c => c.occupation).filter(Boolean))]
-        return { total, completed, incomplete, regions, occupations }
-    }, [customers])
+    const fetchCustomers = useCallback(async () => {
+        setRefreshing(true)
+        setError(null)
+        try {
+            const params = new URLSearchParams({
+                page: String(currentPage),
+                pageSize: '10',
+                sortBy,
+                sortOrder,
+            })
+            if (deferredSearch) params.set('q', deferredSearch)
+            if (filterRegion) params.set('region', filterRegion)
+            if (filterOccupation) params.set('occupation', filterOccupation)
+            if (filterProfileCompleted !== 'all') params.set('profile', filterProfileCompleted)
+
+            const res = await fetch(`/api/admin/customers?${params.toString()}`)
+            if (!res.ok) throw new Error('Không thể tải danh sách khách hàng')
+
+            const result: CustomersResponse = await res.json()
+            setCustomers(result.data)
+            setPagination(result.pagination)
+            setStats(result.stats)
+        } catch (error) {
+            console.error('Error fetching customers:', error)
+            setError(error instanceof Error ? error.message : 'Không thể tải danh sách khách hàng')
+        } finally {
+            setLoading(false)
+            setRefreshing(false)
+        }
+    }, [currentPage, deferredSearch, filterOccupation, filterProfileCompleted, filterRegion, sortBy, sortOrder])
 
     useEffect(() => {
         fetchCustomers()
-    }, [])
+    }, [fetchCustomers])
 
-    const fetchCustomers = async () => {
-        try {
-            const res = await fetch('/api/admin/customers')
-            if (res.ok) {
-                const data = await res.json()
-                setCustomers(data)
-            }
-        } catch (error) {
-            console.error('Error fetching customers:', error)
-        } finally {
-            setLoading(false)
-        }
-    }
+    useEffect(() => {
+        const params = new URLSearchParams()
+        if (deferredSearch) params.set('q', deferredSearch)
+        if (currentPage > 1) params.set('page', String(currentPage))
+        if (sortBy !== 'createdAt') params.set('sortBy', sortBy)
+        if (sortOrder !== 'desc') params.set('sortOrder', sortOrder)
+        if (filterRegion) params.set('region', filterRegion)
+        if (filterOccupation) params.set('occupation', filterOccupation)
+        if (filterProfileCompleted !== 'all') params.set('profile', filterProfileCompleted)
+        const nextUrl = params.size ? `${pathname}?${params.toString()}` : pathname
+        router.replace(nextUrl, { scroll: false })
+    }, [currentPage, deferredSearch, filterOccupation, filterProfileCompleted, filterRegion, pathname, router, sortBy, sortOrder])
 
     const fetchCustomerDetail = async (customerId: string) => {
         setLoadingDetail(true)
@@ -133,9 +170,10 @@ export default function CustomersPage() {
             if (res.ok) {
                 const data = await res.json()
                 setSelectedCustomer(data)
-            }
+            } else throw new Error('Không thể tải chi tiết khách hàng')
         } catch (error) {
             console.error('Error fetching customer detail:', error)
+            toast.error('Không thể tải chi tiết khách hàng')
         } finally {
             setLoadingDetail(false)
         }
@@ -147,78 +185,12 @@ export default function CustomersPage() {
         fetchCustomerDetail(customer.id)
     }
 
-    // Filter and sort customers
-    const filteredCustomers = useMemo(() => {
-        let result = customers.filter(customer => {
-            const query = searchQuery.toLowerCase()
-            const matchesSearch = (
-                customer.name.toLowerCase().includes(query) ||
-                customer.email.toLowerCase().includes(query) ||
-                (customer.phone && customer.phone.includes(query))
-            )
-            // V2 Filters
-            const matchesRegion = !filterRegion || customer.region === filterRegion
-            const matchesOccupation = !filterOccupation || customer.occupation === filterOccupation
-            const matchesProfileCompleted = filterProfileCompleted === 'all' ||
-                (filterProfileCompleted === 'completed' && customer.profileCompletedAt) ||
-                (filterProfileCompleted === 'incomplete' && !customer.profileCompletedAt)
-
-            return matchesSearch && matchesRegion && matchesOccupation && matchesProfileCompleted
-        })
-
-        // Sort
-        result.sort((a, b) => {
-            let comparison = 0
-            switch (sortBy) {
-                case 'name':
-                    comparison = a.name.localeCompare(b.name)
-                    break
-                case 'createdAt':
-                    comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-                    break
-                case 'bookings':
-                    comparison = a._count.bookings - b._count.bookings
-                    break
-            }
-            return sortOrder === 'desc' ? -comparison : comparison
-        })
-
-        return result
-    }, [customers, searchQuery, sortBy, sortOrder, filterRegion, filterOccupation, filterProfileCompleted])
-
-    // Pagination
-    const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE)
-    const paginatedCustomers = filteredCustomers.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    )
-
-    // Reset page when search changes
     useEffect(() => {
         setCurrentPage(1)
-    }, [searchQuery])
+    }, [deferredSearch, filterOccupation, filterProfileCompleted, filterRegion, sortBy, sortOrder])
 
-    if (loading) {
-        return (
-            <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <div className="h-8 w-48 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700" />
-                    <div className="h-10 w-64 animate-pulse rounded-xl bg-neutral-200 dark:bg-neutral-700" />
-                </div>
-                <div className="rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-                    {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className="flex items-center gap-4 border-b border-neutral-100 p-4 dark:border-neutral-800">
-                            <div className="size-10 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-700" />
-                            <div className="flex-1 space-y-2">
-                                <div className="h-4 w-32 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700" />
-                                <div className="h-3 w-48 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700" />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        )
-    }
+    if (loading) return <AdminLoadingState label="Đang tải danh sách khách hàng..." />
+    if (error && customers.length === 0) return <AdminErrorState description={error} onRetry={fetchCustomers} />
 
     return (
         <div className="space-y-6">
@@ -275,7 +247,7 @@ export default function CustomersPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Khách hàng</h1>
                     <p className="mt-1 text-neutral-500 dark:text-neutral-400">
-                        {filteredCustomers.length} khách hàng
+                        {pagination.total} khách hàng {refreshing && '• Đang cập nhật...'}
                     </p>
                 </div>
 
@@ -416,7 +388,7 @@ export default function CustomersPage() {
 
             {/* Customers List - Desktop */}
             <div className="hidden md:block overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-                {paginatedCustomers.length > 0 ? (
+                {customers.length > 0 ? (
                     <>
                         {/* Table Header */}
                         <div className="border-b border-neutral-100 bg-neutral-50/50 px-6 py-3 text-xs font-medium uppercase tracking-wider text-neutral-500 dark:border-neutral-800 dark:bg-neutral-800/50 dark:text-neutral-400 grid grid-cols-12">
@@ -429,10 +401,19 @@ export default function CustomersPage() {
 
                         {/* Table Body */}
                         <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                            {paginatedCustomers.map(customer => (
+                            {customers.map(customer => (
                                 <div
                                     key={customer.id}
                                     onClick={() => openCustomerModal(customer)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                            event.preventDefault()
+                                            openCustomerModal(customer)
+                                        }
+                                    }}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`Xem chi tiết khách hàng ${customer.name}`}
                                     className="grid cursor-pointer grid-cols-12 items-center gap-4 px-6 py-4 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
                                 >
                                     {/* Customer Info */}
@@ -489,11 +470,20 @@ export default function CustomersPage() {
 
             {/* Customers List - Mobile Cards */}
             <div className="md:hidden space-y-3">
-                {paginatedCustomers.length > 0 ? (
-                    paginatedCustomers.map(customer => (
+                {customers.length > 0 ? (
+                    customers.map(customer => (
                         <div
                             key={customer.id}
                             onClick={() => openCustomerModal(customer)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault()
+                                    openCustomerModal(customer)
+                                }
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Xem chi tiết khách hàng ${customer.name}`}
                             className="cursor-pointer rounded-xl border border-neutral-200 bg-white p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800/50"
                         >
                             <div className="flex items-center justify-between">
@@ -542,54 +532,14 @@ export default function CustomersPage() {
                 )}
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-                <div className="flex items-center justify-between">
-                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                        Hiển thị {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredCustomers.length)} / {filteredCustomers.length} khách hàng
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className="flex size-9 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 transition-colors hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700"
-                        >
-                            <ChevronLeftIcon className="size-4" />
-                        </button>
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            let pageNum: number
-                            if (totalPages <= 5) {
-                                pageNum = i + 1
-                            } else if (currentPage <= 3) {
-                                pageNum = i + 1
-                            } else if (currentPage >= totalPages - 2) {
-                                pageNum = totalPages - 4 + i
-                            } else {
-                                pageNum = currentPage - 2 + i
-                            }
-                            return (
-                                <button
-                                    key={pageNum}
-                                    onClick={() => setCurrentPage(pageNum)}
-                                    className={`flex size-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${currentPage === pageNum
-                                        ? 'bg-primary-600 text-white'
-                                        : 'border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700'
-                                        }`}
-                                >
-                                    {pageNum}
-                                </button>
-                            )
-                        })}
-                        <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            className="flex size-9 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 transition-colors hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700"
-                        >
-                            <ChevronRightIcon className="size-4" />
-                        </button>
-                    </div>
-                </div>
-            )}
+            <AdminPagination
+                page={currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={setCurrentPage}
+                summary={pagination.total > 0
+                    ? `Hiển thị ${(currentPage - 1) * pagination.pageSize + 1}-${Math.min(currentPage * pagination.pageSize, pagination.total)} / ${pagination.total} khách hàng`
+                    : '0 khách hàng'}
+            />
 
             {/* Customer Detail Modal */}
             <NcModal

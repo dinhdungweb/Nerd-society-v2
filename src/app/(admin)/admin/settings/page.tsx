@@ -16,6 +16,9 @@ import {
 import MediaPickerModal from '@/components/admin/MediaPickerModal'
 import Image from 'next/image'
 import FloatingButtonsSettings from '@/components/admin/FloatingButtonsSettings'
+import { AdminLoadingState, AdminPageHeader, AdminSaveBar } from '@/components/admin/ui'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning'
 
 interface GeneralSettings {
     siteName: string
@@ -49,7 +52,48 @@ interface GeneralSettings {
     feedbackHeroImage?: string
 }
 
+const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
+    siteName: 'Nerd Society',
+    siteDescription: 'Không gian học tập & làm việc dành riêng cho Gen Z',
+    siteLogo: '',
+    siteLogoLight: '',
+    siteFavicon: '',
+    monthlyBeaverRegistrationOpen: false,
+    emailBookingConfirmation: true,
+    emailBookingPending: true,
+    emailSubscriptionPending: true,
+    emailSubscriptionPaid: true,
+    emailPasswordReset: true,
+    emailBookingCancelled: true,
+    emailCheckinReminder: true,
+    emailApplicationReceived: true,
+    smtpHost: '',
+    smtpPort: '587',
+    smtpUser: '',
+    smtpPass: '',
+    smtpFrom: '',
+    adminNotificationEmail: '',
+    adminEmailNewBooking: true,
+    adminEmailNewSubscription: true,
+    adminEmailNewApplication: true,
+    recruitmentHeroImage: '',
+    feedbackHeroImage: '',
+}
+
+type SettingsTab = 'general' | 'email' | 'experience'
+
+const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; description: string }> = [
+    { id: 'general', label: 'Thông tin & thương hiệu', description: 'Đăng ký, SEO, logo và favicon' },
+    { id: 'email', label: 'Email & SMTP', description: 'Máy chủ gửi và các thông báo email' },
+    { id: 'experience', label: 'Trải nghiệm website', description: 'Nút liên hệ và hình nền trang con' },
+]
+
 export default function AdminSettingsPage() {
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    const requestedTab = searchParams.get('tab') as SettingsTab | null
+    const [activeTab, setActiveTab] = useState<SettingsTab>(SETTINGS_TABS.some((tab) => tab.id === requestedTab) ? requestedTab! : 'general')
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [uploadingLogo, setUploadingLogo] = useState(false)
@@ -72,35 +116,11 @@ export default function AdminSettingsPage() {
     const recruitmentHeroInputRef = useRef<HTMLInputElement>(null)
     const feedbackHeroInputRef = useRef<HTMLInputElement>(null)
 
-    const [settings, setSettings] = useState<GeneralSettings>({
-        siteName: 'Nerd Society',
-        siteDescription: 'Không gian học tập & làm việc dành riêng cho Gen Z',
-        siteLogo: '',
-        siteLogoLight: '',
-        siteFavicon: '',
-        monthlyBeaverRegistrationOpen: false,
-        // Email defaults - all enabled
-        emailBookingConfirmation: true,
-        emailBookingPending: true,
-        emailSubscriptionPending: true,
-        emailSubscriptionPaid: true,
-        emailPasswordReset: true,
-        emailBookingCancelled: true,
-        emailCheckinReminder: true,
-        emailApplicationReceived: true,
-        // SMTP defaults
-        smtpHost: '',
-        smtpPort: '587',
-        smtpUser: '',
-        smtpPass: '',
-        smtpFrom: '',
-        adminNotificationEmail: '',
-        adminEmailNewBooking: true,
-        adminEmailNewSubscription: true,
-        adminEmailNewApplication: true,
-        recruitmentHeroImage: '',
-        feedbackHeroImage: '',
-    })
+    const [settings, setSettings] = useState<GeneralSettings>(DEFAULT_GENERAL_SETTINGS)
+    const [savedSettings, setSavedSettings] = useState<GeneralSettings>(DEFAULT_GENERAL_SETTINGS)
+    const isDirty = JSON.stringify(settings) !== JSON.stringify(savedSettings)
+
+    useUnsavedChangesWarning(isDirty)
 
     useEffect(() => {
         fetchSettings()
@@ -132,8 +152,12 @@ export default function AdminSettingsPage() {
                         processedData[key] = processedData[key] === true || processedData[key] === 'true'
                     }
                 })
-                // Merge with defaults to ensure all keys exist
-                setSettings(prev => ({ ...prev, ...processedData }))
+                const nextSettings = { ...DEFAULT_GENERAL_SETTINGS, ...processedData }
+                setSettings(nextSettings)
+                setSavedSettings(nextSettings)
+            } else {
+                setSettings(DEFAULT_GENERAL_SETTINGS)
+                setSavedSettings(DEFAULT_GENERAL_SETTINGS)
             }
         } catch (error) {
             console.error('Failed to load settings', error)
@@ -189,6 +213,7 @@ export default function AdminSettingsPage() {
 
             if (!res.ok) throw new Error('Failed to save')
 
+            setSavedSettings(settings)
             toast.success('Đã lưu cấu hình!')
         } catch (error) {
             toast.error('Lỗi khi lưu!')
@@ -197,26 +222,43 @@ export default function AdminSettingsPage() {
         }
     }
 
-    if (loading) {
-        return (
-            <div className="flex min-h-[400px] items-center justify-center">
-                <div className="animate-pulse text-lg text-neutral-500 dark:text-neutral-400">Đang tải cấu hình...</div>
-            </div>
-        )
+    const changeTab = (tab: SettingsTab) => {
+        setActiveTab(tab)
+        const params = new URLSearchParams(searchParams.toString())
+        if (tab === 'general') params.delete('tab')
+        else params.set('tab', tab)
+        router.replace(params.size ? `${pathname}?${params.toString()}` : pathname, { scroll: false })
     }
+
+    if (loading) return <AdminLoadingState label="Đang tải cấu hình..." />
 
     return (
         <div className="space-y-6">
-            {/* Page Header */}
-            <div className="flex flex-col gap-1">
-                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Cấu hình chung</h1>
-                <p className="text-neutral-500 dark:text-neutral-400">Quản lý thông tin cơ bản, Logo và Favicon</p>
-            </div>
+            <AdminPageHeader
+                title="Cấu hình chung"
+                description="Quản lý cấu hình vận hành và trải nghiệm website theo từng nhóm."
+                breadcrumbs={[{ label: 'Hệ thống', href: '/admin' }, { label: 'Cấu hình' }]}
+            />
+
+            <nav aria-label="Nhóm cấu hình" className="grid gap-2 rounded-2xl border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900 sm:grid-cols-3">
+                {SETTINGS_TABS.map((tab) => (
+                    <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => changeTab(tab.id)}
+                        aria-current={activeTab === tab.id ? 'page' : undefined}
+                        className={`rounded-xl px-4 py-3 text-left transition ${activeTab === tab.id ? 'bg-primary-50 text-primary-700 shadow-sm dark:bg-primary-900/30 dark:text-primary-300' : 'text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800'}`}
+                    >
+                        <span className="block text-sm font-semibold">{tab.label}</span>
+                        <span className="mt-0.5 block text-xs opacity-70">{tab.description}</span>
+                    </button>
+                ))}
+            </nav>
 
             <form onSubmit={handleSubmit} className="space-y-6">
 
                 {/* REGISTRATION CONTROLS */}
-                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                <div className={`${activeTab === 'general' ? '' : 'hidden'} rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900`}>
                     <div className="mb-6 flex items-center gap-3">
                         <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white">
                             <CursorArrowRippleIcon className="size-5" />
@@ -247,7 +289,7 @@ export default function AdminSettingsPage() {
                 </div>
 
                 {/* GENERAL INFO CARD */}
-                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                <div className={`${activeTab === 'general' ? '' : 'hidden'} rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900`}>
                     <div className="mb-6 flex items-center gap-3">
                         <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
                             <GlobeAltIcon className="size-5" />
@@ -287,7 +329,7 @@ export default function AdminSettingsPage() {
                 </div>
 
                 {/* BRANDING CARD */}
-                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                <div className={`${activeTab === 'general' ? '' : 'hidden'} rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900`}>
                     <div className="mb-6 flex items-center gap-3">
                         <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 text-white">
                             <PhotoIcon className="size-5" />
@@ -496,7 +538,7 @@ export default function AdminSettingsPage() {
                 </div>
 
                 {/* SMTP CONFIGURATION CARD */}
-                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                <div className={`${activeTab === 'email' ? '' : 'hidden'} rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900`}>
                     <div className="mb-6 flex items-center gap-3">
                         <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-green-600 text-white">
                             <Cog6ToothIcon className="size-5" />
@@ -578,7 +620,7 @@ export default function AdminSettingsPage() {
                 </div>
 
                 {/* EMAIL SETTINGS CARD */}
-                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                <div className={`${activeTab === 'email' ? '' : 'hidden'} rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900`}>
                     <div className="mb-6 flex items-center gap-3">
                         <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                             <EnvelopeIcon className="size-5" />
@@ -812,7 +854,7 @@ export default function AdminSettingsPage() {
                 </div>
 
                 {/* FLOATING BUTTONS CARD */}
-                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                <div className={`${activeTab === 'experience' ? '' : 'hidden'} rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900`}>
                     <div className="mb-6 flex items-center gap-3">
                         <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white">
                             <CursorArrowRippleIcon className="size-5" />
@@ -827,7 +869,7 @@ export default function AdminSettingsPage() {
                 </div>
 
                 {/* PAGE SETTINGS CARD */}
-                <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+                <div className={`${activeTab === 'experience' ? '' : 'hidden'} rounded-2xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900`}>
                     <div className="mb-6 flex items-center gap-3">
                         <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white">
                             <PhotoIcon className="size-5" />
@@ -969,17 +1011,12 @@ export default function AdminSettingsPage() {
                     </div>
                 </div>
 
-                {/* Save Button */}
-                <div className="flex justify-end">
-                    <Button
-                        type="submit"
-                        loading={saving}
-                        disabled={saving}
-                        className="px-6"
-                    >
-                        {saving ? 'Đang lưu...' : 'Lưu cấu hình'}
-                    </Button>
-                </div>
+                <AdminSaveBar
+                    visible={isDirty}
+                    saving={saving}
+                    saveLabel="Lưu cấu hình"
+                    onReset={() => setSettings(savedSettings)}
+                />
             </form>
 
             {/* Media Pickers */}

@@ -3,82 +3,10 @@
 import { useState, useEffect } from 'react'
 import { ShieldCheckIcon, UserGroupIcon, BriefcaseIcon, PencilSquareIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
+import { AdminPermissionKey, AdminPermissions, ConfigurableAdminRole } from '@/config/admin'
 
-interface Permissions {
-    // Dashboard
-    canViewDashboard: boolean
-    canViewReports: boolean
-
-    // Bookings
-    canViewBookings: boolean
-    canCreateBookings: boolean
-    canEditBookings: boolean
-    canDeleteBookings: boolean
-    canCheckIn: boolean
-    canCheckOut: boolean
-
-    // Chat
-    canViewChat: boolean
-
-    // Rooms
-    canViewRooms: boolean
-    canManageRooms: boolean
-
-    // Services & Combos
-    canViewServices: boolean
-    canManageServices: boolean
-
-    // Locations
-    canViewLocations: boolean
-    canManageLocations: boolean
-
-    // Posts (Tin tức)
-    canViewPosts: boolean
-    canManagePosts: boolean
-
-    // Gallery/Media
-    canViewGallery: boolean
-    canManageGallery: boolean
-
-    // Content Settings (Nội dung trang chủ)
-    canViewContent: boolean
-    canManageContent: boolean
-
-    // Customers
-    canViewCustomers: boolean
-    canManageCustomers: boolean
-
-    // Wallets
-    canViewWallets: boolean
-    canManageWallets: boolean
-
-    // Nerd Coin
-    canViewNerdCoin: boolean
-    canManageNerdCoin: boolean
-
-    // System
-    canViewSettings: boolean
-    canViewStaff: boolean
-    canManageStaff: boolean
-    canViewAuditLog: boolean
-    canViewEmailTemplates: boolean
-    canManageEmailTemplates: boolean
-    canViewRecruitment: boolean
-    canManageRecruitment: boolean
-    canViewQrGenerator: boolean
-    canViewFeedback: boolean
-
-    // Study Date
-    canViewStudyDate: boolean
-    canManageStudyDate: boolean
-
-    // Nerd Night
-    canViewNerdNight: boolean
-    canManageNerdNight: boolean
-    canConfirmNerdNightPayments: boolean
-}
-
-type RoleKey = 'MANAGER' | 'STAFF' | 'CONTENT_EDITOR'
+type Permissions = AdminPermissions
+type RoleKey = ConfigurableAdminRole
 
 const roleConfig: Record<RoleKey, { name: string; icon: typeof UserGroupIcon; color: string; description: string }> = {
     MANAGER: {
@@ -101,7 +29,7 @@ const roleConfig: Record<RoleKey, { name: string; icon: typeof UserGroupIcon; co
     },
 }
 
-const permissionLabels: Record<keyof Permissions, { label: string; description: string; group: string }> = {
+const permissionLabels: Record<AdminPermissionKey, { label: string; description: string; group: string }> = {
     // Dashboard
     canViewDashboard: { label: 'Xem Dashboard', description: 'Xem tổng quan và biểu đồ', group: 'Tổng quan' },
     canViewReports: { label: 'Xem Reports', description: 'Xem báo cáo doanh thu', group: 'Tổng quan' },

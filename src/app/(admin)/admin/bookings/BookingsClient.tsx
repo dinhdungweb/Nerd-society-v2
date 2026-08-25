@@ -1,8 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react'
-import Link from 'next/link'
-import { useSearchParams, useRouter } from 'next/navigation'
+import React, { useState, useEffect, useDeferredValue, useMemo, Suspense } from 'react'
+import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import {
     CheckCircleIcon,
     ClockIcon,
@@ -10,8 +9,6 @@ import {
     XCircleIcon,
     MagnifyingGlassIcon,
     FunnelIcon,
-    ChevronLeftIcon,
-    ChevronRightIcon,
     CalendarDaysIcon,
     PlusIcon,
     BanknotesIcon,
@@ -23,8 +20,17 @@ import BookingCalendarView from '@/components/admin/bookings/BookingCalendarView
 import { TableCellsIcon, CalendarIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import useSWR from 'swr'
 import PageGuard from '@/components/admin/PageGuard'
+import { addDays, format, startOfWeek, subDays } from 'date-fns'
+import { AdminErrorState, AdminLoadingState, AdminPagination } from '@/components/admin/ui'
 
-const fetcher = (url: string) => fetch(url).then(res => res.json())
+const fetcher = async <T,>(url: string): Promise<T> => {
+    const response = await fetch(url)
+    if (!response.ok) {
+        const body = await response.json().catch(() => ({}))
+        throw new Error(body.error || 'Không thể tải dữ liệu')
+    }
+    return response.json()
+}
 
 interface Room {
     id: string
@@ -68,6 +74,26 @@ interface Booking {
     note: string | null
 }
 
+interface BookingsTableResponse {
+    data: Booking[]
+    pagination: {
+        page: number
+        pageSize: number
+        total: number
+        totalPages: number
+    }
+    stats: {
+        pending: number
+        confirmed: number
+        inProgress: number
+        cancelled: number
+    }
+}
+
+interface BookingsCalendarResponse {
+    data: Booking[]
+}
+
 const statusColors: Record<string, string> = {
     PENDING: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
     CONFIRMED: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
@@ -95,152 +121,137 @@ const statusDots: Record<string, string> = {
     NO_SHOW: 'bg-neutral-400',
 }
 
-const ITEMS_PER_PAGE = 10
-
 function BookingsContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
+    const pathname = usePathname()
 
-    const [bookings, setBookings] = useState<Booking[]>([])
-    const [filteredBookings, setFilteredBookings] = useState<Booking[]>([])
-    const [loading, setLoading] = useState(true)
-    const [searchQuery, setSearchQuery] = useState('')
-    const [statusFilter, setStatusFilter] = useState('ALL')
-    const [currentPage, setCurrentPage] = useState(1)
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
+    const deferredSearch = useDeferredValue(searchQuery)
+    const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'ALL')
+    const [currentPage, setCurrentPage] = useState(Math.max(1, Number(searchParams.get('page')) || 1))
 
     // View mode
-    const [viewMode, setViewMode] = useState<'table' | 'calendar'>('calendar')
-    const [selectedDate, setSelectedDate] = useState(new Date())
-    const [rooms, setRooms] = useState<Room[]>([])
-    const [locations, setLocations] = useState<Location[]>([])
-    const [selectedLocation, setSelectedLocation] = useState<string>('')
+    const [viewMode, setViewMode] = useState<'table' | 'calendar'>(searchParams.get('view') === 'table' ? 'table' : 'calendar')
+    const initialDate = searchParams.get('date') ? new Date(`${searchParams.get('date')}T00:00:00`) : new Date()
+    const [selectedDate, setSelectedDate] = useState(Number.isNaN(initialDate.getTime()) ? new Date() : initialDate)
+    const [selectedLocation, setSelectedLocation] = useState(searchParams.get('location') || '')
 
     // Modals state
     const [createModalOpen, setCreateModalOpen] = useState(false)
     const [detailModalOpen, setDetailModalOpen] = useState(false)
     const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
 
-    // 1. Fetch bookings using SWR
-    const { data: bookingsData, error: bookingsError, mutate: mutateBookings, isValidating } = useSWR<Booking[]>(
-        '/api/admin/bookings',
+    const tableQuery = useMemo(() => {
+        const params = new URLSearchParams({
+            view: 'table',
+            page: String(currentPage),
+            pageSize: '10',
+        })
+        if (deferredSearch) params.set('q', deferredSearch)
+        if (statusFilter !== 'ALL') params.set('status', statusFilter)
+        if (selectedLocation) params.set('locationId', selectedLocation)
+        return `/api/admin/bookings?${params.toString()}`
+    }, [currentPage, deferredSearch, selectedLocation, statusFilter])
+
+    const calendarRange = useMemo(() => {
+        const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 })
+        return {
+            from: subDays(weekStart, 1),
+            to: addDays(weekStart, 8),
+        }
+    }, [selectedDate])
+
+    const calendarQuery = useMemo(() => {
+        const params = new URLSearchParams({
+            view: 'calendar',
+            from: calendarRange.from.toISOString(),
+            to: calendarRange.to.toISOString(),
+        })
+        if (selectedLocation) params.set('locationId', selectedLocation)
+        return `/api/admin/bookings?${params.toString()}`
+    }, [calendarRange, selectedLocation])
+
+    const { data: tableData, error: tableError, mutate: mutateTable, isValidating: tableValidating } = useSWR<BookingsTableResponse>(tableQuery, fetcher, {
+        refreshInterval: 60000,
+        revalidateOnFocus: true,
+    })
+    const { data: calendarData, error: calendarError, mutate: mutateCalendar, isValidating: calendarValidating } = useSWR<BookingsCalendarResponse>(
+        viewMode === 'calendar' ? calendarQuery : null,
         fetcher,
-        {
-            refreshInterval: 60000, // Tự động làm mới mỗi phút
-            revalidateOnFocus: true
-        }
+        { refreshInterval: 60000, revalidateOnFocus: true },
     )
+    const { data: roomsData = [] } = useSWR<Room[]>('/api/admin/rooms', fetcher)
+    const { data: locationsData = [] } = useSWR<Location[]>('/api/admin/locations', fetcher)
 
-    // 2. Fetch rooms
-    const { data: roomsData } = useSWR<Room[]>('/api/admin/rooms', fetcher)
-
-    // 3. Fetch locations
-    const { data: locationsData } = useSWR<Location[]>('/api/admin/locations', fetcher)
-
-    useEffect(() => {
-        if (bookingsData) {
-            setBookings(bookingsData)
-            setFilteredBookings(bookingsData)
-            setLoading(false)
-        }
-    }, [bookingsData])
+    const rooms = roomsData
+    const locations = locationsData
+    const bookings = viewMode === 'calendar' ? calendarData?.data || [] : tableData?.data || []
+    const isValidating = tableValidating || calendarValidating
+    const bookingsError = tableError || (viewMode === 'calendar' ? calendarError : null)
+    const refreshBookings = () => Promise.all([mutateTable(), mutateCalendar()])
 
     useEffect(() => {
-        if (roomsData) setRooms(roomsData)
-    }, [roomsData])
+        if (locations.length > 0 && !selectedLocation) {
+            setSelectedLocation(locations[0].id)
+        }
+    }, [locations, selectedLocation])
 
     useEffect(() => {
-        if (locationsData) {
-            setLocations(locationsData)
-            if (locationsData.length > 0 && !selectedLocation) {
-                setSelectedLocation(locationsData[0].id)
-            }
-        }
-    }, [locationsData, selectedLocation])
-
-
-    const applyFilters = useCallback(() => {
-        let result = [...bookings]
-
-        // Search filter
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase()
-            result = result.filter(b =>
-                b.bookingCode.toLowerCase().includes(query) ||
-                (b.customerName && b.customerName.toLowerCase().includes(query)) ||
-                (b.user?.name && b.user.name.toLowerCase().includes(query)) ||
-                (b.customerPhone && b.customerPhone.includes(query)) ||
-                (b.user?.phone && b.user.phone.includes(query)) ||
-                (b.customerEmail && b.customerEmail.toLowerCase().includes(query)) ||
-                (b.user?.email && b.user.email.toLowerCase().includes(query))
-            )
-        }
-
-        // Status filter
-        if (statusFilter !== 'ALL') {
-            result = result.filter(b => b.status === statusFilter)
-        }
-
-        // Location filter
-        if (selectedLocation) {
-            result = result.filter(b => b.locationId === selectedLocation)
-        }
-
-        setFilteredBookings(result)
         setCurrentPage(1)
-    }, [bookings, searchQuery, statusFilter, selectedLocation])
+    }, [deferredSearch, selectedLocation, statusFilter])
+
+    const bookingId = searchParams.get('id')
 
     useEffect(() => {
-        applyFilters()
-    }, [applyFilters])
+        const params = new URLSearchParams()
+        if (bookingId) params.set('id', bookingId)
+        if (viewMode !== 'calendar') params.set('view', viewMode)
+        if (deferredSearch) params.set('q', deferredSearch)
+        if (statusFilter !== 'ALL') params.set('status', statusFilter)
+        if (currentPage > 1) params.set('page', String(currentPage))
+        if (selectedLocation) params.set('location', selectedLocation)
+        const date = format(selectedDate, 'yyyy-MM-dd')
+        if (date !== format(new Date(), 'yyyy-MM-dd')) params.set('date', date)
+        router.replace(params.size ? `${pathname}?${params.toString()}` : pathname, { scroll: false })
+    }, [bookingId, currentPage, deferredSearch, pathname, router, selectedDate, selectedLocation, statusFilter, viewMode])
 
     // Auto-open modal from URL query param (e.g., from notification click)
     useEffect(() => {
-        const bookingId = searchParams.get('id')
-        if (bookingId && bookings.length > 0) {
-            const booking = bookings.find(b => b.id === bookingId)
-            if (booking) {
+        if (!bookingId) return
+
+        let cancelled = false
+        const openBooking = async () => {
+            const localBooking = [...(tableData?.data || []), ...(calendarData?.data || [])]
+                .find((booking) => booking.id === bookingId)
+            try {
+                const booking = localBooking || await fetcher<Booking>(`/api/admin/bookings/${bookingId}`)
+                if (cancelled) return
                 setSelectedBooking(booking)
                 setDetailModalOpen(true)
-                // Clear the query param silently using history API to avoid re-renders/navigation
-                const newUrl = window.location.pathname
-                window.history.replaceState({}, '', newUrl)
+                const params = new URLSearchParams(window.location.search)
+                params.delete('id')
+                router.replace(params.size ? `${pathname}?${params.toString()}` : pathname, { scroll: false })
+            } catch (error) {
+                console.error('Error opening booking from URL:', error)
             }
         }
-    }, [searchParams, bookings])
+        openBooking()
+        return () => { cancelled = true }
+    }, [bookingId, calendarData?.data, pathname, router, tableData?.data])
 
-    // Pagination
-    const totalPages = Math.ceil(filteredBookings.length / ITEMS_PER_PAGE)
-    const paginatedBookings = filteredBookings.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    )
-
-    // Stats
-    const stats = {
-        pending: bookings.filter(b => b.status === 'PENDING' && (!selectedLocation || b.locationId === selectedLocation)).length,
-        confirmed: bookings.filter(b => b.status === 'CONFIRMED' && (!selectedLocation || b.locationId === selectedLocation)).length,
-        inProgress: bookings.filter(b => b.status === 'IN_PROGRESS' && (!selectedLocation || b.locationId === selectedLocation)).length,
-        cancelled: bookings.filter(b => b.status === 'CANCELLED' && (!selectedLocation || b.locationId === selectedLocation)).length,
-    }
+    const pagination = tableData?.pagination || { page: currentPage, pageSize: 10, total: 0, totalPages: 1 }
+    const paginatedBookings = tableData?.data || []
+    const stats = tableData?.stats || { pending: 0, confirmed: 0, inProgress: 0, cancelled: 0 }
 
     const handleViewDetail = (booking: Booking) => {
         setSelectedBooking(booking)
         setDetailModalOpen(true)
     }
 
-    if (loading) {
-        return (
-            <div className="space-y-6">
-                <div className="h-8 w-48 bg-neutral-200 rounded-lg animate-pulse" />
-                <div className="grid gap-4 sm:grid-cols-4">
-                    {[...Array(4)].map((_, i) => (
-                        <div key={i} className="h-24 bg-neutral-200 rounded-xl animate-pulse" />
-                    ))}
-                </div>
-                <div className="h-96 bg-neutral-200 rounded-xl animate-pulse" />
-            </div>
-        )
-    }
+    const loading = !tableData || (viewMode === 'calendar' && !calendarData)
+    if (loading && !bookingsError) return <AdminLoadingState label="Đang tải dữ liệu booking..." />
+    if (bookingsError) return <AdminErrorState description={bookingsError.message} onRetry={refreshBookings} />
 
     return (
         <div className="space-y-6">
@@ -257,7 +268,7 @@ function BookingsContent() {
                         )}
                     </div>
                     <p className="mt-1 text-neutral-500 dark:text-neutral-400">
-                        Xem và quản lý tất cả đặt lịch • {bookings.length} booking
+                        Xem và quản lý tất cả đặt lịch • {pagination.total} booking
                     </p>
                 </div>
 
@@ -585,6 +596,7 @@ function BookingsContent() {
                                                     <td className="whitespace-nowrap px-6 py-4">
                                                         <button
                                                             onClick={() => handleViewDetail(booking)}
+                                                            aria-label={`Xem chi tiết booking ${booking.bookingCode}`}
                                                             className="flex size-8 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
                                                         >
                                                             <EyeIcon className="size-5" />
@@ -596,59 +608,14 @@ function BookingsContent() {
                                     </table>
                                 </div>
 
-                                {/* Pagination */}
-                                {totalPages > 1 && (
-                                    <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-4 dark:border-neutral-700">
-                                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                                            Hiển thị {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredBookings.length)} của {filteredBookings.length}
-                                        </p>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                                disabled={currentPage === 1}
-                                                className="p-2 rounded-lg border border-neutral-300 text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-neutral-600 dark:text-neutral-400 dark:hover:bg-neutral-800"
-                                            >
-                                                <ChevronLeftIcon className="size-4" />
-                                            </button>
-
-                                            {(() => {
-                                                const getVisiblePages = (current: number, total: number) => {
-                                                    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-
-                                                    if (current <= 4) return [1, 2, 3, 4, 5, '...', total]
-                                                    if (current >= total - 3) return [1, '...', total - 4, total - 3, total - 2, total - 1, total]
-
-                                                    return [1, '...', current - 1, current, current + 1, '...', total]
-                                                }
-
-                                                return getVisiblePages(currentPage, totalPages).map((page, i) => (
-                                                    typeof page === 'number' ? (
-                                                        <button
-                                                            key={i}
-                                                            onClick={() => setCurrentPage(page)}
-                                                            className={`size-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page
-                                                                ? 'bg-primary-600 text-white'
-                                                                : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
-                                                                }`}
-                                                        >
-                                                            {page}
-                                                        </button>
-                                                    ) : (
-                                                        <span key={i} className="px-2 text-neutral-400">...</span>
-                                                    )
-                                                ))
-                                            })()}
-
-                                            <button
-                                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                                disabled={currentPage === totalPages}
-                                                className="p-2 rounded-lg border border-neutral-300 text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-neutral-600 dark:text-neutral-400 dark:hover:bg-neutral-800"
-                                            >
-                                                <ChevronRightIcon className="size-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
+                                <AdminPagination
+                                    page={currentPage}
+                                    totalPages={pagination.totalPages}
+                                    onPageChange={setCurrentPage}
+                                    summary={pagination.total > 0
+                                        ? `Hiển thị ${(currentPage - 1) * pagination.pageSize + 1}-${Math.min(currentPage * pagination.pageSize, pagination.total)} / ${pagination.total} booking`
+                                        : '0 booking'}
+                                />
                             </>
                         ) : (
                             <div className="px-6 py-16 text-center">
@@ -669,14 +636,14 @@ function BookingsContent() {
             <CreateBookingModal
                 open={createModalOpen}
                 setOpen={setCreateModalOpen}
-                onSuccess={() => mutateBookings()}
+                onSuccess={() => void refreshBookings()}
             />
 
             <BookingDetailModal
                 open={detailModalOpen}
                 setOpen={setDetailModalOpen}
                 booking={selectedBooking}
-                onRefresh={() => mutateBookings()}
+                onRefresh={() => void refreshBookings()}
             />
         </div>
     )
@@ -684,7 +651,7 @@ function BookingsContent() {
 
 export default function BookingsPage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<AdminLoadingState label="Đang tải trang booking..." />}>
             <PageGuard requiredPermission="canViewBookings">
                 <BookingsContent />
             </PageGuard>

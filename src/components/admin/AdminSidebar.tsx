@@ -24,76 +24,46 @@ import {
     QrCodeIcon,
     TicketIcon,
     WalletIcon,
+    MoonIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { usePermissions, StaffPermissions } from '@/contexts/PermissionsContext'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { usePermissions } from '@/contexts/PermissionsContext'
+import {
+    ADMIN_NAVIGATION_GROUPS,
+    AdminNavIconKey,
+    isAdminNavItemActive,
+} from '@/config/admin'
 
-// Navigation items with permission keys
-interface NavItem {
-    name: string
-    href: string
-    icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
-    permissionKey?: keyof StaffPermissions
-    adminOnly?: boolean
+const ADMIN_NAV_ICONS: Record<AdminNavIconKey, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+    dashboard: HomeIcon,
+    bookings: CalendarDaysIcon,
+    subscriptions: TicketIcon,
+    'study-date': SparklesIcon,
+    events: MoonIcon,
+    locations: BuildingStorefrontIcon,
+    rooms: CubeIcon,
+    services: Squares2X2Icon,
+    combos: RectangleStackIcon,
+    customers: UsersIcon,
+    wallets: WalletIcon,
+    nerdcoin: SparklesIcon,
+    chat: ChatBubbleLeftRightIcon,
+    feedback: ChatBubbleLeftRightIcon,
+    posts: NewspaperIcon,
+    pages: ShieldCheckIcon,
+    gallery: PhotoIcon,
+    media: FolderIcon,
+    content: PencilSquareIcon,
+    jobs: BriefcaseIcon,
+    applications: UserGroupIcon,
+    staff: UserGroupIcon,
+    permissions: ShieldCheckIcon,
+    email: EnvelopeIcon,
+    audit: ClipboardDocumentListIcon,
+    settings: Cog6ToothIcon,
+    qr: QrCodeIcon,
 }
-
-interface NavGroup {
-    name: string
-    items: NavItem[]
-    adminOnly?: boolean
-}
-
-const navigationGroups: NavGroup[] = [
-    {
-        name: 'Tổng quan',
-        items: [
-            { name: 'Dashboard', href: '/admin', icon: HomeIcon, permissionKey: 'canViewDashboard' },
-        ]
-    },
-    {
-        name: 'Quản lý đặt lịch',
-        items: [
-            { name: 'Bookings', href: '/admin/bookings', icon: CalendarDaysIcon, permissionKey: 'canViewBookings' },
-            { name: 'Subscription', href: '/admin/subscriptions', icon: TicketIcon, permissionKey: 'canViewBookings' },
-            { name: 'Chat hỗ trợ', href: '/admin/chat', icon: ChatBubbleLeftRightIcon, permissionKey: 'canViewChat' },
-            { name: 'Phòng', href: '/admin/rooms', icon: CubeIcon, permissionKey: 'canViewRooms' },
-            { name: 'Dịch vụ', href: '/admin/services', icon: Squares2X2Icon, permissionKey: 'canViewServices' },
-            { name: 'Combos', href: '/admin/combos', icon: RectangleStackIcon, permissionKey: 'canViewServices' },
-            { name: 'Cơ sở', href: '/admin/locations', icon: BuildingStorefrontIcon, permissionKey: 'canViewLocations' },
-            { name: 'Study Date', href: '/admin/study-date', icon: SparklesIcon, permissionKey: 'canViewStudyDate' },
-            { name: 'Nerd Night', href: '/admin/nerd-night', icon: SparklesIcon, permissionKey: 'canViewNerdNight' },
-        ]
-    },
-    {
-        name: 'Nội dung',
-        items: [
-            { name: 'Tin tức & Sự kiện', href: '/admin/posts', icon: NewspaperIcon, permissionKey: 'canViewPosts' },
-            { name: 'Chính sách', href: '/admin/posts?type=PAGE', icon: ShieldCheckIcon, permissionKey: 'canViewPosts' },
-            { name: 'Gallery', href: '/admin/gallery', icon: PhotoIcon, permissionKey: 'canViewGallery' },
-            { name: 'Media', href: '/admin/media', icon: FolderIcon, permissionKey: 'canViewGallery' },
-            { name: 'Content', href: '/admin/content', icon: PencilSquareIcon, permissionKey: 'canViewContent' },
-            { name: 'Tuyển dụng', href: '/admin/jobs', icon: BriefcaseIcon, permissionKey: 'canViewRecruitment' },
-            { name: 'Ứng viên', href: '/admin/applications', icon: UserGroupIcon, permissionKey: 'canViewRecruitment' },
-        ]
-    },
-    {
-        name: 'Hệ thống',
-        items: [
-            { name: 'Khách hàng', href: '/admin/customers', icon: UsersIcon, permissionKey: 'canViewCustomers' },
-            { name: 'Ví user', href: '/admin/wallets', icon: WalletIcon, permissionKey: 'canViewWallets' },
-            { name: 'Góp ý', href: '/admin/feedback', icon: ChatBubbleLeftRightIcon, permissionKey: 'canViewFeedback' },
-            { name: 'Tạo QR Code', href: '/admin/qr-generator', icon: QrCodeIcon, permissionKey: 'canViewQrGenerator' },
-            { name: 'Nerd Coin', href: '/admin/nerdcoin', icon: SparklesIcon, permissionKey: 'canViewNerdCoin' },
-            { name: 'Email Templates', href: '/admin/email-templates', icon: EnvelopeIcon, permissionKey: 'canViewEmailTemplates' },
-            { name: 'Lịch sử', href: '/admin/audit-log', icon: ClipboardDocumentListIcon, permissionKey: 'canViewAuditLog' },
-            { name: 'Nhân viên', href: '/admin/staff', icon: UserGroupIcon, permissionKey: 'canViewStaff' },
-            { name: 'Phân quyền', href: '/admin/permissions', icon: ShieldCheckIcon, adminOnly: true },
-            { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon, permissionKey: 'canViewSettings' },
-        ]
-    },
-]
 
 // Coffee cup icon for logo
 const CoffeeIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -111,13 +81,13 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ isOpen, onClose, isCollapsed, onCollapse }: AdminSidebarProps) {
     const pathname = usePathname()
-    const { data: session } = useSession()
+    const searchParams = useSearchParams()
     const { hasPermission, isAdmin, loading } = usePermissions()
 
     const sidebarWidth = isCollapsed ? 'w-64 lg:w-[72px]' : 'w-64'
 
     // Filter navigation based on permissions
-    const filteredNavGroups = navigationGroups
+    const filteredNavGroups = ADMIN_NAVIGATION_GROUPS
         .map(group => ({
             ...group,
             items: group.items.filter(item => {
@@ -137,6 +107,7 @@ export default function AdminSidebar({ isOpen, onClose, isCollapsed, onCollapse 
                 <div
                     className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
                     onClick={onClose}
+                    aria-hidden="true"
                 />
             )}
 
@@ -160,6 +131,7 @@ export default function AdminSidebar({ isOpen, onClose, isCollapsed, onCollapse 
                     </Link>
                     <button
                         type="button"
+                        aria-label="Đóng menu quản trị"
                         className="rounded-lg p-1.5 hover:bg-neutral-100 lg:hidden dark:text-neutral-300 dark:hover:bg-neutral-800"
                         onClick={onClose}
                     >
@@ -185,8 +157,8 @@ export default function AdminSidebar({ isOpen, onClose, isCollapsed, onCollapse 
                                     </h3>
                                     <ul className="space-y-1">
                                         {group.items.map((item) => {
-                                            const isActive = pathname === item.href ||
-                                                (item.href !== '/admin' && pathname.startsWith(item.href))
+                                            const isActive = isAdminNavItemActive(item, pathname, searchParams)
+                                            const Icon = ADMIN_NAV_ICONS[item.icon]
                                             return (
                                                 <li key={item.name}>
                                                     <Link
@@ -198,7 +170,7 @@ export default function AdminSidebar({ isOpen, onClose, isCollapsed, onCollapse 
                                                         onClick={onClose}
                                                         title={isCollapsed ? item.name : undefined}
                                                     >
-                                                        <item.icon className={`size-5 flex-shrink-0 ${isActive ? '' : 'text-neutral-500 dark:text-neutral-500 group-hover:text-neutral-700 dark:group-hover:text-neutral-300'}`} />
+                                                        <Icon className={`size-5 flex-shrink-0 ${isActive ? '' : 'text-neutral-500 dark:text-neutral-500 group-hover:text-neutral-700 dark:group-hover:text-neutral-300'}`} />
                                                         <span className={isCollapsed ? 'lg:hidden' : ''}>{item.name}</span>
                                                         {isActive && (
                                                             <div className={`ml-auto size-1.5 rounded-full bg-primary-500 ${isCollapsed ? 'lg:hidden' : ''}`} />

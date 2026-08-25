@@ -290,6 +290,7 @@ export default function BookingCalendarView({
                 <div className="flex items-center gap-3">
                     <button
                         onClick={prevPeriod}
+                        aria-label="Xem khoảng thời gian trước"
                         className="p-2 rounded-lg border border-neutral-300 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-400 dark:hover:bg-neutral-800"
                     >
                         <ChevronLeftIcon className="size-5" />
@@ -414,6 +415,7 @@ export default function BookingCalendarView({
 
                     <button
                         onClick={nextPeriod}
+                        aria-label="Xem khoảng thời gian tiếp theo"
                         className="p-2 rounded-lg border border-neutral-300 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-400 dark:hover:bg-neutral-800"
                     >
                         <ChevronRightIcon className="size-5" />

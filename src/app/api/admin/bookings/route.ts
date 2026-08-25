@@ -7,9 +7,30 @@ import { isSlotAvailable, generateBookingCode, getBookingDateTime, parseTimeToMi
 import { parseISO, addMinutes, format } from 'date-fns'
 import { audit } from '@/lib/audit'
 import { canView, canBooking } from '@/lib/apiPermissions'
+import { Prisma } from '@prisma/client'
 
-// GET /api/admin/bookings - Get all bookings (requires canViewBookings permission)
-export async function GET() {
+const bookingInclude = {
+    user: { select: { name: true, email: true, phone: true } },
+    location: { select: { name: true } },
+    room: { select: { name: true, type: true } },
+    payment: { select: { status: true, method: true } },
+} satisfies Prisma.BookingInclude
+
+function transformBooking<T extends Record<string, any>>(booking: T) {
+    return {
+        ...booking,
+        combo: booking.room ? { name: booking.room.name, duration: 60 } : null,
+        user: {
+            name: booking.customerName || booking.user?.name || 'N/A',
+            email: booking.customerEmail || booking.user?.email || '',
+            phone: booking.customerPhone || booking.user?.phone || '',
+        },
+        totalAmount: booking.estimatedAmount,
+    }
+}
+
+// GET /api/admin/bookings - Paginated table data or a bounded calendar window.
+export async function GET(req: Request) {
     try {
         const { session, hasAccess } = await canView('Bookings')
 
@@ -17,35 +38,92 @@ export async function GET() {
             return NextResponse.json({ error: 'Không có quyền xem bookings' }, { status: 403 })
         }
 
-        const bookings = await prisma.booking.findMany({
-            where: (session.user.role === 'STAFF' || session.user.role === 'MANAGER') && session.user.assignedLocationId
-                ? { locationId: session.user.assignedLocationId }
-                : {},
-            orderBy: { createdAt: 'desc' },
-            include: {
-                user: { select: { name: true, email: true, phone: true } },
-                location: { select: { name: true } },
-                room: { select: { name: true, type: true } },
-                payment: { select: { status: true, method: true } },
+        const { searchParams } = new URL(req.url)
+        const view = searchParams.get('view') === 'calendar' ? 'calendar' : 'table'
+        const assignedLocationId = (session.user.role === 'STAFF' || session.user.role === 'MANAGER')
+            ? session.user.assignedLocationId
+            : null
+        const requestedLocationId = searchParams.get('locationId') || null
+        const locationId = assignedLocationId || requestedLocationId
+        const baseWhere: Prisma.BookingWhereInput = locationId ? { locationId } : {}
+
+        if (view === 'calendar') {
+            const from = new Date(searchParams.get('from') || '')
+            const to = new Date(searchParams.get('to') || '')
+            if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from >= to) {
+                return NextResponse.json({ error: 'Khoảng ngày không hợp lệ' }, { status: 400 })
+            }
+
+            const previousDay = new Date(from)
+            previousDay.setUTCDate(previousDay.getUTCDate() - 1)
+            const bookings = await prisma.booking.findMany({
+                where: {
+                    ...baseWhere,
+                    date: { lte: to },
+                    OR: [
+                        { endDate: { gte: from } },
+                        { endDate: null, date: { gte: previousDay } },
+                    ],
+                },
+                orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+                include: bookingInclude,
+            })
+
+            return NextResponse.json({ data: bookings.map(transformBooking) })
+        }
+
+        const page = Math.max(1, Number(searchParams.get('page')) || 1)
+        const pageSize = Math.min(100, Math.max(10, Number(searchParams.get('pageSize')) || 10))
+        const search = searchParams.get('q')?.trim() || ''
+        const status = searchParams.get('status') || 'ALL'
+        const where: Prisma.BookingWhereInput = {
+            ...baseWhere,
+            ...(status !== 'ALL' ? { status: status as Prisma.EnumBookingStatusFilter['equals'] } : {}),
+            ...(search ? {
+                OR: [
+                    { bookingCode: { contains: search, mode: 'insensitive' } },
+                    { customerName: { contains: search, mode: 'insensitive' } },
+                    { customerPhone: { contains: search } },
+                    { customerEmail: { contains: search, mode: 'insensitive' } },
+                    { user: { is: { name: { contains: search, mode: 'insensitive' } } } },
+                    { user: { is: { email: { contains: search, mode: 'insensitive' } } } },
+                    { user: { is: { phone: { contains: search } } } },
+                ],
+            } : {}),
+        }
+
+        const [bookings, total, statusGroups] = await Promise.all([
+            prisma.booking.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * pageSize,
+                take: pageSize,
+                include: bookingInclude,
+            }),
+            prisma.booking.count({ where }),
+            prisma.booking.groupBy({
+                by: ['status'],
+                where: baseWhere,
+                _count: { _all: true },
+            }),
+        ])
+
+        const statusCounts = Object.fromEntries(statusGroups.map((item) => [item.status, item._count._all]))
+        return NextResponse.json({
+            data: bookings.map(transformBooking),
+            pagination: {
+                page,
+                pageSize,
+                total,
+                totalPages: Math.max(1, Math.ceil(total / pageSize)),
+            },
+            stats: {
+                pending: statusCounts.PENDING || 0,
+                confirmed: statusCounts.CONFIRMED || 0,
+                inProgress: statusCounts.IN_PROGRESS || 0,
+                cancelled: statusCounts.CANCELLED || 0,
             },
         })
-
-        // Transform bookings for backward compatibility with frontend
-        const transformedBookings = bookings.map(b => ({
-            ...b,
-            // Map room to combo-like structure for existing frontend
-            combo: b.room ? { name: b.room.name, duration: 60 } : null,
-            // Use customerName or user.name for display
-            user: {
-                name: b.customerName || b.user?.name || 'N/A',
-                email: b.customerEmail || b.user?.email || '',
-                phone: b.customerPhone || b.user?.phone || '',
-            },
-            // Map estimatedAmount to totalAmount for backward compat
-            totalAmount: b.estimatedAmount,
-        }))
-
-        return NextResponse.json(transformedBookings)
     } catch (error) {
         console.error('Error fetching bookings:', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

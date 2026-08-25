@@ -1,23 +1,10 @@
 import { withAuth } from 'next-auth/middleware'
 import { NextResponse } from 'next/server'
+import { CONTENT_EDITOR_ROUTES, isAdminOnlyRoute } from '@/config/admin'
 
 // All staff-like roles (not CUSTOMER, not ADMIN)
 const STAFF_ROLES = ['STAFF', 'MANAGER', 'CONTENT_EDITOR']
 const CHECKIN_ROLES = ['STAFF', 'MANAGER', 'ADMIN']
-
-// Routes that are ONLY for ADMIN (never for other roles regardless of permissions)
-// Note: /admin/staff is now permission-based (canViewStaff), not admin-only
-const ADMIN_ONLY_ROUTES = [
-    '/admin/permissions',  // Chỉ Admin mới được phân quyền cho các role
-]
-
-// Routes for CONTENT_EDITOR - they can only access content-related pages
-const CONTENT_EDITOR_ROUTES = [
-    '/admin/posts',
-    '/admin/gallery',
-    '/admin/media',
-    '/admin/content',
-]
 
 export default withAuth(
     function middleware(req) {
@@ -44,10 +31,7 @@ export default withAuth(
 
             // Manager has almost full access except staff/permissions management
             if (role === 'MANAGER') {
-                const isAdminOnlyRoute = ADMIN_ONLY_ROUTES.some(route =>
-                    pathname === route || pathname.startsWith(route + '/')
-                )
-                if (isAdminOnlyRoute) {
+                if (isAdminOnlyRoute(pathname)) {
                     return NextResponse.redirect(new URL('/admin?error=access_denied', req.url))
                 }
                 return // Manager can access everything else
@@ -71,10 +55,7 @@ export default withAuth(
 
             // Staff - check admin-only routes, other permissions handled by context
             if (role === 'STAFF') {
-                const isAdminOnlyRoute = ADMIN_ONLY_ROUTES.some(route =>
-                    pathname === route || pathname.startsWith(route + '/')
-                )
-                if (isAdminOnlyRoute) {
+                if (isAdminOnlyRoute(pathname)) {
                     return NextResponse.redirect(new URL('/admin?error=access_denied', req.url))
                 }
             }

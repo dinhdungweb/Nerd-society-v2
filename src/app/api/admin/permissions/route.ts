@@ -1,166 +1,46 @@
+import {
+    ADMIN_PERMISSION_KEYS,
+    AdminPermissions,
+    ConfigurableAdminRole,
+    DEFAULT_ROLE_PERMISSIONS,
+} from '@/config/admin'
 import { authOptions } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
-import { audit } from '@/lib/audit'
-
-// Default permissions for each role
-const DEFAULT_ROLE_PERMISSIONS = {
-    MANAGER: {
-        // Dashboard
-        canViewDashboard: true,
-        canViewReports: true,
-        // Bookings
-        canViewBookings: true,
-        canCreateBookings: true,
-        canEditBookings: true,
-        canDeleteBookings: true,
-        canCheckIn: true,
-        canCheckOut: true,
-        // Chat
-        canViewChat: true,
-        // Rooms
-        canViewRooms: true,
-        canManageRooms: true,
-        // Services
-        canViewServices: true,
-        canManageServices: true,
-        // Locations
-        canViewLocations: true,
-        canManageLocations: true,
-        // Posts (Tin tức)
-        canViewPosts: true,
-        canManagePosts: true,
-        // Gallery/Media
-        canViewGallery: true,
-        canManageGallery: true,
-        // Content Settings
-        canViewContent: true,
-        canManageContent: true,
-        // Customers
-        canViewCustomers: true,
-        canManageCustomers: true,
-        canViewWallets: true,
-        canManageWallets: true,
-        // Nerd Coin
-        canViewNerdCoin: true,
-        canManageNerdCoin: true,
-        // System
-        canViewSettings: false, // Manager không nên thay đổi settings hệ thống
-        canViewStaff: true,     // Manager có thể quản lý Staff/Editor
-        canManageStaff: true,
-        canViewAuditLog: true,
-        canViewEmailTemplates: true,
-        canManageEmailTemplates: true,
-        canViewNerdNight: true,
-        canManageNerdNight: true,
-        canConfirmNerdNightPayments: true,
-    },
-    STAFF: {
-        // Dashboard
-        canViewDashboard: true,
-        canViewReports: false,
-        // Bookings
-        canViewBookings: true,
-        canCreateBookings: true,
-        canEditBookings: true,
-        canDeleteBookings: false,
-        canCheckIn: true,
-        canCheckOut: true,
-        // Chat
-        canViewChat: true,
-        // Rooms
-        canViewRooms: false,
-        canManageRooms: false,
-        // Services
-        canViewServices: false,
-        canManageServices: false,
-        // Locations
-        canViewLocations: false,
-        canManageLocations: false,
-        // Posts (Tin tức)
-        canViewPosts: false,
-        canManagePosts: false,
-        // Gallery/Media
-        canViewGallery: false,
-        canManageGallery: false,
-        // Content Settings
-        canViewContent: false,
-        canManageContent: false,
-        // Customers
-        canViewCustomers: true,
-        canManageCustomers: false,
-        canViewWallets: true,
-        canManageWallets: false,
-        // Nerd Coin
-        canViewNerdCoin: false,
-        canManageNerdCoin: false,
-        // System
-        canViewSettings: false,
-        canViewStaff: false,
-        canManageStaff: false,
-        canViewAuditLog: false,
-        canViewEmailTemplates: false,
-        canManageEmailTemplates: false,
-        canViewNerdNight: true,
-        canManageNerdNight: true,
-        canConfirmNerdNightPayments: true,
-    },
-    CONTENT_EDITOR: {
-        // Dashboard
-        canViewDashboard: false,
-        canViewReports: false,
-        // Bookings
-        canViewBookings: false,
-        canCreateBookings: false,
-        canEditBookings: false,
-        canDeleteBookings: false,
-        canCheckIn: false,
-        canCheckOut: false,
-        // Chat
-        canViewChat: false,
-        // Rooms
-        canViewRooms: false,
-        canManageRooms: false,
-        // Services
-        canViewServices: false,
-        canManageServices: false,
-        // Locations
-        canViewLocations: false,
-        canManageLocations: false,
-        // Posts (Tin tức)
-        canViewPosts: true,
-        canManagePosts: true,
-        // Gallery/Media
-        canViewGallery: true,
-        canManageGallery: true,
-        // Content Settings
-        canViewContent: true,
-        canManageContent: true,
-        // Customers
-        canViewCustomers: false,
-        canManageCustomers: false,
-        canViewWallets: false,
-        canManageWallets: false,
-        // Nerd Coin
-        canViewNerdCoin: false,
-        canManageNerdCoin: false,
-        // System
-        canViewSettings: false,
-        canViewStaff: false,
-        canManageStaff: false,
-        canViewAuditLog: false,
-        canViewEmailTemplates: false,
-        canManageEmailTemplates: false,
-        canViewNerdNight: false,
-        canManageNerdNight: false,
-        canConfirmNerdNightPayments: false,
-    },
-}
 
 const PERMISSION_KEY_PREFIX = 'role_permissions_'
 
-// GET - Get permissions for all roles or specific role
+function isConfigurableRole(role: unknown): role is ConfigurableAdminRole {
+    return role === 'MANAGER' || role === 'STAFF' || role === 'CONTENT_EDITOR'
+}
+
+function normalizePermissions(role: ConfigurableAdminRole, value: unknown): AdminPermissions {
+    const input = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+    const overrides = Object.fromEntries(
+        ADMIN_PERMISSION_KEYS
+            .filter((key) => typeof input[key] === 'boolean')
+            .map((key) => [key, input[key]]),
+    ) as Partial<AdminPermissions>
+
+    return { ...DEFAULT_ROLE_PERMISSIONS[role], ...overrides }
+}
+
+async function getStoredPermissions(role: ConfigurableAdminRole): Promise<AdminPermissions> {
+    const setting = await prisma.setting.findUnique({
+        where: { key: `${PERMISSION_KEY_PREFIX}${role}` },
+    })
+
+    if (!setting) return DEFAULT_ROLE_PERMISSIONS[role]
+
+    try {
+        return normalizePermissions(role, JSON.parse(setting.value))
+    } catch {
+        return DEFAULT_ROLE_PERMISSIONS[role]
+    }
+}
+
 export async function GET(req: Request) {
     try {
         const session = await getServerSession(authOptions)
@@ -171,39 +51,26 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url)
         const role = searchParams.get('role')
 
-        // If specific role requested
-        if (role && role in DEFAULT_ROLE_PERMISSIONS) {
-            const setting = await prisma.setting.findUnique({
-                where: { key: `${PERMISSION_KEY_PREFIX}${role}` },
-            })
-
-            const permissions = setting
-                ? { ...DEFAULT_ROLE_PERMISSIONS[role as keyof typeof DEFAULT_ROLE_PERMISSIONS], ...JSON.parse(setting.value) }
-                : DEFAULT_ROLE_PERMISSIONS[role as keyof typeof DEFAULT_ROLE_PERMISSIONS]
+        if (role) {
+            if (!isConfigurableRole(role)) {
+                return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+            }
 
             return NextResponse.json({
                 role,
-                permissions,
-                defaults: DEFAULT_ROLE_PERMISSIONS[role as keyof typeof DEFAULT_ROLE_PERMISSIONS]
+                permissions: await getStoredPermissions(role),
+                defaults: DEFAULT_ROLE_PERMISSIONS[role],
             })
         }
 
-        // Get all role permissions
-        const allPermissions: Record<string, any> = {}
-
-        for (const roleKey of Object.keys(DEFAULT_ROLE_PERMISSIONS)) {
-            const setting = await prisma.setting.findUnique({
-                where: { key: `${PERMISSION_KEY_PREFIX}${roleKey}` },
-            })
-
-            allPermissions[roleKey] = setting
-                ? { ...DEFAULT_ROLE_PERMISSIONS[roleKey as keyof typeof DEFAULT_ROLE_PERMISSIONS], ...JSON.parse(setting.value) }
-                : DEFAULT_ROLE_PERMISSIONS[roleKey as keyof typeof DEFAULT_ROLE_PERMISSIONS]
-        }
+        const entries = await Promise.all(
+            (Object.keys(DEFAULT_ROLE_PERMISSIONS) as ConfigurableAdminRole[])
+                .map(async (roleKey) => [roleKey, await getStoredPermissions(roleKey)] as const),
+        )
 
         return NextResponse.json({
-            permissions: allPermissions,
-            defaults: DEFAULT_ROLE_PERMISSIONS
+            permissions: Object.fromEntries(entries),
+            defaults: DEFAULT_ROLE_PERMISSIONS,
         })
     } catch (error) {
         console.error('Error fetching permissions:', error)
@@ -211,7 +78,6 @@ export async function GET(req: Request) {
     }
 }
 
-// POST - Update permissions for a role
 export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions)
@@ -219,28 +85,27 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
         }
 
-        const { role, permissions } = await req.json()
-
-        if (!role || !(role in DEFAULT_ROLE_PERMISSIONS)) {
+        const body = await req.json()
+        if (!isConfigurableRole(body.role)) {
             return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
         }
 
+        const permissions = normalizePermissions(body.role, body.permissions)
         await prisma.setting.upsert({
-            where: { key: `${PERMISSION_KEY_PREFIX}${role}` },
+            where: { key: `${PERMISSION_KEY_PREFIX}${body.role}` },
             update: { value: JSON.stringify(permissions) },
-            create: { key: `${PERMISSION_KEY_PREFIX}${role}`, value: JSON.stringify(permissions) },
+            create: { key: `${PERMISSION_KEY_PREFIX}${body.role}`, value: JSON.stringify(permissions) },
         })
 
-        // Audit log for permission changes
         await audit.update(
             session.user.id || 'unknown',
             session.user.name || session.user.email || 'Admin',
             'permissions',
-            role,
-            { role, permissions }
+            body.role,
+            { role: body.role, permissions },
         )
 
-        return NextResponse.json({ success: true, role, permissions })
+        return NextResponse.json({ success: true, role: body.role, permissions })
     } catch (error) {
         console.error('Error updating permissions:', error)
         return NextResponse.json({ error: 'Failed to update permissions' }, { status: 500 })
