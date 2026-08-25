@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { 
   MagnifyingGlassIcon, 
@@ -13,7 +14,8 @@ import {
   ClipboardDocumentListIcon,
   UserGroupIcon,
   GlobeAltIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  QrCodeIcon
 } from '@heroicons/react/24/outline';
 
 // Components
@@ -202,23 +204,35 @@ export default function SubscriptionsAdminClient() {
           </p>
         </div>
         
-        {activeTab === 'subscribers' && (
-           <div className="relative max-w-xs">
-             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-               <MagnifyingGlassIcon className="h-4 w-4 text-neutral-400" />
-             </div>
-             <input
-               type="text"
-               placeholder="Tìm kiếm hội viên..."
-               value={searchTerm}
-               onChange={(e) => {
-                 setSearchTerm(e.target.value);
-                 setSubscriberPage(1);
-               }}
-               className="block w-full rounded-2xl border-none bg-white py-2.5 pl-10 pr-4 text-sm font-medium shadow-sm ring-1 ring-neutral-200 focus:ring-2 focus:ring-primary-500 dark:bg-neutral-900 dark:ring-neutral-700"
-             />
-           </div>
-        )}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Link
+            href="/staff/subscription"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 dark:bg-primary-600 dark:hover:bg-primary-500"
+          >
+            <QrCodeIcon className="size-5" />
+            Mở trang Check-in
+          </Link>
+
+          {activeTab === 'subscribers' && (
+            <div className="relative max-w-xs">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <MagnifyingGlassIcon className="h-4 w-4 text-neutral-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Tìm kiếm hội viên..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setSubscriberPage(1);
+                }}
+                className="block w-full rounded-2xl border-none bg-white py-2.5 pl-10 pr-4 text-sm font-medium shadow-sm ring-1 ring-neutral-200 focus:ring-2 focus:ring-primary-500 dark:bg-neutral-900 dark:ring-neutral-700"
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Tabs Switcher */}
