@@ -224,13 +224,20 @@ export default function StaffSubscriptionKiosk() {
         const availableLocations: LocationOption[] = data.locations || []
         const branchFromUrl = new URLSearchParams(window.location.search).get('branch')?.trim().toUpperCase() || ''
         const linkedLocation = availableLocations.find((item) => item.code.toUpperCase() === branchFromUrl)
+        const assignedLocation = availableLocations.find((item) => item.id === data.assignedLocationId)
+        const selectedLocation = linkedLocation || assignedLocation || availableLocations[0]
+        const selectedBranch = selectedLocation?.code.toUpperCase() || ''
 
         setLocations(availableLocations)
-        setRequestedBranch(branchFromUrl)
-        setLocationId(linkedLocation?.id || data.assignedLocationId || availableLocations[0]?.id || '')
+        setRequestedBranch(selectedBranch)
+        setLocationId(selectedLocation?.id || '')
+
+        if (selectedBranch && selectedBranch !== branchFromUrl) {
+          router.replace(`/staff/subscription?branch=${encodeURIComponent(selectedBranch)}`, { scroll: false })
+        }
       })
       .catch(() => setScanResult({ code: 'OFFLINE', success: false, message: 'Không tải được cấu hình trạm quét.' }))
-  }, [])
+  }, [router])
 
   useEffect(() => {
     if (!requestedBranch || locations.length === 0) return
