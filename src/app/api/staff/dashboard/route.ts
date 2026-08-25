@@ -136,6 +136,24 @@ export async function POST(request: Request) {
         return NextResponse.json(result);
       }
 
+      case 'search_subscriber': {
+        const { query } = body;
+        if (!query || typeof query !== 'string') {
+          return NextResponse.json({ error: 'Thieu query' }, { status: 400 });
+        }
+        const subscribers = await prisma.subscriber.findMany({
+          where: {
+            OR: [
+              { phone: { contains: query } },
+              { fullName: { contains: query, mode: 'insensitive' } },
+            ]
+          },
+          take: 5,
+          select: { id: true, fullName: true, phone: true, photoUrl: true }
+        });
+        return NextResponse.json({ subscribers });
+      }
+
       case 'verify': {
         const { sessionId, verified, staffName } = body;
         if (!sessionId) {

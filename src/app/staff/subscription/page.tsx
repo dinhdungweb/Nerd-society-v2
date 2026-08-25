@@ -16,8 +16,8 @@ import {
   UserGroupIcon,
   UserIcon,
   XCircleIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline'
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 type LocationOption = { id: string; code: string; name: string }
@@ -169,20 +169,35 @@ async function sendScanRequest(payload: string, locationId: string, requestId: s
 }
 
 export default function StaffSubscriptionKiosk() {
+  const router = useRouter()
   const [locations, setLocations] = useState<LocationOption[]>([])
   const [locationId, setLocationId] = useState('')
+  const [requestedBranch, setRequestedBranch] = useState('')
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [scanResult, setScanResult] = useState<ScanResult | null>(null)
   const [scanLoading, setScanLoading] = useState(false)
-  const [manualOpen, setManualOpen] = useState(false)
-  const [phone, setPhone] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Array<{ id: string, fullName: string, phone: string, photoUrl: string | null }>>([])
+  const [isSearching, setIsSearching] = useState(false)
   const [clock, setClock] = useState(new Date())
   const scanBuffer = useRef('')
   const lastKeyAt = useRef(0)
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const clearResultTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const speechVoice = useRef<SpeechSynthesisVoice | null>(null)
 
   const location = locations.find((item) => item.id === locationId)
+
+  useEffect(() => {
+    const syncBranchFromUrl = () => {
+      const branch = new URLSearchParams(window.location.search).get('branch')?.trim().toUpperCase() || ''
+      setRequestedBranch(branch)
+    }
+
+    syncBranchFromUrl()
+    window.addEventListener('popstate', syncBranchFromUrl)
+    return () => window.removeEventListener('popstate', syncBranchFromUrl)
+  }, [])
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) return
@@ -206,11 +221,22 @@ export default function StaffSubscriptionKiosk() {
         return response.json()
       })
       .then((data) => {
-        setLocations(data.locations || [])
-        setLocationId(data.assignedLocationId || data.locations?.[0]?.id || '')
+        const availableLocations: LocationOption[] = data.locations || []
+        const branchFromUrl = new URLSearchParams(window.location.search).get('branch')?.trim().toUpperCase() || ''
+        const linkedLocation = availableLocations.find((item) => item.code.toUpperCase() === branchFromUrl)
+
+        setLocations(availableLocations)
+        setRequestedBranch(branchFromUrl)
+        setLocationId(linkedLocation?.id || data.assignedLocationId || availableLocations[0]?.id || '')
       })
       .catch(() => setScanResult({ code: 'OFFLINE', success: false, message: 'Không tải được cấu hình trạm quét.' }))
   }, [])
+
+  useEffect(() => {
+    if (!requestedBranch || locations.length === 0) return
+    const linkedLocation = locations.find((item) => item.code.toUpperCase() === requestedBranch)
+    if (linkedLocation && linkedLocation.id !== locationId) setLocationId(linkedLocation.id)
+  }, [locationId, locations, requestedBranch])
 
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 1000)
@@ -273,7 +299,6 @@ export default function StaffSubscriptionKiosk() {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (
-        manualOpen ||
         target?.tagName === 'INPUT' ||
         target?.tagName === 'TEXTAREA' ||
         target?.tagName === 'SELECT' ||
@@ -297,22 +322,20 @@ export default function StaffSubscriptionKiosk() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [manualOpen, submitScan])
+  }, [submitScan])
 
-  const manualCheckIn = async () => {
-    if (!phone.trim() || !location?.code) return
+  const manualCheckIn = async (checkInPhone: string) => {
+    if (!checkInPhone.trim() || !location?.code) return
     setScanLoading(true)
     try {
       const response = await fetch('/api/staff/dashboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'manual_checkin', phone: phone.trim(), branch: location.code }),
+        body: JSON.stringify({ action: 'manual_checkin', phone: checkInPhone.trim(), branch: location.code }),
       })
       const data = await response.json()
       showResult({ ...data, code: data.success ? 'CHECK_IN_SUCCESS' : data.errorType || 'MANUAL_ERROR' })
       if (data.success) {
-        setPhone('')
-        setManualOpen(false)
         await refreshDashboard()
       }
     } finally {
@@ -377,7 +400,14 @@ export default function StaffSubscriptionKiosk() {
               <MapPinIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary-700 dark:text-primary-300" />
               <select
                 value={locationId}
-                onChange={(event) => setLocationId(event.target.value)}
+                onChange={(event) => {
+                  const nextLocation = locations.find((item) => item.id === event.target.value)
+                  if (!nextLocation) return
+                  const nextBranch = nextLocation.code.toUpperCase()
+                  setLocationId(nextLocation.id)
+                  setRequestedBranch(nextBranch)
+                  router.push(`/staff/subscription?branch=${encodeURIComponent(nextBranch)}`, { scroll: false })
+                }}
                 className="h-10 appearance-none rounded-xl border border-primary-200 bg-primary-50 pl-9 pr-8 text-sm font-semibold text-neutral-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
               >
                 {locations.map((item) => (
@@ -507,7 +537,8 @@ export default function StaffSubscriptionKiosk() {
                     {scanLoading ? 'Đang xử lý mã QR' : 'Sẵn sàng quét QR'}
                   </h2>
                   <p className="mt-2 max-w-md text-sm leading-6 text-neutral-500 dark:text-neutral-400">
-                    Đưa mã QR của khách vào máy quét. Hệ thống sẽ tự động check-in hoặc check-out mà không cần bấm nút.
+                    <span className="block">Đưa mã QR của khách vào máy quét.</span>
+                    <span className="block">Hệ thống sẽ tự động check-in hoặc check-out.</span>
                   </p>
                   <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-4 py-2 text-xs font-semibold text-primary-800 dark:border-primary-900 dark:bg-primary-950/30 dark:text-primary-300">
                     <SignalIcon className="size-4" />
@@ -638,81 +669,93 @@ export default function StaffSubscriptionKiosk() {
             )}
 
             <section className="rounded-2xl border border-primary-200 bg-primary-100/60 p-5 dark:border-primary-900 dark:bg-primary-950/30">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-white text-primary-800 shadow-sm dark:bg-neutral-900 dark:text-primary-300">
-                <MagnifyingGlassIcon className="size-5" />
+              <div className="flex items-start gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary-800 shadow-sm dark:bg-neutral-900 dark:text-primary-300">
+                  <MagnifyingGlassIcon className="size-5" />
+                </div>
+                <div className="min-w-0 pt-0.5">
+                  <h2 className="text-sm font-bold text-neutral-950 dark:text-white">Check-in dự phòng</h2>
+                  <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-neutral-300">
+                    Tìm khách bằng số điện thoại hoặc tên khi QR không sử dụng được.
+                  </p>
+                </div>
               </div>
-              <h2 className="mt-4 text-sm font-bold text-neutral-950 dark:text-white">Check-in dự phòng</h2>
-              <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-neutral-300">
-                Tìm khách bằng số điện thoại khi QR không sử dụng được.
-              </p>
-              <button
-                type="button"
-                onClick={() => setManualOpen(true)}
-                className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 text-sm font-semibold text-white transition hover:bg-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:bg-primary-600 dark:hover:bg-primary-500"
-              >
-                <MagnifyingGlassIcon className="size-4" />
-                Tìm bằng số điện thoại
-              </button>
+
+              <div className="relative mt-4">
+                <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
+                <input
+                  type="text"
+                  placeholder="Nhập tên hoặc số điện thoại..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setSearchQuery(val)
+                    if (searchTimeout.current) clearTimeout(searchTimeout.current)
+                    if (!val.trim()) {
+                      setSearchResults([])
+                      setIsSearching(false)
+                      return
+                    }
+                    setIsSearching(true)
+                    searchTimeout.current = setTimeout(async () => {
+                      try {
+                        const res = await fetch('/api/staff/dashboard', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'search_subscriber', query: val.trim() }),
+                        })
+                        const data = await res.json()
+                        if (data.subscribers) setSearchResults(data.subscribers)
+                      } finally {
+                        setIsSearching(false)
+                      }
+                    }, 300)
+                  }}
+                  className="h-10 w-full rounded-xl border border-primary-200 bg-white pl-9 pr-4 text-sm outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
+                />
+
+                {searchQuery.trim() && (
+                  <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+                    {isSearching ? (
+                      <div className="p-3 text-center text-xs text-neutral-500">Đang tìm...</div>
+                    ) : searchResults.length > 0 ? (
+                      <ul className="max-h-60 overflow-y-auto">
+                        {searchResults.map(sub => (
+                          <li key={sub.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSearchQuery('')
+                                setSearchResults([])
+                                void manualCheckIn(sub.phone)
+                              }}
+                              className="flex w-full items-center gap-3 border-b border-neutral-100 p-2 text-left transition hover:bg-primary-50 last:border-0 dark:border-neutral-800 dark:hover:bg-neutral-800"
+                            >
+                              {sub.photoUrl ? (
+                                <img src={sub.photoUrl} alt="" className="size-8 shrink-0 rounded-lg object-cover" />
+                              ) : (
+                                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-400 dark:bg-neutral-800">
+                                  <UserIcon className="size-4" />
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-neutral-950 dark:text-white">{sub.fullName}</p>
+                                <p className="truncate text-xs text-neutral-500">{sub.phone}</p>
+                              </div>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="p-3 text-center text-xs text-neutral-500">Không tìm thấy kết quả.</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </section>
           </aside>
         </div>
       </div>
-
-      {manualOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/50 p-4 backdrop-blur-sm">
-          <div role="dialog" aria-modal="true" aria-labelledby="manual-checkin-title" className="w-full max-w-md overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-900">
-            <div className="flex items-start justify-between border-b border-neutral-100 px-6 py-5 dark:border-neutral-800">
-              <div>
-                <h3 id="manual-checkin-title" className="text-lg font-bold text-neutral-950 dark:text-white">Check-in dự phòng</h3>
-                <p className="mt-1 text-sm text-neutral-500">Nhập số điện thoại của khách để tìm hồ sơ.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setManualOpen(false)}
-                className="flex size-9 items-center justify-center rounded-xl text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
-                aria-label="Đóng"
-              >
-                <XMarkIcon className="size-5" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <label htmlFor="manual-phone" className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Số điện thoại</label>
-              <div className="relative mt-2">
-                <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-neutral-400" />
-                <input
-                  id="manual-phone"
-                  autoFocus
-                  inputMode="tel"
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                  onKeyDown={(event) => { if (event.key === 'Enter') void manualCheckIn() }}
-                  placeholder="Nhập số điện thoại"
-                  className="h-12 w-full rounded-xl border border-neutral-300 bg-white pl-12 pr-4 text-base text-neutral-950 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
-                />
-              </div>
-              <div className="mt-6 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setManualOpen(false)}
-                  className="h-11 flex-1 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  disabled={!phone.trim() || scanLoading}
-                  onClick={() => void manualCheckIn()}
-                  className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 text-sm font-semibold text-white transition hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary-600 dark:hover:bg-primary-500"
-                >
-                  {scanLoading ? <ArrowPathIcon className="size-4 animate-spin" /> : <IdentificationIcon className="size-4" />}
-                  Check-in
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   )
 }
