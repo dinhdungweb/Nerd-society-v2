@@ -81,8 +81,11 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url)
         const type = searchParams.get('type')
         const source = searchParams.get('source')
+        const status = searchParams.get('status')
         const format = searchParams.get('format')
         const query = searchParams.get('q')?.trim()
+        const from = searchParams.get('from')
+        const to = searchParams.get('to')
         const requestedPage = Number(searchParams.get('page') || 1)
         const requestedLimit = Number(searchParams.get('limit') || (format === 'csv' ? 500 : 20))
         const page = Number.isFinite(requestedPage) ? Math.max(1, Math.floor(requestedPage)) : 1
@@ -93,6 +96,7 @@ export async function GET(request: NextRequest) {
         const where: any = {}
         if (type && type !== 'ALL') where.type = type
         if (source && source !== 'ALL') where.source = source
+        if (status && status !== 'ALL') where.status = status
         if (query) {
             where.OR = [
                 { description: { contains: query, mode: 'insensitive' } },
@@ -101,8 +105,19 @@ export async function GET(request: NextRequest) {
                 { wallet: { walletCode: { contains: query, mode: 'insensitive' } } },
                 { wallet: { user: { email: { contains: query, mode: 'insensitive' } } } },
                 { wallet: { user: { name: { contains: query, mode: 'insensitive' } } } },
+                { wallet: { user: { phone: { contains: query, mode: 'insensitive' } } } },
             ]
         }
+        const createdAt: { gte?: Date; lte?: Date } = {}
+        if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) {
+            const startDate = new Date(`${from}T00:00:00.000+07:00`)
+            if (!Number.isNaN(startDate.getTime())) createdAt.gte = startDate
+        }
+        if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) {
+            const endDate = new Date(`${to}T23:59:59.999+07:00`)
+            if (!Number.isNaN(endDate.getTime())) createdAt.lte = endDate
+        }
+        if (Object.keys(createdAt).length > 0) where.createdAt = createdAt
 
         const [transactions, total] = await Promise.all([
             prisma.walletTransaction.findMany({

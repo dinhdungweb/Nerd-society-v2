@@ -84,8 +84,46 @@ type PaginationMeta = {
     totalPages: number
 }
 
+type TransactionFilters = {
+    query: string
+    type: string
+    source: string
+    status: string
+    from: string
+    to: string
+}
+
+type ReconciliationFilters = {
+    query: string
+    status: string
+    from: string
+    to: string
+}
+
 const PAGE_SIZE = 20
 const initialPagination: PaginationMeta = { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 }
+const initialTransactionFilters: TransactionFilters = { query: '', type: 'ALL', source: 'ALL', status: 'ALL', from: '', to: '' }
+const initialReconciliationFilters: ReconciliationFilters = { query: '', status: 'ALL', from: '', to: '' }
+
+function buildTransactionParams(filters: TransactionFilters, page = 1, limit = PAGE_SIZE) {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    if (filters.query.trim()) params.set('q', filters.query.trim())
+    if (filters.type !== 'ALL') params.set('type', filters.type)
+    if (filters.source !== 'ALL') params.set('source', filters.source)
+    if (filters.status !== 'ALL') params.set('status', filters.status)
+    if (filters.from) params.set('from', filters.from)
+    if (filters.to) params.set('to', filters.to)
+    return params
+}
+
+function buildReconciliationParams(filters: ReconciliationFilters, page = 1, limit = PAGE_SIZE) {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    if (filters.query.trim()) params.set('q', filters.query.trim())
+    if (filters.status !== 'ALL') params.set('status', filters.status)
+    if (filters.from) params.set('from', filters.from)
+    if (filters.to) params.set('to', filters.to)
+    return params
+}
 
 const money = (value: number) => `${value.toLocaleString()}đ`
 
@@ -158,6 +196,10 @@ export default function AdminWalletsPage() {
     const [reconciliationPage, setReconciliationPage] = useState(1)
     const [transactionPagination, setTransactionPagination] = useState<PaginationMeta>(initialPagination)
     const [reconciliationPagination, setReconciliationPagination] = useState<PaginationMeta>(initialPagination)
+    const [transactionFilters, setTransactionFilters] = useState<TransactionFilters>(initialTransactionFilters)
+    const [appliedTransactionFilters, setAppliedTransactionFilters] = useState<TransactionFilters>(initialTransactionFilters)
+    const [reconciliationFilters, setReconciliationFilters] = useState<ReconciliationFilters>(initialReconciliationFilters)
+    const [appliedReconciliationFilters, setAppliedReconciliationFilters] = useState<ReconciliationFilters>(initialReconciliationFilters)
     const [loading, setLoading] = useState(false)
     const [selectedWallet, setSelectedWallet] = useState<WalletRow | null>(null)
     const [selectedBankTransaction, setSelectedBankTransaction] = useState<BankTransaction | null>(null)
@@ -173,6 +215,16 @@ export default function AdminWalletsPage() {
         id: wallet.id,
         label: `${wallet.walletCode} - ${wallet.user.name || wallet.user.email}`,
     })), [wallets])
+    const transactionExportHref = useMemo(() => {
+        const params = buildTransactionParams(appliedTransactionFilters, 1, 500)
+        params.set('format', 'csv')
+        return `/api/admin/wallet-transactions?${params.toString()}`
+    }, [appliedTransactionFilters])
+    const reconciliationExportHref = useMemo(() => {
+        const params = buildReconciliationParams(appliedReconciliationFilters, 1, 500)
+        params.set('format', 'csv')
+        return `/api/admin/wallet-reconciliation?${params.toString()}`
+    }, [appliedReconciliationFilters])
 
     const fetchWallets = async () => {
         setLoading(true)
@@ -190,8 +242,9 @@ export default function AdminWalletsPage() {
         }
     }
 
-    const fetchTransactions = async (page = transactionPage) => {
-        const res = await fetch(`/api/admin/wallet-transactions?page=${page}&limit=${PAGE_SIZE}`)
+    const fetchTransactions = async (page = transactionPage, filters = appliedTransactionFilters) => {
+        const params = buildTransactionParams(filters, page)
+        const res = await fetch(`/api/admin/wallet-transactions?${params.toString()}`)
         if (res.ok) {
             const data = await res.json()
             setTransactions(data.transactions)
@@ -199,8 +252,9 @@ export default function AdminWalletsPage() {
         }
     }
 
-    const fetchBankTransactions = async (page = reconciliationPage) => {
-        const res = await fetch(`/api/admin/wallet-reconciliation?page=${page}&limit=${PAGE_SIZE}`)
+    const fetchBankTransactions = async (page = reconciliationPage, filters = appliedReconciliationFilters) => {
+        const params = buildReconciliationParams(filters, page)
+        const res = await fetch(`/api/admin/wallet-reconciliation?${params.toString()}`)
         if (res.ok) {
             const data = await res.json()
             setBankTransactions(data.bankTransactions)
@@ -218,14 +272,44 @@ export default function AdminWalletsPage() {
     }, [])
 
     useEffect(() => {
-        fetchTransactions(transactionPage)
+        fetchTransactions(transactionPage, appliedTransactionFilters)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [transactionPage])
+    }, [transactionPage, appliedTransactionFilters])
 
     useEffect(() => {
-        fetchBankTransactions(reconciliationPage)
+        fetchBankTransactions(reconciliationPage, appliedReconciliationFilters)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [reconciliationPage])
+    }, [reconciliationPage, appliedReconciliationFilters])
+
+    const applyTransactionFilters = () => {
+        if (transactionFilters.from && transactionFilters.to && transactionFilters.from > transactionFilters.to) {
+            toast.error('Ngày bắt đầu phải trước ngày kết thúc')
+            return
+        }
+        setTransactionPage(1)
+        setAppliedTransactionFilters({ ...transactionFilters })
+    }
+
+    const resetTransactionFilters = () => {
+        setTransactionFilters(initialTransactionFilters)
+        setTransactionPage(1)
+        setAppliedTransactionFilters(initialTransactionFilters)
+    }
+
+    const applyReconciliationFilters = () => {
+        if (reconciliationFilters.from && reconciliationFilters.to && reconciliationFilters.from > reconciliationFilters.to) {
+            toast.error('Ngày bắt đầu phải trước ngày kết thúc')
+            return
+        }
+        setReconciliationPage(1)
+        setAppliedReconciliationFilters({ ...reconciliationFilters })
+    }
+
+    const resetReconciliationFilters = () => {
+        setReconciliationFilters(initialReconciliationFilters)
+        setReconciliationPage(1)
+        setAppliedReconciliationFilters(initialReconciliationFilters)
+    }
 
     const submitAdjustment = async () => {
         if (!selectedWallet) return
@@ -294,13 +378,15 @@ export default function AdminWalletsPage() {
                         <ArrowPathIcon className={`size-4 ${loading ? 'animate-spin' : ''}`} />
                         Làm mới
                     </button>
-                    <a
-                        href="/api/admin/wallet-transactions?format=csv&limit=500"
-                        className="inline-flex items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-                    >
-                        <ArrowDownTrayIcon className="size-4" />
-                        Export CSV
-                    </a>
+                    {activeTab === 'transactions' && (
+                        <a
+                            href={transactionExportHref}
+                            className="inline-flex items-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+                        >
+                            <ArrowDownTrayIcon className="size-4" />
+                            Export theo bộ lọc
+                        </a>
+                    )}
                 </div>
             </div>
 
@@ -412,11 +498,99 @@ export default function AdminWalletsPage() {
             )}
 
             {activeTab === 'transactions' && (
-                <TransactionList
-                    transactions={transactions}
-                    pagination={transactionPagination}
-                    onPageChange={setTransactionPage}
-                />
+                <div className="space-y-4">
+                    <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                            <label className="md:col-span-2 xl:col-span-2">
+                                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Tìm giao dịch</span>
+                                <div className="relative">
+                                    <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
+                                    <input
+                                        value={transactionFilters.query}
+                                        onChange={(event) => setTransactionFilters((current) => ({ ...current, query: event.target.value }))}
+                                        onKeyDown={(event) => event.key === 'Enter' && applyTransactionFilters()}
+                                        placeholder="Mã ví, tên, email, mã giao dịch, nội dung..."
+                                        className="w-full rounded-lg border border-neutral-200 py-2 pl-9 pr-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                    />
+                                </div>
+                            </label>
+                            <label>
+                                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Loại giao dịch</span>
+                                <select
+                                    value={transactionFilters.type}
+                                    onChange={(event) => setTransactionFilters((current) => ({ ...current, type: event.target.value }))}
+                                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <option value="ALL">Tất cả loại</option>
+                                    {Object.entries(transactionTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                </select>
+                            </label>
+                            <label>
+                                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Nguồn</span>
+                                <select
+                                    value={transactionFilters.source}
+                                    onChange={(event) => setTransactionFilters((current) => ({ ...current, source: event.target.value }))}
+                                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <option value="ALL">Tất cả nguồn</option>
+                                    {Object.entries(transactionSourceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                </select>
+                            </label>
+                            <label>
+                                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Trạng thái</span>
+                                <select
+                                    value={transactionFilters.status}
+                                    onChange={(event) => setTransactionFilters((current) => ({ ...current, status: event.target.value }))}
+                                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <option value="ALL">Tất cả trạng thái</option>
+                                    {Object.entries(transactionStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                </select>
+                            </label>
+                            <label>
+                                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Từ ngày</span>
+                                <input
+                                    type="date"
+                                    value={transactionFilters.from}
+                                    max={transactionFilters.to || undefined}
+                                    onChange={(event) => setTransactionFilters((current) => ({ ...current, from: event.target.value }))}
+                                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                />
+                            </label>
+                            <label>
+                                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Đến ngày</span>
+                                <input
+                                    type="date"
+                                    value={transactionFilters.to}
+                                    min={transactionFilters.from || undefined}
+                                    onChange={(event) => setTransactionFilters((current) => ({ ...current, to: event.target.value }))}
+                                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                />
+                            </label>
+                            <div className="flex items-end gap-2 md:col-span-2 xl:col-span-3">
+                                <button
+                                    type="button"
+                                    onClick={applyTransactionFilters}
+                                    className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600"
+                                >
+                                    Áp dụng bộ lọc
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={resetTransactionFilters}
+                                    className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+                                >
+                                    Xóa lọc
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <TransactionList
+                        transactions={transactions}
+                        pagination={transactionPagination}
+                        onPageChange={setTransactionPage}
+                    />
+                </div>
             )}
 
             {activeTab === 'reconciliation' && (
@@ -427,12 +601,76 @@ export default function AdminWalletsPage() {
                             <p className="mt-1 text-sm text-neutral-500">Chọn “Xử lý” tại đúng giao dịch để gán ví hoặc bỏ qua.</p>
                         </div>
                         <a
-                            href="/api/admin/wallet-reconciliation?format=csv&limit=500"
+                            href={reconciliationExportHref}
                             className="inline-flex w-fit items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
                         >
                             <ArrowDownTrayIcon className="size-4" />
                             Export dữ liệu đối soát
                         </a>
+                    </div>
+                    <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                            <label className="md:col-span-2 xl:col-span-2">
+                                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Tìm giao dịch</span>
+                                <div className="relative">
+                                    <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-neutral-400" />
+                                    <input
+                                        value={reconciliationFilters.query}
+                                        onChange={(event) => setReconciliationFilters((current) => ({ ...current, query: event.target.value }))}
+                                        onKeyDown={(event) => event.key === 'Enter' && applyReconciliationFilters()}
+                                        placeholder="Mã giao dịch, số tài khoản, nội dung, mã ví..."
+                                        className="w-full rounded-lg border border-neutral-200 py-2 pl-9 pr-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                    />
+                                </div>
+                            </label>
+                            <label>
+                                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Trạng thái</span>
+                                <select
+                                    value={reconciliationFilters.status}
+                                    onChange={(event) => setReconciliationFilters((current) => ({ ...current, status: event.target.value }))}
+                                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <option value="ALL">Tất cả trạng thái</option>
+                                    {Object.entries(bankStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                </select>
+                            </label>
+                            <label>
+                                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Từ ngày</span>
+                                <input
+                                    type="date"
+                                    value={reconciliationFilters.from}
+                                    max={reconciliationFilters.to || undefined}
+                                    onChange={(event) => setReconciliationFilters((current) => ({ ...current, from: event.target.value }))}
+                                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                />
+                            </label>
+                            <label>
+                                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Đến ngày</span>
+                                <input
+                                    type="date"
+                                    value={reconciliationFilters.to}
+                                    min={reconciliationFilters.from || undefined}
+                                    onChange={(event) => setReconciliationFilters((current) => ({ ...current, to: event.target.value }))}
+                                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                />
+                            </label>
+                            <div className="flex items-end gap-2 md:col-span-2 xl:col-span-5">
+                                <button
+                                    type="button"
+                                    onClick={applyReconciliationFilters}
+                                    className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600"
+                                >
+                                    Áp dụng bộ lọc
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={resetReconciliationFilters}
+                                    className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+                                >
+                                    Xóa lọc
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <div className="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800">
                         <div className="overflow-x-auto">

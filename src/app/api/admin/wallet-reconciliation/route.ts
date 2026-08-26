@@ -92,6 +92,8 @@ export async function GET(request: NextRequest) {
         const status = searchParams.get('status')
         const query = searchParams.get('q')?.trim()
         const format = searchParams.get('format')
+        const from = searchParams.get('from')
+        const to = searchParams.get('to')
         const requestedPage = Number(searchParams.get('page') || 1)
         const requestedLimit = Number(searchParams.get('limit') || (format === 'csv' ? 500 : 20))
         const page = Number.isFinite(requestedPage) ? Math.max(1, Math.floor(requestedPage)) : 1
@@ -104,10 +106,30 @@ export async function GET(request: NextRequest) {
         if (query) {
             where.OR = [
                 { externalTransactionId: { contains: query, mode: 'insensitive' } },
+                { bankAccount: { contains: query, mode: 'insensitive' } },
                 { content: { contains: query, mode: 'insensitive' } },
                 { note: { contains: query, mode: 'insensitive' } },
                 { matchedWallet: { walletCode: { contains: query, mode: 'insensitive' } } },
+                { matchedWallet: { user: { email: { contains: query, mode: 'insensitive' } } } },
+                { matchedWallet: { user: { name: { contains: query, mode: 'insensitive' } } } },
             ]
+        }
+        const transactionDate: { gte?: Date; lte?: Date } = {}
+        if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) {
+            const startDate = new Date(`${from}T00:00:00.000+07:00`)
+            if (!Number.isNaN(startDate.getTime())) transactionDate.gte = startDate
+        }
+        if (to && /^\d{4}-\d{2}-\d{2}$/.test(to)) {
+            const endDate = new Date(`${to}T23:59:59.999+07:00`)
+            if (!Number.isNaN(endDate.getTime())) transactionDate.lte = endDate
+        }
+        if (Object.keys(transactionDate).length > 0) {
+            where.AND = [{
+                OR: [
+                    { transactionTime: transactionDate },
+                    { transactionTime: null, createdAt: transactionDate },
+                ],
+            }]
         }
 
         const [bankTransactions, total] = await Promise.all([
