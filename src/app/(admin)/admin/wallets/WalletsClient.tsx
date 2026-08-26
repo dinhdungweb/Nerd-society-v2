@@ -160,10 +160,13 @@ export default function AdminWalletsPage() {
     const [reconciliationPagination, setReconciliationPagination] = useState<PaginationMeta>(initialPagination)
     const [loading, setLoading] = useState(false)
     const [selectedWallet, setSelectedWallet] = useState<WalletRow | null>(null)
+    const [selectedBankTransaction, setSelectedBankTransaction] = useState<BankTransaction | null>(null)
     const [adjustAction, setAdjustAction] = useState<'TOPUP' | 'DEBIT' | 'REFUND' | 'ADJUSTMENT' | 'PAY_DEBT'>('TOPUP')
     const [amount, setAmount] = useState('')
     const [note, setNote] = useState('')
     const [matchWalletId, setMatchWalletId] = useState('')
+    const [reconciliationNote, setReconciliationNote] = useState('')
+    const [reconciling, setReconciling] = useState(false)
 
     const wallets = walletData?.wallets || []
     const walletOptions = useMemo(() => wallets.map((wallet) => ({
@@ -249,6 +252,7 @@ export default function AdminWalletsPage() {
     }
 
     const reconcile = async (bankTransactionId: string, action: 'MATCH' | 'IGNORE') => {
+        setReconciling(true)
         try {
             const res = await fetch('/api/admin/wallet-reconciliation', {
                 method: 'POST',
@@ -257,17 +261,20 @@ export default function AdminWalletsPage() {
                     action,
                     bankTransactionId,
                     walletId: matchWalletId,
-                    note,
+                    note: reconciliationNote,
                 }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || 'Đối soát thất bại')
             toast.success(action === 'MATCH' ? 'Đã gán giao dịch vào ví' : 'Đã bỏ qua giao dịch')
+            setSelectedBankTransaction(null)
             setMatchWalletId('')
-            setNote('')
+            setReconciliationNote('')
             await refreshAll()
         } catch (error: any) {
             toast.error(error.message)
+        } finally {
+            setReconciling(false)
         }
     }
 
@@ -414,28 +421,17 @@ export default function AdminWalletsPage() {
 
             {activeTab === 'reconciliation' && (
                 <div className="space-y-4">
-                    <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800 md:flex-row">
-                        <select
-                            value={matchWalletId}
-                            onChange={(event) => setMatchWalletId(event.target.value)}
-                            className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-                        >
-                            <option value="">Chọn ví để gán thủ công</option>
-                            {walletOptions.map((option) => (
-                                <option key={option.id} value={option.id}>{option.label}</option>
-                            ))}
-                        </select>
-                        <input
-                            value={note}
-                            onChange={(event) => setNote(event.target.value)}
-                            placeholder="Ghi chú đối soát"
-                            className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-                        />
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h2 className="font-semibold text-neutral-900 dark:text-white">Giao dịch ngân hàng</h2>
+                            <p className="mt-1 text-sm text-neutral-500">Chọn “Xử lý” tại đúng giao dịch để gán ví hoặc bỏ qua.</p>
+                        </div>
                         <a
                             href="/api/admin/wallet-reconciliation?format=csv&limit=500"
-                            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+                            className="inline-flex w-fit items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
                         >
-                            Export đối soát
+                            <ArrowDownTrayIcon className="size-4" />
+                            Export dữ liệu đối soát
                         </a>
                     </div>
                     <div className="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800">
@@ -490,25 +486,21 @@ export default function AdminWalletsPage() {
                                             </Td>
                                             <Td>
                                                 {canManageWallets && tx.status !== 'MATCHED' ? (
-                                                    <div className="flex min-w-32 flex-col gap-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => reconcile(tx.id, 'MATCH')}
-                                                            disabled={!matchWalletId}
-                                                            className="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                                        >
-                                                            Gán ví
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => reconcile(tx.id, 'IGNORE')}
-                                                            className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
-                                                        >
-                                                            Bỏ qua
-                                                        </button>
-                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedBankTransaction(tx)
+                                                            setMatchWalletId('')
+                                                            setReconciliationNote(tx.note || '')
+                                                        }}
+                                                        className="whitespace-nowrap rounded-lg bg-primary-500 px-3 py-2 text-xs font-semibold text-white hover:bg-primary-600"
+                                                    >
+                                                        Xử lý
+                                                    </button>
+                                                ) : !canManageWallets ? (
+                                                    <span className="whitespace-nowrap text-xs text-neutral-400">Chỉ xem</span>
                                                 ) : (
-                                                    <span className="text-xs text-neutral-400">Không có thao tác</span>
+                                                    <span className="whitespace-nowrap text-xs text-neutral-400">Đã hoàn tất</span>
                                                 )}
                                             </Td>
                                         </tr>
@@ -527,6 +519,131 @@ export default function AdminWalletsPage() {
                             onPageChange={setReconciliationPage}
                             itemLabel="giao dịch đối soát"
                         />
+                    </div>
+                </div>
+            )}
+
+            {selectedBankTransaction && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="reconciliation-dialog-title"
+                        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-neutral-900"
+                    >
+                        <div className="border-b border-neutral-200 px-5 py-4 dark:border-neutral-800">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 id="reconciliation-dialog-title" className="text-lg font-bold text-neutral-900 dark:text-white">
+                                        Xử lý giao dịch đối soát
+                                    </h2>
+                                    <p className="mt-1 text-sm text-neutral-500">Kiểm tra đúng giao dịch trước khi gán tiền vào ví.</p>
+                                </div>
+                                <BankStatusBadge status={selectedBankTransaction.status} />
+                            </div>
+                        </div>
+
+                        <div className="space-y-5 p-5">
+                            <div className="grid gap-3 rounded-xl bg-neutral-50 p-4 dark:bg-neutral-950 sm:grid-cols-2">
+                                <div>
+                                    <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">Số tiền</div>
+                                    <div className="mt-1 text-xl font-bold tabular-nums text-emerald-600">{money(selectedBankTransaction.amount)}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">Thời gian giao dịch</div>
+                                    <div className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                        {formatDateTime(selectedBankTransaction.transactionTime || selectedBankTransaction.createdAt)}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">Mã giao dịch ngân hàng</div>
+                                    <div className="mt-1 break-all font-mono text-sm text-neutral-800 dark:text-neutral-200">
+                                        {selectedBankTransaction.externalTransactionId}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">Số giao dịch ngân hàng</div>
+                                    <div className="mt-1 break-all font-mono text-sm text-neutral-800 dark:text-neutral-200">
+                                        {getBankReferenceNumber(selectedBankTransaction.rawPayload) || 'Không có'}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">Tài khoản ngân hàng</div>
+                                    <div className="mt-1 text-sm text-neutral-800 dark:text-neutral-200">
+                                        {selectedBankTransaction.bankAccount || 'Không có'}
+                                    </div>
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">Nội dung chuyển khoản</div>
+                                    <div className="mt-1 break-words text-sm font-medium text-neutral-900 dark:text-white">
+                                        {selectedBankTransaction.content || 'Không có nội dung'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label htmlFor="reconciliation-wallet" className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                    Ví nhận tiền <span className="text-red-500">*</span>
+                                </label>
+                                <p className="mt-1 text-xs text-neutral-500">Số tiền sẽ được cộng vào ví được chọn sau khi xác nhận.</p>
+                                <select
+                                    id="reconciliation-wallet"
+                                    value={matchWalletId}
+                                    onChange={(event) => setMatchWalletId(event.target.value)}
+                                    className="mt-2 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                                >
+                                    <option value="">Chọn đúng ví nhận tiền</option>
+                                    {walletOptions.map((option) => (
+                                        <option key={option.id} value={option.id}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label htmlFor="reconciliation-note" className="text-sm font-semibold text-neutral-900 dark:text-white">Ghi chú xử lý</label>
+                                <textarea
+                                    id="reconciliation-note"
+                                    value={reconciliationNote}
+                                    onChange={(event) => setReconciliationNote(event.target.value)}
+                                    placeholder="Ví dụ: Đã kiểm tra nội dung chuyển khoản và xác nhận đúng chủ ví"
+                                    rows={3}
+                                    className="mt-2 w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col-reverse gap-2 border-t border-neutral-200 px-5 py-4 dark:border-neutral-800 sm:flex-row sm:items-center sm:justify-between">
+                            <button
+                                type="button"
+                                onClick={() => reconcile(selectedBankTransaction.id, 'IGNORE')}
+                                disabled={reconciling}
+                                className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900 dark:hover:bg-red-950/30"
+                            >
+                                Bỏ qua giao dịch này
+                            </button>
+                            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedBankTransaction(null)
+                                        setMatchWalletId('')
+                                        setReconciliationNote('')
+                                    }}
+                                    disabled={reconciling}
+                                    className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => reconcile(selectedBankTransaction.id, 'MATCH')}
+                                    disabled={!matchWalletId || reconciling}
+                                    className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {reconciling ? 'Đang xử lý...' : 'Gán tiền vào ví'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
