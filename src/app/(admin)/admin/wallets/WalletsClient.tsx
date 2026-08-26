@@ -408,7 +408,7 @@ export default function AdminWalletsPage() {
                         </a>
                     </div>
                     <div className="max-h-[680px] overflow-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
-                        <table className="min-w-[1280px] divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
+                        <table className="w-full min-w-[1280px] divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
                             <thead className="sticky top-0 z-10 bg-neutral-50 shadow-sm dark:bg-neutral-900">
                                 <tr>
                                     <Th>Thời gian</Th>
@@ -612,7 +612,7 @@ function BankStatusBadge({ status }: { status: string }) {
 function TransactionList({ transactions }: { transactions: WalletTransaction[] }) {
     return (
         <div className="max-h-[680px] overflow-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
-            <table className="min-w-[1320px] divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
+            <table className="w-full min-w-[1320px] divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
                 <thead className="sticky top-0 z-10 bg-neutral-50 shadow-sm dark:bg-neutral-900">
                     <tr>
                         <Th>Thời gian</Th>
