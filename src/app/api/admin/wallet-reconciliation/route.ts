@@ -5,8 +5,79 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+const bankTransactionStatusLabels: Record<string, string> = {
+    PENDING: 'Chờ đối soát',
+    MATCHED: 'Đã đối soát',
+    DUPLICATE: 'Trùng giao dịch',
+    IGNORED: 'Đã bỏ qua',
+    ERROR: 'Lỗi đối soát',
+}
+
+const walletTransactionTypeLabels: Record<string, string> = {
+    TOPUP: 'Nạp tiền',
+    DEBIT: 'Trừ tiền',
+    ADJUSTMENT: 'Điều chỉnh số dư',
+    REFUND: 'Hoàn tiền',
+    BOOKING_PAYMENT: 'Thanh toán đặt lịch',
+    SUBSCRIPTION_PURCHASE: 'Mua gói thành viên',
+    SESSION_CHARGE: 'Phí sử dụng không gian',
+    OVERAGE_CHARGE: 'Phí quá giờ',
+    OVERAGE_PAYMENT: 'Thanh toán công nợ',
+}
+
+const walletTransactionSourceLabels: Record<string, string> = {
+    SYSTEM: 'Hệ thống',
+    VIETQR: 'VietQR',
+    MANUAL_ADMIN: 'Quản trị viên',
+    BOOKING: 'Đặt lịch',
+    SUBSCRIPTION: 'Gói thành viên',
+    MONTHLY_BEAVER: 'Monthly Beaver',
+}
+
+const walletTransactionStatusLabels: Record<string, string> = {
+    PENDING: 'Đang xử lý',
+    COMPLETED: 'Hoàn tất',
+    FAILED: 'Thất bại',
+    REVERSED: 'Đã hoàn tác',
+}
+
+function formatCsvDateTime(value: Date | null) {
+    if (!value) return ''
+
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Bangkok',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23',
+    }).formatToParts(value)
+    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value || ''
+
+    return `${part('day')}/${part('month')}/${part('year')} ${part('hour')}:${part('minute')}:${part('second')}`
+}
+
+function getTransactionDirectionLabel(value: string | null) {
+    if (value === 'C') return 'Tiền vào'
+    if (value === 'D') return 'Tiền ra'
+    return value || 'Không xác định'
+}
+
+function getBankReferenceNumber(rawPayload: unknown) {
+    if (!rawPayload || typeof rawPayload !== 'object' || Array.isArray(rawPayload)) return ''
+
+    const payload = rawPayload as Record<string, unknown>
+    const value =
+        payload.referencenumber ?? payload.referenceNumber ?? payload.reference_number ?? payload.refNo ?? payload.refno
+
+    return value === null || value === undefined ? '' : String(value)
+}
+
 function csvEscape(value: unknown) {
-    const text = String(value ?? '')
+    let text = String(value ?? '')
+    if (typeof value === 'string' && /^[=+\-@\t\r]/.test(text)) text = `'${text}`
     return `"${text.replace(/"/g, '""')}"`
 }
 
@@ -50,23 +121,83 @@ export async function GET(request: NextRequest) {
 
         if (format === 'csv') {
             const rows = [
-                ['createdAt', 'externalTransactionId', 'amount', 'transType', 'content', 'status', 'walletCode', 'note'],
-                ...bankTransactions.map((tx) => [
-                    tx.createdAt.toISOString(),
+                [
+                    'STT',
+                    'Thời gian giao dịch ngân hàng',
+                    'Thời gian hệ thống ghi nhận',
+                    'Thời gian cập nhật đối soát',
+                    'Mã giao dịch ngân hàng',
+                    'Số giao dịch ngân hàng',
+                    'Tài khoản ngân hàng',
+                    'Chiều giao dịch',
+                    'Số tiền (VNĐ)',
+                    'Nội dung chuyển khoản',
+                    'Trạng thái đối soát',
+                    'Ghi chú đối soát',
+                    'Mã ví',
+                    'Tên chủ ví',
+                    'Email chủ ví',
+                    'Số điện thoại chủ ví',
+                    'ID giao dịch ví',
+                    'Loại giao dịch ví',
+                    'Nguồn giao dịch ví',
+                    'Trạng thái giao dịch ví',
+                    'Biến động ví (VNĐ)',
+                    'Số dư trước (VNĐ)',
+                    'Số dư sau (VNĐ)',
+                    'Mã giao dịch ngoài của ví',
+                    'Loại tham chiếu',
+                    'Mã tham chiếu',
+                    'Diễn giải giao dịch ví',
+                    'Ghi chú giao dịch ví',
+                    'ID bản ghi đối soát',
+                    'ID ví',
+                ],
+                ...bankTransactions.map((tx, index) => [
+                    index + 1,
+                    formatCsvDateTime(tx.transactionTime),
+                    formatCsvDateTime(tx.createdAt),
+                    formatCsvDateTime(tx.updatedAt),
                     tx.externalTransactionId,
+                    getBankReferenceNumber(tx.rawPayload),
+                    tx.bankAccount || '',
+                    getTransactionDirectionLabel(tx.transType),
                     tx.amount,
-                    tx.transType || '',
                     tx.content || '',
-                    tx.status,
-                    tx.matchedWallet?.walletCode || '',
+                    bankTransactionStatusLabels[tx.status] || tx.status,
                     tx.note || '',
+                    tx.matchedWallet?.walletCode || '',
+                    tx.matchedWallet?.user.name || '',
+                    tx.matchedWallet?.user.email || '',
+                    tx.matchedWallet?.user.phone || '',
+                    tx.matchedTransaction?.id || '',
+                    tx.matchedTransaction
+                        ? walletTransactionTypeLabels[tx.matchedTransaction.type] || tx.matchedTransaction.type
+                        : '',
+                    tx.matchedTransaction
+                        ? walletTransactionSourceLabels[tx.matchedTransaction.source] || tx.matchedTransaction.source
+                        : '',
+                    tx.matchedTransaction
+                        ? walletTransactionStatusLabels[tx.matchedTransaction.status] || tx.matchedTransaction.status
+                        : '',
+                    tx.matchedTransaction?.amount ?? '',
+                    tx.matchedTransaction?.balanceBefore ?? '',
+                    tx.matchedTransaction?.balanceAfter ?? '',
+                    tx.matchedTransaction?.externalTransactionId || '',
+                    tx.matchedTransaction?.referenceType || '',
+                    tx.matchedTransaction?.referenceId || '',
+                    tx.matchedTransaction?.description || '',
+                    tx.matchedTransaction?.note || '',
+                    tx.id,
+                    tx.matchedWalletId || '',
                 ]),
             ]
-            const csv = rows.map((row) => row.map(csvEscape).join(',')).join('\n')
+            const csv = `\uFEFF${rows.map((row) => row.map(csvEscape).join(',')).join('\r\n')}`
+            const exportDate = new Date().toISOString().slice(0, 10)
             return new NextResponse(csv, {
                 headers: {
                     'Content-Type': 'text/csv; charset=utf-8',
-                    'Content-Disposition': 'attachment; filename="wallet-reconciliation.csv"',
+                    'Content-Disposition': `attachment; filename="doi-soat-vi-${exportDate}.csv"`,
                 },
             })
         }

@@ -34,24 +34,34 @@ type WalletTransaction = {
     id: string
     type: string
     source: string
+    status: string
     amount: number
+    balanceBefore: number
     balanceAfter: number
+    externalTransactionId: string | null
+    referenceType: string | null
+    referenceId: string | null
     description: string | null
     note: string | null
     createdAt: string
-    wallet?: { walletCode: string; user: { name: string | null; email: string } }
+    wallet?: { walletCode: string; user: { name: string | null; email: string; phone: string | null } }
+    createdBy?: { name: string | null; email: string } | null
 }
 
 type BankTransaction = {
     id: string
     externalTransactionId: string
+    bankAccount: string | null
     amount: number
     transType: string | null
     content: string | null
     status: string
     note: string | null
+    rawPayload: unknown
+    transactionTime: string | null
     createdAt: string
-    matchedWallet?: { walletCode: string; user: { name: string | null; email: string } } | null
+    matchedWallet?: { walletCode: string; user: { name: string | null; email: string; phone: string | null } } | null
+    matchedTransaction?: { id: string; balanceAfter: number } | null
 }
 
 type WalletsResponse = {
@@ -67,6 +77,62 @@ type WalletsResponse = {
 }
 
 const money = (value: number) => `${value.toLocaleString()}đ`
+
+const transactionTypeLabels: Record<string, string> = {
+    TOPUP: 'Nạp tiền',
+    DEBIT: 'Trừ tiền',
+    ADJUSTMENT: 'Điều chỉnh số dư',
+    REFUND: 'Hoàn tiền',
+    BOOKING_PAYMENT: 'Thanh toán đặt lịch',
+    SUBSCRIPTION_PURCHASE: 'Mua gói thành viên',
+    SESSION_CHARGE: 'Phí sử dụng không gian',
+    OVERAGE_CHARGE: 'Phí quá giờ',
+    OVERAGE_PAYMENT: 'Thanh toán công nợ',
+}
+
+const transactionSourceLabels: Record<string, string> = {
+    SYSTEM: 'Hệ thống',
+    VIETQR: 'VietQR',
+    MANUAL_ADMIN: 'Quản trị viên',
+    BOOKING: 'Đặt lịch',
+    SUBSCRIPTION: 'Gói thành viên',
+    MONTHLY_BEAVER: 'Monthly Beaver',
+}
+
+const transactionStatusLabels: Record<string, string> = {
+    PENDING: 'Đang xử lý',
+    COMPLETED: 'Hoàn tất',
+    FAILED: 'Thất bại',
+    REVERSED: 'Đã hoàn tác',
+}
+
+const bankStatusLabels: Record<string, string> = {
+    PENDING: 'Chờ đối soát',
+    MATCHED: 'Đã đối soát',
+    DUPLICATE: 'Trùng giao dịch',
+    IGNORED: 'Đã bỏ qua',
+    ERROR: 'Lỗi đối soát',
+}
+
+function formatDateTime(value: string | null) {
+    if (!value) return '—'
+    return new Date(value).toLocaleString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    })
+}
+
+function getBankReferenceNumber(rawPayload: unknown) {
+    if (!rawPayload || typeof rawPayload !== 'object' || Array.isArray(rawPayload)) return ''
+    const payload = rawPayload as Record<string, unknown>
+    const value = payload.referencenumber ?? payload.referenceNumber ?? payload.reference_number ?? payload.refNo ?? payload.refno
+    return value === null || value === undefined ? '' : String(value)
+}
 
 export default function AdminWalletsPage() {
     const { hasPermission } = usePermissions()
@@ -341,49 +407,88 @@ export default function AdminWalletsPage() {
                             Export đối soát
                         </a>
                     </div>
-                    <div className="space-y-2">
-                        {bankTransactions.map((tx) => (
-                            <div key={tx.id} className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950 md:flex-row md:items-center md:justify-between">
-                                <div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="font-mono text-sm font-semibold">{tx.externalTransactionId}</span>
-                                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tx.status === 'MATCHED'
-                                            ? 'bg-emerald-100 text-emerald-700'
-                                            : tx.status === 'ERROR'
-                                                ? 'bg-red-100 text-red-700'
-                                                : 'bg-amber-100 text-amber-700'
-                                            }`}>
-                                            {tx.status}
-                                        </span>
-                                    </div>
-                                    <div className="mt-1 text-sm text-neutral-500">{tx.content || 'Không có nội dung'}</div>
-                                    <div className="mt-1 text-xs text-neutral-400">{new Date(tx.createdAt).toLocaleString('vi-VN')}</div>
-                                    {tx.note && <div className="mt-1 text-xs text-amber-600">{tx.note}</div>}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="mr-2 font-semibold">{money(tx.amount)}</span>
-                                    {canManageWallets && tx.status !== 'MATCHED' && (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={() => reconcile(tx.id, 'MATCH')}
-                                                disabled={!matchWalletId}
-                                                className="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                                            >
-                                                Gán ví
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => reconcile(tx.id, 'IGNORE')}
-                                                className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium hover:bg-neutral-50 dark:border-neutral-700"
-                                            >
-                                                Bỏ qua
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+                    <div className="max-h-[680px] overflow-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
+                        <table className="min-w-[1280px] divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
+                            <thead className="sticky top-0 z-10 bg-neutral-50 shadow-sm dark:bg-neutral-900">
+                                <tr>
+                                    <Th>Thời gian</Th>
+                                    <Th>Mã / Số giao dịch</Th>
+                                    <Th>Tài khoản / Nội dung</Th>
+                                    <Th>Ví được ghép</Th>
+                                    <Th>Trạng thái</Th>
+                                    <Th><div className="text-right">Số tiền</div></Th>
+                                    <Th>Thao tác</Th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-100 bg-white dark:divide-neutral-800 dark:bg-neutral-950">
+                                {bankTransactions.map((tx) => {
+                                    const referenceNumber = getBankReferenceNumber(tx.rawPayload)
+                                    return (
+                                        <tr key={tx.id} className="align-top hover:bg-neutral-50 dark:hover:bg-neutral-900/70">
+                                            <Td>
+                                                <div className="whitespace-nowrap font-medium text-neutral-900 dark:text-white">
+                                                    {formatDateTime(tx.transactionTime || tx.createdAt)}
+                                                </div>
+                                                {tx.transactionTime && <div className="mt-1 whitespace-nowrap text-xs text-neutral-400">Nhận: {formatDateTime(tx.createdAt)}</div>}
+                                            </Td>
+                                            <Td>
+                                                <div className="max-w-52 break-all font-mono text-xs font-semibold text-neutral-900 dark:text-white">{tx.externalTransactionId}</div>
+                                                <div className="mt-1 text-xs text-neutral-500">Số GD: <span className="font-mono">{referenceNumber || '—'}</span></div>
+                                            </Td>
+                                            <Td>
+                                                <div className="font-mono text-xs text-neutral-500">{tx.bankAccount || 'Không có số tài khoản'}</div>
+                                                <div className="mt-1 max-w-72 break-words text-neutral-800 dark:text-neutral-200">{tx.content || 'Không có nội dung'}</div>
+                                                {tx.note && <div className="mt-1 max-w-72 text-xs text-amber-600">Ghi chú: {tx.note}</div>}
+                                            </Td>
+                                            <Td>
+                                                {tx.matchedWallet ? (
+                                                    <>
+                                                        <div className="font-mono font-semibold text-primary-600">{tx.matchedWallet.walletCode}</div>
+                                                        <div className="mt-1 max-w-48 truncate text-xs text-neutral-500">{tx.matchedWallet.user.name || tx.matchedWallet.user.email}</div>
+                                                        {tx.matchedTransaction && <div className="mt-1 text-xs text-neutral-400">Số dư sau: {money(tx.matchedTransaction.balanceAfter)}</div>}
+                                                    </>
+                                                ) : (
+                                                    <span className="text-neutral-400">Chưa ghép ví</span>
+                                                )}
+                                            </Td>
+                                            <Td><BankStatusBadge status={tx.status} /></Td>
+                                            <Td>
+                                                <div className="whitespace-nowrap text-right font-bold tabular-nums text-emerald-600">{money(tx.amount)}</div>
+                                                <div className="mt-1 text-right text-xs text-neutral-400">{tx.transType === 'D' ? 'Tiền ra' : 'Tiền vào'}</div>
+                                            </Td>
+                                            <Td>
+                                                {canManageWallets && tx.status !== 'MATCHED' ? (
+                                                    <div className="flex min-w-32 flex-col gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => reconcile(tx.id, 'MATCH')}
+                                                            disabled={!matchWalletId}
+                                                            className="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            Gán ví
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => reconcile(tx.id, 'IGNORE')}
+                                                            className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+                                                        >
+                                                            Bỏ qua
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-neutral-400">Không có thao tác</span>
+                                                )}
+                                            </Td>
+                                        </tr>
+                                    )
+                                })}
+                                {bankTransactions.length === 0 && (
+                                    <tr>
+                                        <td colSpan={7} className="px-4 py-12 text-center text-sm text-neutral-400">Chưa có giao dịch ngân hàng để đối soát</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}
@@ -474,33 +579,99 @@ function Td({ children }: { children: React.ReactNode }) {
     return <td className="px-4 py-3 align-middle text-neutral-700 dark:text-neutral-300">{children}</td>
 }
 
+function TransactionStatusBadge({ status }: { status: string }) {
+    const classes = status === 'COMPLETED'
+        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+        : status === 'PENDING'
+            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+
+    return (
+        <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold ${classes}`}>
+            {transactionStatusLabels[status] || status}
+        </span>
+    )
+}
+
+function BankStatusBadge({ status }: { status: string }) {
+    const classes = status === 'MATCHED'
+        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+        : status === 'ERROR'
+            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+            : status === 'IGNORED'
+                ? 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300'
+                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+
+    return (
+        <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold ${classes}`}>
+            {bankStatusLabels[status] || status}
+        </span>
+    )
+}
+
 function TransactionList({ transactions }: { transactions: WalletTransaction[] }) {
     return (
-        <div className="space-y-2">
-            {transactions.map((tx) => {
-                const isCredit = tx.amount > 0
-                return (
-                    <div key={tx.id} className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${isCredit ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                    {tx.type}
-                                </span>
-                                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">{tx.source}</span>
-                                <span className="text-sm font-medium">{tx.wallet?.walletCode}</span>
-                            </div>
-                            <div className="mt-1 text-sm text-neutral-500">{tx.wallet?.user.name || tx.wallet?.user.email}</div>
-                            {tx.description && <div className="mt-1 text-xs text-neutral-400">{tx.description}</div>}
-                        </div>
-                        <div className="text-right">
-                            <div className={`text-lg font-bold ${isCredit ? 'text-emerald-600' : 'text-red-600'}`}>
-                                {isCredit ? '+' : '-'}{money(Math.abs(tx.amount))}
-                            </div>
-                            <div className="text-xs text-neutral-400">{new Date(tx.createdAt).toLocaleString('vi-VN')}</div>
-                        </div>
-                    </div>
-                )
-            })}
+        <div className="max-h-[680px] overflow-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
+            <table className="min-w-[1320px] divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
+                <thead className="sticky top-0 z-10 bg-neutral-50 shadow-sm dark:bg-neutral-900">
+                    <tr>
+                        <Th>Thời gian</Th>
+                        <Th>Ví / User</Th>
+                        <Th>Loại / Nguồn</Th>
+                        <Th>Trạng thái</Th>
+                        <Th>Mã tham chiếu</Th>
+                        <Th><div className="text-right">Biến động</div></Th>
+                        <Th><div className="text-right">Số dư trước</div></Th>
+                        <Th><div className="text-right">Số dư sau</div></Th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100 bg-white dark:divide-neutral-800 dark:bg-neutral-950">
+                    {transactions.map((tx) => {
+                        const isCredit = tx.amount > 0
+                        return (
+                            <tr key={tx.id} className="align-top hover:bg-neutral-50 dark:hover:bg-neutral-900/70">
+                                <Td>
+                                    <div className="whitespace-nowrap font-medium text-neutral-900 dark:text-white">{formatDateTime(tx.createdAt)}</div>
+                                    <div className="mt-1 max-w-40 truncate font-mono text-xs text-neutral-400" title={tx.id}>{tx.id}</div>
+                                </Td>
+                                <Td>
+                                    <div className="font-mono font-semibold text-primary-600">{tx.wallet?.walletCode || '—'}</div>
+                                    <div className="mt-1 max-w-52 truncate text-xs text-neutral-500">{tx.wallet?.user.name || tx.wallet?.user.email || 'Không xác định'}</div>
+                                    {tx.wallet?.user.phone && <div className="mt-0.5 text-xs text-neutral-400">{tx.wallet.user.phone}</div>}
+                                </Td>
+                                <Td>
+                                    <div className="font-semibold text-neutral-900 dark:text-white">{transactionTypeLabels[tx.type] || tx.type}</div>
+                                    <div className="mt-1 text-xs text-neutral-500">{transactionSourceLabels[tx.source] || tx.source}</div>
+                                    {tx.description && <div className="mt-1 max-w-64 break-words text-xs text-neutral-400">{tx.description}</div>}
+                                    {tx.note && <div className="mt-1 max-w-64 break-words text-xs text-amber-600">Ghi chú: {tx.note}</div>}
+                                </Td>
+                                <Td><TransactionStatusBadge status={tx.status} /></Td>
+                                <Td>
+                                    <div className="max-w-52 break-all font-mono text-xs text-neutral-700 dark:text-neutral-300">{tx.externalTransactionId || '—'}</div>
+                                    {(tx.referenceType || tx.referenceId) && (
+                                        <div className="mt-1 max-w-52 break-all text-xs text-neutral-400">
+                                            {tx.referenceType || 'Tham chiếu'}: <span className="font-mono">{tx.referenceId || '—'}</span>
+                                        </div>
+                                    )}
+                                    {tx.createdBy && <div className="mt-1 text-xs text-neutral-400">Tạo bởi: {tx.createdBy.name || tx.createdBy.email}</div>}
+                                </Td>
+                                <Td>
+                                    <div className={`whitespace-nowrap text-right font-bold tabular-nums ${isCredit ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {isCredit ? '+' : '-'}{money(Math.abs(tx.amount))}
+                                    </div>
+                                </Td>
+                                <Td><div className="whitespace-nowrap text-right tabular-nums">{money(tx.balanceBefore)}</div></Td>
+                                <Td><div className="whitespace-nowrap text-right font-semibold tabular-nums text-neutral-900 dark:text-white">{money(tx.balanceAfter)}</div></Td>
+                            </tr>
+                        )
+                    })}
+                    {transactions.length === 0 && (
+                        <tr>
+                            <td colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-400">Chưa có giao dịch ví</td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
         </div>
     )
 }
