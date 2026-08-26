@@ -83,7 +83,12 @@ export async function GET(request: NextRequest) {
         const source = searchParams.get('source')
         const format = searchParams.get('format')
         const query = searchParams.get('q')?.trim()
-        const limit = Math.min(Number(searchParams.get('limit') || 100), 500)
+        const requestedPage = Number(searchParams.get('page') || 1)
+        const requestedLimit = Number(searchParams.get('limit') || (format === 'csv' ? 500 : 20))
+        const page = Number.isFinite(requestedPage) ? Math.max(1, Math.floor(requestedPage)) : 1
+        const limit = Number.isFinite(requestedLimit)
+            ? Math.min(500, Math.max(1, Math.floor(requestedLimit)))
+            : 20
 
         const where: any = {}
         if (type && type !== 'ALL') where.type = type
@@ -99,26 +104,30 @@ export async function GET(request: NextRequest) {
             ]
         }
 
-        const transactions = await prisma.walletTransaction.findMany({
-            where,
-            orderBy: { createdAt: 'desc' },
-            take: limit,
-            include: {
-                wallet: {
-                    include: {
-                        user: { select: { name: true, email: true, phone: true } },
+        const [transactions, total] = await Promise.all([
+            prisma.walletTransaction.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    wallet: {
+                        include: {
+                            user: { select: { name: true, email: true, phone: true } },
+                        },
+                    },
+                    createdBy: { select: { name: true, email: true } },
+                    bankTransaction: {
+                        select: {
+                            externalTransactionId: true,
+                            transactionTime: true,
+                            rawPayload: true,
+                        },
                     },
                 },
-                createdBy: { select: { name: true, email: true } },
-                bankTransaction: {
-                    select: {
-                        externalTransactionId: true,
-                        transactionTime: true,
-                        rawPayload: true,
-                    },
-                },
-            },
-        })
+            }),
+            prisma.walletTransaction.count({ where }),
+        ])
 
         if (format === 'csv') {
             const rows = [
@@ -189,7 +198,15 @@ export async function GET(request: NextRequest) {
             })
         }
 
-        return NextResponse.json({ transactions })
+        return NextResponse.json({
+            transactions,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.max(1, Math.ceil(total / limit)),
+            },
+        })
     } catch (error) {
         console.error('[AdminWalletTransactions] Error:', error)
         return NextResponse.json({ error: 'Không thể tải giao dịch ví' }, { status: 500 })

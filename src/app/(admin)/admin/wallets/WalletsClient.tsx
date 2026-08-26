@@ -1,5 +1,6 @@
 'use client'
 
+import { AdminPagination } from '@/components/admin/ui'
 import { usePermissions } from '@/contexts/PermissionsContext'
 import {
     ArrowDownTrayIcon,
@@ -76,6 +77,16 @@ type WalletsResponse = {
     recentTransactions: WalletTransaction[]
 }
 
+type PaginationMeta = {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+}
+
+const PAGE_SIZE = 20
+const initialPagination: PaginationMeta = { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 }
+
 const money = (value: number) => `${value.toLocaleString()}đ`
 
 const transactionTypeLabels: Record<string, string> = {
@@ -143,6 +154,10 @@ export default function AdminWalletsPage() {
     const [walletData, setWalletData] = useState<WalletsResponse | null>(null)
     const [transactions, setTransactions] = useState<WalletTransaction[]>([])
     const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([])
+    const [transactionPage, setTransactionPage] = useState(1)
+    const [reconciliationPage, setReconciliationPage] = useState(1)
+    const [transactionPagination, setTransactionPagination] = useState<PaginationMeta>(initialPagination)
+    const [reconciliationPagination, setReconciliationPagination] = useState<PaginationMeta>(initialPagination)
     const [loading, setLoading] = useState(false)
     const [selectedWallet, setSelectedWallet] = useState<WalletRow | null>(null)
     const [adjustAction, setAdjustAction] = useState<'TOPUP' | 'DEBIT' | 'REFUND' | 'ADJUSTMENT' | 'PAY_DEBT'>('TOPUP')
@@ -172,19 +187,21 @@ export default function AdminWalletsPage() {
         }
     }
 
-    const fetchTransactions = async () => {
-        const res = await fetch('/api/admin/wallet-transactions?limit=100')
+    const fetchTransactions = async (page = transactionPage) => {
+        const res = await fetch(`/api/admin/wallet-transactions?page=${page}&limit=${PAGE_SIZE}`)
         if (res.ok) {
             const data = await res.json()
             setTransactions(data.transactions)
+            setTransactionPagination(data.pagination)
         }
     }
 
-    const fetchBankTransactions = async () => {
-        const res = await fetch('/api/admin/wallet-reconciliation?limit=100')
+    const fetchBankTransactions = async (page = reconciliationPage) => {
+        const res = await fetch(`/api/admin/wallet-reconciliation?page=${page}&limit=${PAGE_SIZE}`)
         if (res.ok) {
             const data = await res.json()
             setBankTransactions(data.bankTransactions)
+            setReconciliationPagination(data.pagination)
         }
     }
 
@@ -193,9 +210,19 @@ export default function AdminWalletsPage() {
     }
 
     useEffect(() => {
-        refreshAll()
+        fetchWallets()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
+
+    useEffect(() => {
+        fetchTransactions(transactionPage)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [transactionPage])
+
+    useEffect(() => {
+        fetchBankTransactions(reconciliationPage)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reconciliationPage])
 
     const submitAdjustment = async () => {
         if (!selectedWallet) return
@@ -378,7 +405,11 @@ export default function AdminWalletsPage() {
             )}
 
             {activeTab === 'transactions' && (
-                <TransactionList transactions={transactions} />
+                <TransactionList
+                    transactions={transactions}
+                    pagination={transactionPagination}
+                    onPageChange={setTransactionPage}
+                />
             )}
 
             {activeTab === 'reconciliation' && (
@@ -407,9 +438,10 @@ export default function AdminWalletsPage() {
                             Export đối soát
                         </a>
                     </div>
-                    <div className="max-h-[680px] overflow-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
-                        <table className="w-full min-w-[1280px] divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
-                            <thead className="sticky top-0 z-10 bg-neutral-50 shadow-sm dark:bg-neutral-900">
+                    <div className="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800">
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[1280px] divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
+                            <thead className="bg-neutral-50 dark:bg-neutral-900">
                                 <tr>
                                     <Th>Thời gian</Th>
                                     <Th>Mã / Số giao dịch</Th>
@@ -488,7 +520,13 @@ export default function AdminWalletsPage() {
                                     </tr>
                                 )}
                             </tbody>
-                        </table>
+                            </table>
+                        </div>
+                        <WalletTablePagination
+                            pagination={reconciliationPagination}
+                            onPageChange={setReconciliationPage}
+                            itemLabel="giao dịch đối soát"
+                        />
                     </div>
                 </div>
             )}
@@ -609,11 +647,20 @@ function BankStatusBadge({ status }: { status: string }) {
     )
 }
 
-function TransactionList({ transactions }: { transactions: WalletTransaction[] }) {
+function TransactionList({
+    transactions,
+    pagination,
+    onPageChange,
+}: {
+    transactions: WalletTransaction[]
+    pagination: PaginationMeta
+    onPageChange: (page: number) => void
+}) {
     return (
-        <div className="max-h-[680px] overflow-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
-            <table className="w-full min-w-[1320px] divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
-                <thead className="sticky top-0 z-10 bg-neutral-50 shadow-sm dark:bg-neutral-900">
+        <div className="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800">
+            <div className="overflow-x-auto">
+                <table className="w-full min-w-[1320px] divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
+                <thead className="bg-neutral-50 dark:bg-neutral-900">
                     <tr>
                         <Th>Thời gian</Th>
                         <Th>Ví / User</Th>
@@ -671,7 +718,38 @@ function TransactionList({ transactions }: { transactions: WalletTransaction[] }
                         </tr>
                     )}
                 </tbody>
-            </table>
+                </table>
+            </div>
+            <WalletTablePagination pagination={pagination} onPageChange={onPageChange} itemLabel="giao dịch ví" />
         </div>
+    )
+}
+
+function WalletTablePagination({
+    pagination,
+    onPageChange,
+    itemLabel,
+}: {
+    pagination: PaginationMeta
+    onPageChange: (page: number) => void
+    itemLabel: string
+}) {
+    const start = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1
+    const end = Math.min(pagination.page * pagination.limit, pagination.total)
+    const summary = pagination.total === 0
+        ? `0 ${itemLabel}`
+        : `Hiển thị ${start}-${end} / ${pagination.total} ${itemLabel}`
+
+    if (pagination.totalPages <= 1) {
+        return <p className="border-t border-neutral-200 px-5 py-4 text-sm text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">{summary}</p>
+    }
+
+    return (
+        <AdminPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={onPageChange}
+            summary={summary}
+        />
     )
 }

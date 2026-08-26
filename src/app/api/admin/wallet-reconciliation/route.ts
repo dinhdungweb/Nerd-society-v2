@@ -92,7 +92,12 @@ export async function GET(request: NextRequest) {
         const status = searchParams.get('status')
         const query = searchParams.get('q')?.trim()
         const format = searchParams.get('format')
-        const limit = Math.min(Number(searchParams.get('limit') || 100), 500)
+        const requestedPage = Number(searchParams.get('page') || 1)
+        const requestedLimit = Number(searchParams.get('limit') || (format === 'csv' ? 500 : 20))
+        const page = Number.isFinite(requestedPage) ? Math.max(1, Math.floor(requestedPage)) : 1
+        const limit = Number.isFinite(requestedLimit)
+            ? Math.min(500, Math.max(1, Math.floor(requestedLimit)))
+            : 20
 
         const where: any = {}
         if (status && status !== 'ALL') where.status = status
@@ -105,19 +110,23 @@ export async function GET(request: NextRequest) {
             ]
         }
 
-        const bankTransactions = await prisma.bankTransaction.findMany({
-            where,
-            orderBy: { createdAt: 'desc' },
-            take: limit,
-            include: {
-                matchedWallet: {
-                    include: {
-                        user: { select: { name: true, email: true, phone: true } },
+        const [bankTransactions, total] = await Promise.all([
+            prisma.bankTransaction.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    matchedWallet: {
+                        include: {
+                            user: { select: { name: true, email: true, phone: true } },
+                        },
                     },
+                    matchedTransaction: true,
                 },
-                matchedTransaction: true,
-            },
-        })
+            }),
+            prisma.bankTransaction.count({ where }),
+        ])
 
         if (format === 'csv') {
             const rows = [
@@ -202,7 +211,15 @@ export async function GET(request: NextRequest) {
             })
         }
 
-        return NextResponse.json({ bankTransactions })
+        return NextResponse.json({
+            bankTransactions,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.max(1, Math.ceil(total / limit)),
+            },
+        })
     } catch (error) {
         console.error('[WalletReconciliation] Error:', error)
         return NextResponse.json({ error: 'Không thể tải giao dịch đối soát' }, { status: 500 })
