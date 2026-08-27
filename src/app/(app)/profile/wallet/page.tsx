@@ -1,4 +1,5 @@
 import WalletTopupModal from '@/components/profile/WalletTopupModal'
+import PayDebtButton from '@/components/profile/PayDebtButton'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getVietQRConfig } from '@/lib/vietqr'
@@ -285,9 +286,15 @@ export default async function WalletPage({ searchParams }: WalletPageProps) {
               </div>
 
               {(walletAccount.subscriber?.outstandingBalance || 0) > 0 && (
-                <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-medium text-red-200">
-                  <ExclamationTriangleIcon className="size-4" />
-                  Công nợ hiện tại: {formatMoney(walletAccount.subscriber?.outstandingBalance || 0)}
+                <div className="mt-4 rounded-xl bg-red-500/15 p-3 text-red-200">
+                  <div className="flex items-center gap-2 text-xs font-medium">
+                    <ExclamationTriangleIcon className="size-4" />
+                    Công nợ hiện tại: {formatMoney(walletAccount.subscriber?.outstandingBalance || 0)}
+                  </div>
+                  <PayDebtButton
+                    outstandingBalance={walletAccount.subscriber?.outstandingBalance || 0}
+                    walletBalance={wallet.balance}
+                  />
                 </div>
               )}
 

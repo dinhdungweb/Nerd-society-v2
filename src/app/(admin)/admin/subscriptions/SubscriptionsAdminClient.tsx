@@ -115,14 +115,25 @@ export default function SubscriptionsAdminClient() {
   // Actions
   const handleConfirmPayment = async (orderId: string) => {
     setActionLoading(true);
-    await fetch('/api/admin/subscriptions/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'confirm_payment', orderId }),
-    });
-    setActionLoading(false);
-    fetchData();
-    setSelectedOrder(null);
+    try {
+      const res = await fetch('/api/admin/subscriptions/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'confirm_payment', orderId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert('Lỗi: ' + (data.error || 'Không thể xác nhận thanh toán'));
+        return;
+      }
+
+      fetchData();
+      setSelectedOrder(null);
+    } catch {
+      alert('Có lỗi xảy ra khi xác nhận thanh toán');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleIssueQr = async (orderId: string) => {

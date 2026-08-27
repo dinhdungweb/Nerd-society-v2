@@ -191,6 +191,15 @@ export default async function MonthlyBeaverPage() {
         )
     }
 
+    const outstandingBalance = Math.max(0, subscriber.outstandingBalance || 0)
+    const hasOutstandingDebt = outstandingBalance > 0
+    const renewalDebtNotice = hasOutstandingDebt ? (
+        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+            <p className="font-semibold">Bạn đang còn công nợ {outstandingBalance.toLocaleString('vi-VN')}đ.</p>
+            <p className="mt-1">Vui lòng thanh toán công nợ trước khi gia hạn Monthly Beaver.</p>
+        </div>
+    ) : null
+
     const { payload: membershipQrPayload } = await ensureMembershipQrCredential(subscriber.id)
 
     const activeSub = subscriber.subscriptions.find(s => s.status === 'ACTIVE' || s.status === 'PENDING_ACTIVATION')
@@ -292,27 +301,31 @@ export default async function MonthlyBeaverPage() {
                                         </p>
                                     </div>
                                 </div>
-                                {renewalEligibility.eligible && (
-                                    <div className="mt-6">
-                                        <RenewPlanClientWrapper
-                                            subscriberId={subscriber.id}
-                                            currentPlanType={activeSub.planType}
-                                            walletBalance={walletBalance}
-                                            walletStatus={walletStatus}
-                                        />
-                                    </div>
-                                )}
+                                {hasOutstandingDebt
+                                    ? renewalDebtNotice
+                                    : renewalEligibility.eligible && (
+                                        <div className="mt-6">
+                                            <RenewPlanClientWrapper
+                                                subscriberId={subscriber.id}
+                                                currentPlanType={activeSub.planType}
+                                                walletBalance={walletBalance}
+                                                walletStatus={walletStatus}
+                                            />
+                                        </div>
+                                    )}
                             </div>
                         ) : (
                             <div className="mt-6">
                                 <p className="max-w-xl text-sm text-neutral-600 dark:text-neutral-400 mb-4">
                                     Bạn chưa có gói Monthly Beaver đang hoạt động. Bạn có thể gia hạn và tiếp tục sử dụng QR hiện tại.
                                 </p>
-                                <RenewPlanClientWrapper 
-                                    subscriberId={subscriber.id}
-                                    walletBalance={walletBalance}
-                                    walletStatus={walletStatus}
-                                />
+                                {hasOutstandingDebt ? renewalDebtNotice : (
+                                    <RenewPlanClientWrapper
+                                        subscriberId={subscriber.id}
+                                        walletBalance={walletBalance}
+                                        walletStatus={walletStatus}
+                                    />
+                                )}
                             </div>
                         )}
 

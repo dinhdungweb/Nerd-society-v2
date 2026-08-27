@@ -41,6 +41,10 @@ const PLAN_DURATION_DAYS: Record<string, number> = {
   MONTHLY_UNLIMITED: 30,
 };
 
+function getRenewalDebtMessage(outstandingBalance: number) {
+  return `Bạn đang còn công nợ ${outstandingBalance.toLocaleString('vi-VN')}đ. Vui lòng thanh toán công nợ trước khi gia hạn.`;
+}
+
 function normalizePhone(phone?: string | null) {
   const digits = phone?.replace(/\D/g, '') || '';
   return digits.startsWith('84') && digits.length > 9 ? `0${digits.slice(2)}` : digits;
@@ -252,6 +256,17 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
         throw new Error('Không thể thanh toán đơn đăng ký ở trạng thái hiện tại');
       }
 
+      if (freshOrder.subscriberId) {
+        const renewalSubscriber = await tx.subscriber.findUnique({
+          where: { id: freshOrder.subscriberId },
+          select: { outstandingBalance: true },
+        });
+        const outstandingBalance = renewalSubscriber?.outstandingBalance || 0;
+        if (outstandingBalance > 0) {
+          throw new Error(getRenewalDebtMessage(outstandingBalance));
+        }
+      }
+
       const walletResult = await applyWalletTransactionInTx(tx, {
         walletId: walletAccount.wallet.id,
         type: 'SUBSCRIPTION_PURCHASE',
@@ -331,6 +346,18 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
  * Admin: Xác nhận thanh toán đơn
  */
 export async function confirmPayment(orderId: string, paymentRef?: string) {
+  const renewalOrder = await prisma.registrationOrder.findUnique({
+    where: { id: orderId },
+    select: {
+      subscriberId: true,
+      subscriber: { select: { outstandingBalance: true } },
+    },
+  });
+  const outstandingBalance = renewalOrder?.subscriber?.outstandingBalance || 0;
+  if (renewalOrder?.subscriberId && outstandingBalance > 0) {
+    return { success: false, error: getRenewalDebtMessage(outstandingBalance) };
+  }
+
   const order = await prisma.registrationOrder.update({
     where: { id: orderId },
     data: {
@@ -543,6 +570,12 @@ export async function createRenewalOrder(data: {
   });
   if (!subscriber) return { success: false, error: 'Không tìm thấy thông tin hội viên' };
   if (subscriber.userId !== session.user.id) return { success: false, error: 'Không có quyền thao tác' };
+  if (subscriber.outstandingBalance > 0) {
+    return {
+      success: false,
+      error: getRenewalDebtMessage(subscriber.outstandingBalance),
+    };
+  }
 
   const pendingActivation = subscriber.subscriptions.find(
     (subscription) => subscription.status === 'PENDING_ACTIVATION'
