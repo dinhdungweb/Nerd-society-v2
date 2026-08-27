@@ -16,10 +16,11 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "test:nerd-night": "tsx scripts/test-nerd-night-flows.ts",
+    "test:zbs": "node --import tsx --test src/lib/external/zalo-oa.test.ts",
+    "test:zbs:live": "tsx scripts/test-zbs-send.ts",
     "test:qr-checkin": "tsx scripts/test-qr-checkin.ts",
     "test:qr-checkin:integration": "tsx scripts/test-qr-checkin-integration.ts",
     "test:qr-checkin:api": "tsx scripts/test-qr-checkin-api.ts"
-
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

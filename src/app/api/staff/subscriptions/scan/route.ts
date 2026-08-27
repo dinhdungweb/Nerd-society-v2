@@ -1,6 +1,6 @@
 import { getRolePermissions } from '@/lib/apiPermissions'
 import { getStaffSession } from '@/lib/authHelpers'
-import { sendZaloNotification, type ZaloTemplateType } from '@/lib/external/zalo-oa'
+import { createZbsTrackingId, sendZaloNotification, type ZaloTemplateType } from '@/lib/external/zalo-oa'
 import { prisma } from '@/lib/prisma'
 import { processMembershipQrScan } from '@/lib/subscription/membership-scan'
 import { NextResponse } from 'next/server'
@@ -27,13 +27,36 @@ async function notifyScanResult(result: Awaited<ReturnType<typeof processMembers
   if (result.code.startsWith('BLOCK_')) type = 'BLOCK_CHECKIN'
   if (!type) return
 
-  await sendZaloNotification(subscriber.phone, type, {
-    CustomerName: result.subscriberName || 'Khách hàng',
-    Branch: result.branch || result.locationCode,
-    RemainingTime: result.remainingMin === undefined ? '' : String(result.remainingMin),
-    Duration: result.durationMin === undefined ? '' : String(result.durationMin),
-    AmountCharged: String(result.amountCharged || 0),
-    Message: result.message,
+  const commonData = {
+    customer_name: result.subscriberName || 'Khách hàng',
+    branch: result.branch || result.locationCode,
+  }
+  const templateData: Record<string, string> =
+    type === 'CHECK_IN_SUB'
+      ? { ...commonData, remaining_time: String(result.remainingMin || 0) }
+      : type === 'CHECK_IN_WALLET'
+        ? { ...commonData, wallet_balance: String(result.walletBalance || 0) }
+        : type === 'CHECK_OUT_SUB'
+          ? {
+              ...commonData,
+              duration: String(result.durationMin || 0),
+              remaining_time: String(result.remainingMin || 0),
+            }
+          : type === 'CHECK_OUT_WALLET'
+            ? {
+                ...commonData,
+                duration: String(result.durationMin || 0),
+                amount_charged: String(result.amountCharged || 0),
+                wallet_balance: String(result.walletBalance || 0),
+              }
+            : {
+                ...commonData,
+                amount_due: String(result.outstandingBalance || 0),
+                message: result.message,
+              }
+
+  await sendZaloNotification(subscriber.phone, type, templateData, {
+    trackingId: createZbsTrackingId(type, result.requestId),
   })
 }
 
