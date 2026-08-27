@@ -19,11 +19,10 @@ ZALO_OA_REFRESH_TOKEN=
 ZALO_TOKEN_ENCRYPTION_KEY=
 ZALO_OA_SECRET_KEY=
 
-ZALO_ZBS_TEMPLATE_CHECK_IN_SUB=
-ZALO_ZBS_TEMPLATE_CHECK_IN_WALLET=
-ZALO_ZBS_TEMPLATE_CHECK_OUT_SUB=
-ZALO_ZBS_TEMPLATE_CHECK_OUT_WALLET=
-ZALO_ZBS_TEMPLATE_BLOCK_CHECKIN=
+ZALO_ZBS_TEMPLATE_SUBSCRIPTION_SUCCESS=
+ZALO_ZBS_TEMPLATE_OVERAGE_DEBT=
+ZALO_ZBS_TEMPLATE_BLOCK_DEBT=
+ZALO_ZBS_TEMPLATE_SUB_EXPIRING=
 ```
 
 `ZALO_TOKEN_ENCRYPTION_KEY` must be a unique random value of at least 32 characters. The initial refresh token is bootstrapped from the environment. Every rotated access/refresh token pair is encrypted and stored in `ZaloOAuthCredential`.
@@ -34,15 +33,16 @@ ZALO_ZBS_TEMPLATE_BLOCK_CHECKIN=
 
 Create and approve the templates with exactly these parameter names:
 
-| Template           | Required parameters                                                       |
-| ------------------ | ------------------------------------------------------------------------- |
-| `CHECK_IN_SUB`     | `customer_name`, `branch`, `remaining_time`                               |
-| `CHECK_IN_WALLET`  | `customer_name`, `branch`, `wallet_balance`                               |
-| `CHECK_OUT_SUB`    | `customer_name`, `branch`, `duration`, `remaining_time`                   |
-| `CHECK_OUT_WALLET` | `customer_name`, `branch`, `duration`, `amount_charged`, `wallet_balance` |
-| `BLOCK_CHECKIN`    | `customer_name`, `branch`, `amount_due`, `message`                        |
+| Template               | Required parameters                                                      |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `SUBSCRIPTION_SUCCESS` | `customer_name`, `action`, `plan_name`, `branch`, `expiry_date`          |
+| `OVERAGE_DEBT`         | `customer_name`, `branch`, `overage_minutes`, `amount_due`, `total_debt` |
+| `BLOCK_DEBT`           | `customer_name`, `branch`, `amount_due`                                  |
+| `SUB_EXPIRING`         | `customer_name`, `plan_name`, `expiry_date`, `days_remaining`            |
 
 The time values are minutes. Money values are integer VND strings without separators.
+
+No ZBS message is sent for ordinary check-in/check-out, unpaid-debt reminders, successful debt payments, low wallet balance, or non-debt check-in blocks.
 
 ## 4. Deploy
 
@@ -74,6 +74,7 @@ For a real Zalo development-mode send, use an approved test template and an appl
 ## 6. Operations
 
 - `ZbsMessageLog` stores only the last four phone digits, tracking ID, provider message ID, status, and errors.
-- A scan request generates a deterministic tracking ID, so retrying the same request does not charge/send twice after a successful send.
+- Subscription/order/session IDs generate deterministic tracking IDs, so retrying the same business event does not charge/send twice after a successful send.
+- Subscription maintenance sends the expiry reminder only for active subscriptions whose end date is exactly three business days away. It runs every 15 minutes and the tracking ID prevents duplicates.
 - Zalo error `-124` triggers one forced OAuth refresh and one resend attempt.
 - If the refresh token expires or authorization is revoked, obtain a new token pair and replace `ZALO_OA_REFRESH_TOKEN`; clear the `primary` row in `ZaloOAuthCredential` only as part of that controlled re-authorization procedure.

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { businessDateOnly } from '@/lib/subscription/date-utils'
 import { autoCheckOutStaleSessions } from '@/lib/subscription/session-manager'
+import { notifyExpiringSubscriptions } from '@/lib/subscription/zalo-notifications'
 
 export async function expireOverdueSubscriptions(today: Date = businessDateOnly(), subscriberId?: string) {
   const subscriptions = await prisma.subscription.findMany({
@@ -28,9 +29,10 @@ export async function expireOverdueSubscriptions(today: Date = businessDateOnly(
 }
 
 export async function runSubscriptionMaintenance() {
-  const [expired, autoCheckouts] = await Promise.all([
+  const [expired, autoCheckouts, expiringNotifications] = await Promise.all([
     expireOverdueSubscriptions(),
     autoCheckOutStaleSessions(),
+    notifyExpiringSubscriptions(),
   ])
-  return { expired, autoCheckouts: autoCheckouts.length }
+  return { expired, autoCheckouts: autoCheckouts.length, expiringNotifications }
 }

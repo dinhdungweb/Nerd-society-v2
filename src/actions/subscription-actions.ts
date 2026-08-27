@@ -12,6 +12,7 @@ import { authOptions } from '@/lib/auth';
 import { businessDateOnly } from '@/lib/subscription/date-utils';
 import { getRenewalEligibility, RENEWAL_WINDOW_DAYS } from '@/lib/subscription/renewal-policy';
 import { buildMembershipQrPayload, ensureMembershipQrCredential } from '@/lib/subscription/qr-credential';
+import { notifySubscriptionSuccess } from '@/lib/subscription/zalo-notifications';
 import { getServerSession } from 'next-auth';
 import { randomUUID } from 'crypto';
 import {
@@ -316,6 +317,11 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
         await processRenewalSubscription(tx, result.order.id, result.walletTransaction?.id || null);
       });
       if (result.order.subscriberId) await ensureMembershipQrCredential(result.order.subscriberId);
+      try {
+        await notifySubscriptionSuccess(result.order.id, 'RENEWED');
+      } catch (zaloError) {
+        console.error('[payRegistrationOrderWithWallet] Zalo notification error:', zaloError);
+      }
     }
 
     try {
@@ -382,6 +388,11 @@ export async function confirmPayment(orderId: string, paymentRef?: string) {
       await processRenewalSubscription(tx, order.id, paymentRef || null);
     });
     await ensureMembershipQrCredential(order.subscriberId);
+    try {
+      await notifySubscriptionSuccess(order.id, 'RENEWED');
+    } catch (zaloError) {
+      console.error('[confirmPayment] Zalo notification error:', zaloError);
+    }
   }
 
   try {
@@ -811,6 +822,11 @@ export async function issueQrAndCreate(orderId: string, staffName: string) {
   });
 
   if (order.userId && orderBelongsToUser) await ensureUserWalletAccount(order.userId);
+  try {
+    await notifySubscriptionSuccess(order.id, 'REGISTERED');
+  } catch (zaloError) {
+    console.error('[issueQrAndCreate] Zalo notification error:', zaloError);
+  }
   revalidatePath('/admin/subscriptions');
   revalidatePath('/profile/monthly-beaver');
   return { success: true, ...result, qrPayload: buildMembershipQrPayload(result.credential) };

@@ -1,8 +1,8 @@
 import { getRolePermissions } from '@/lib/apiPermissions'
 import { getStaffSession } from '@/lib/authHelpers'
-import { createZbsTrackingId, sendZaloNotification, type ZaloTemplateType } from '@/lib/external/zalo-oa'
 import { prisma } from '@/lib/prisma'
 import { processMembershipQrScan } from '@/lib/subscription/membership-scan'
+import { notifyBlockedByDebt, notifyOverageDebt } from '@/lib/subscription/zalo-notifications'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -13,51 +13,27 @@ const scanSchema = z.object({
 })
 
 async function notifyScanResult(result: Awaited<ReturnType<typeof processMembershipQrScan>>) {
-  if (!result.subscriberId) return
-  const subscriber = await prisma.subscriber.findUnique({
-    where: { id: result.subscriberId },
-    select: { phone: true },
-  })
-  if (!subscriber?.phone) return
-
-  const usesWallet = !result.planType
-  let type: ZaloTemplateType | null = null
-  if (result.code === 'CHECK_IN_SUCCESS') type = usesWallet ? 'CHECK_IN_WALLET' : 'CHECK_IN_SUB'
-  if (result.code === 'CHECK_OUT_SUCCESS') type = usesWallet ? 'CHECK_OUT_WALLET' : 'CHECK_OUT_SUB'
-  if (result.code.startsWith('BLOCK_')) type = 'BLOCK_CHECKIN'
-  if (!type) return
-
-  const commonData = {
-    customer_name: result.subscriberName || 'Khách hàng',
-    branch: result.branch || result.locationCode,
+  if (result.code === 'CHECK_OUT_SUCCESS') {
+    await notifyOverageDebt({
+      subscriberId: result.subscriberId,
+      subscriberName: result.subscriberName,
+      branch: result.branch || result.locationCode,
+      sessionId: result.sessionId,
+      overageMin: result.overageMin,
+      amountCharged: result.amountCharged,
+    })
+    return
   }
-  const templateData: Record<string, string> =
-    type === 'CHECK_IN_SUB'
-      ? { ...commonData, remaining_time: String(result.remainingMin || 0) }
-      : type === 'CHECK_IN_WALLET'
-        ? { ...commonData, wallet_balance: String(result.walletBalance || 0) }
-        : type === 'CHECK_OUT_SUB'
-          ? {
-              ...commonData,
-              duration: String(result.durationMin || 0),
-              remaining_time: String(result.remainingMin || 0),
-            }
-          : type === 'CHECK_OUT_WALLET'
-            ? {
-                ...commonData,
-                duration: String(result.durationMin || 0),
-                amount_charged: String(result.amountCharged || 0),
-                wallet_balance: String(result.walletBalance || 0),
-              }
-            : {
-                ...commonData,
-                amount_due: String(result.outstandingBalance || 0),
-                message: result.message,
-              }
 
-  await sendZaloNotification(subscriber.phone, type, templateData, {
-    trackingId: createZbsTrackingId(type, result.requestId),
-  })
+  if (result.code === 'BLOCK_DEBT') {
+    await notifyBlockedByDebt({
+      subscriberId: result.subscriberId,
+      subscriberName: result.subscriberName,
+      branch: result.branch || result.locationCode,
+      outstandingBalance: result.outstandingBalance,
+      eventKey: result.requestId,
+    })
+  }
 }
 
 async function authorize() {

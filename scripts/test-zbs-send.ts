@@ -7,38 +7,38 @@ import {
 import { prisma } from '@/lib/prisma'
 
 const SAMPLE_DATA: Record<ZaloTemplateType, Record<string, string>> = {
-  CHECK_IN_SUB: { customer_name: 'Khách kiểm thử', branch: 'HTM', remaining_time: '240' },
-  CHECK_IN_WALLET: { customer_name: 'Khách kiểm thử', branch: 'HTM', wallet_balance: '100000' },
-  CHECK_OUT_SUB: {
+  SUBSCRIPTION_SUCCESS: {
+    customer_name: 'Khách kiểm thử',
+    action: 'Đăng ký mới',
+    plan_name: 'Gói Tháng Limited',
+    branch: 'HTM',
+    expiry_date: '01/10/2026',
+  },
+  OVERAGE_DEBT: {
     customer_name: 'Khách kiểm thử',
     branch: 'HTM',
-    duration: '120',
-    remaining_time: '120',
+    overage_minutes: '30',
+    amount_due: '7500',
+    total_debt: '7500',
   },
-  CHECK_OUT_WALLET: {
-    customer_name: 'Khách kiểm thử',
-    branch: 'HTM',
-    duration: '120',
-    amount_charged: '30000',
-    wallet_balance: '70000',
-  },
-  BLOCK_CHECKIN: {
+  BLOCK_DEBT: {
     customer_name: 'Khách kiểm thử',
     branch: 'HTM',
     amount_due: '30000',
-    message: 'Vui lòng thanh toán trước khi check-in.',
   },
-  OVERAGE_WARNING: { customer_name: 'Khách kiểm thử', remaining_time: '30' },
-  LOW_BALANCE: { customer_name: 'Khách kiểm thử', wallet_balance: '20000' },
-  PAYMENT_RECEIVED: { customer_name: 'Khách kiểm thử', amount: '100000' },
-  SUB_EXPIRING: { customer_name: 'Khách kiểm thử', expiry_date: '31/12/2026' },
+  SUB_EXPIRING: {
+    customer_name: 'Khách kiểm thử',
+    plan_name: 'Gói Tháng Limited',
+    expiry_date: '31/12/2026',
+    days_remaining: '3',
+  },
 }
 
 async function main() {
   const phone = process.env.ZALO_ZBS_TEST_PHONE?.trim()
   if (!phone) throw new Error('Missing ZALO_ZBS_TEST_PHONE')
 
-  const requestedType = process.env.ZALO_ZBS_TEST_TYPE?.trim() || 'CHECK_IN_SUB'
+  const requestedType = process.env.ZALO_ZBS_TEST_TYPE?.trim() || 'SUBSCRIPTION_SUCCESS'
   if (!ZALO_TEMPLATE_TYPES.includes(requestedType as ZaloTemplateType)) {
     throw new Error(`Unsupported ZALO_ZBS_TEST_TYPE: ${requestedType}`)
   }

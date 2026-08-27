@@ -5,6 +5,7 @@ import {
   getSubscriptionDailyCapMin,
   roundUpToIncrement,
 } from '@/lib/subscription/usage-billing'
+import { notifyBlockedByDebt, notifyOverageDebt } from '@/lib/subscription/zalo-notifications'
 import { applyWalletTransactionInTx } from '@/lib/wallet-ledger'
 import { Prisma } from '@prisma/client'
 
@@ -432,29 +433,44 @@ export async function checkoutSubscriptionSessionInTx(
   }
 }
 
-export function checkInSubscriber(
-  subscriberId: string,
-  branch: string,
-  options: CheckInOptions = {}
-) {
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${subscriberId}))`
-    return checkInSubscriberInTx(tx, subscriberId, branch, options)
-  })
+export function checkInSubscriber(subscriberId: string, branch: string, options: CheckInOptions = {}) {
+  return prisma
+    .$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${subscriberId}))`
+      return checkInSubscriberInTx(tx, subscriberId, branch, options)
+    })
+    .then((result) => {
+      if (result.errorType === 'BLOCK_DEBT') {
+        void notifyBlockedByDebt({
+          subscriberId: result.subscriberId,
+          subscriberName: result.subscriberName,
+          branch: result.branch || branch,
+          outstandingBalance: result.outstandingBalance,
+        }).catch((error) => console.error('[Subscription Zalo] Block debt notification failed:', error))
+      }
+      return result
+    })
 }
 
 export function checkoutSubscriptionSession(sessionId: string, options: CheckoutSessionOptions = {}) {
-  return prisma.$transaction(async (tx) => {
-    const session = await tx.subscriptionSession.findUnique({
-      where: { id: sessionId },
-      select: { subscriberId: true },
+  return prisma
+    .$transaction(async (tx) => {
+      const session = await tx.subscriptionSession.findUnique({
+        where: { id: sessionId },
+        select: { subscriberId: true },
+      })
+      if (!session) {
+        return { success: false, message: 'Session không tồn tại.', errorType: 'NOT_FOUND' as const }
+      }
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${session.subscriberId}))`
+      return checkoutSubscriptionSessionInTx(tx, sessionId, options)
     })
-    if (!session) {
-      return { success: false, message: 'Session không tồn tại.', errorType: 'NOT_FOUND' as const }
-    }
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${session.subscriberId}))`
-    return checkoutSubscriptionSessionInTx(tx, sessionId, options)
-  })
+    .then((result) => {
+      void notifyOverageDebt(result).catch((error) =>
+        console.error('[Subscription Zalo] Overage notification failed:', error)
+      )
+      return result
+    })
 }
 
 export async function autoCheckOutStaleSessions() {
