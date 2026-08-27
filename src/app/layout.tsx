@@ -23,6 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: new URL('https://nerdsociety.com.vn'),
+    other: {
+      'zalo-platform-site-verification': 'RTon3uQk0Yrbe8Wkeh8_UKI-wo-eo35sDpWp',
+    },
     title: {
       template: '%s - Nerd Society',
       default: config.siteName || 'Nerd Society | Không gian học tập dành cho Gen Z',
@@ -66,4 +69,3 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     </html>
   )
 }
-
