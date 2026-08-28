@@ -22,13 +22,13 @@ const steps = [
     icon: MapPinIcon,
   },
   {
-    title: 'Nhận QR và kích hoạt',
-    desc: 'Gói có hiệu lực ngay khi QR được cấp. Thời hạn không phụ thuộc vào lần check-in đầu tiên.',
+    title: 'Tự động kích hoạt',
+    desc: 'Thanh toán thành công là gói có hiệu lực và QR được cấp tự động. Không cần nhân viên duyệt.',
     icon: BoltIcon,
   },
   {
     title: 'Mỗi lần đến',
-    desc: 'Tap vào → ngồi. Tap ra khi về. Không xếp hàng, không thanh toán từng buổi.',
+    desc: 'Quét QR vào → ngồi. Quét lại khi về. Không xếp hàng, không thanh toán từng buổi.',
     icon: UserGroupIcon,
   },
   {

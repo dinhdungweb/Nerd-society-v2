@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { businessDateOnly, formatBusinessDate } from '@/lib/subscription/date-utils'
+import { ensureMembershipQrCredentialInTx } from '@/lib/subscription/qr-credential'
 import { Prisma, type PlanType } from '@prisma/client'
 
 export const PLAN_HOURS_MIN: Record<PlanType, number> = {
@@ -167,6 +168,111 @@ export async function processRenewalSubscriptionInTx(
   return subscription
 }
 
+async function activateNewRegistrationInTx(
+  tx: Prisma.TransactionClient,
+  orderId: string,
+  paymentRef: string | null,
+  activatedAt: Date,
+  performedBy: string
+): Promise<'REGISTERED' | 'RENEWED'> {
+  const order = await tx.registrationOrder.findUniqueOrThrow({ where: { id: orderId } })
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`monthly-beaver-subscriber:${order.userId || order.phone}`}))`
+
+  const [byUser, byPhone] = await Promise.all([
+    order.userId
+      ? tx.subscriber.findUnique({ where: { userId: order.userId } })
+      : Promise.resolve(null),
+    tx.subscriber.findUnique({ where: { phone: order.phone } }),
+  ])
+  if (byUser && byPhone && byUser.id !== byPhone.id) {
+    throw new Error('Tài khoản và số điện thoại đang thuộc hai hồ sơ Monthly Beaver khác nhau')
+  }
+
+  const existingSubscriber = byUser || byPhone
+  if (existingSubscriber) {
+    if (order.userId && existingSubscriber.userId && existingSubscriber.userId !== order.userId) {
+      throw new Error('Số điện thoại đã thuộc một tài khoản Monthly Beaver khác')
+    }
+    if (existingSubscriber.outstandingBalance > 0) {
+      throw new Error(`Còn công nợ ${existingSubscriber.outstandingBalance.toLocaleString('vi-VN')}đ; không thể kích hoạt gói`)
+    }
+    await tx.subscriber.update({
+      where: { id: existingSubscriber.id },
+      data: {
+        fullName: order.fullName,
+        email: order.email,
+        photoUrl: order.selfieUrl,
+        branchPrimary: order.branchPrimary,
+        ...(order.userId && !existingSubscriber.userId ? { userId: order.userId } : {}),
+      },
+    })
+    await tx.registrationOrder.update({
+      where: { id: order.id },
+      data: { subscriberId: existingSubscriber.id },
+    })
+    await processRenewalSubscriptionInTx(tx, order.id, paymentRef, activatedAt)
+    await ensureMembershipQrCredentialInTx(tx, existingSubscriber.id)
+    return 'RENEWED'
+  }
+
+  const subscriber = await tx.subscriber.create({
+    data: {
+      fullName: order.fullName,
+      phone: order.phone,
+      email: order.email,
+      photoUrl: order.selfieUrl,
+      branchPrimary: order.branchPrimary,
+      userId: order.userId,
+    },
+  })
+  const startDate = businessDateOnly(activatedAt)
+  const endDate = getPlanEndDate(startDate, order.planType)
+  const totalMin = PLAN_HOURS_MIN[order.planType]
+  const subscription = await tx.subscription.create({
+    data: {
+      subscriberId: subscriber.id,
+      planType: order.planType,
+      pricePaid: order.amount,
+      status: 'ACTIVE',
+      activationDate: activatedAt,
+      startDate,
+      endDate,
+      totalHoursMin: totalMin > 0 ? totalMin : null,
+      dailyLimitMin: ['MONTHLY_LIMITED', 'MONTHLY_UNLIMITED'].includes(order.planType) ? 480 : null,
+      paymentMethod: order.paymentMethod,
+      paymentRef,
+    },
+  })
+  await ensureMembershipQrCredentialInTx(tx, subscriber.id)
+  await tx.registrationOrder.update({
+    where: { id: order.id },
+    data: {
+      orderStatus: 'ACTIVATED',
+      subscriberId: subscriber.id,
+      subscriptionId: subscription.id,
+      assignedBy: performedBy,
+      assignedAt: activatedAt,
+    },
+  })
+  await tx.subscriptionAuditLog.create({
+    data: {
+      action: 'registration_auto_activated',
+      entityType: 'registration_order',
+      entityId: order.id,
+      performedBy,
+      details: {
+        subscriberId: subscriber.id,
+        subscriptionId: subscription.id,
+        credential: 'qr',
+        activationPolicy: 'payment_confirmed',
+        startDate,
+        endDate,
+      },
+    },
+  })
+  return 'REGISTERED'
+}
+
 type SettlementOrder = Prisma.RegistrationOrderGetPayload<{
   include: { subscriber: { select: { outstandingBalance: true } } }
 }>
@@ -175,6 +281,7 @@ export type RegistrationOrderSettlementResult = {
   outcome: 'SETTLED' | 'ALREADY_SETTLED' | 'EXPIRED'
   order: SettlementOrder
   isRenewal: boolean
+  activationKind: 'REGISTERED' | 'RENEWED' | null
 }
 
 export async function settleRegistrationOrderInTx(
@@ -194,17 +301,31 @@ export async function settleRegistrationOrderInTx(
     where: { id: input.orderId },
     include: { subscriber: { select: { outstandingBalance: true } } },
   })
-  const isRenewal = Boolean(order.subscriberId)
+  let isRenewal = Boolean(order.subscriberId)
+  let activationKind: RegistrationOrderSettlementResult['activationKind'] = null
 
   if (order.orderStatus === 'ACTIVATED' || order.orderStatus === 'PAID') {
-    if (order.orderStatus === 'PAID' && isRenewal && !order.subscriptionId) {
-      await processRenewalSubscriptionInTx(tx, order.id, input.paymentRef, input.paidAt)
+    if (order.orderStatus === 'PAID' && !order.subscriptionId) {
+      if (isRenewal) {
+        await processRenewalSubscriptionInTx(tx, order.id, input.paymentRef, input.paidAt)
+        await ensureMembershipQrCredentialInTx(tx, order.subscriberId!)
+        activationKind = 'RENEWED'
+      } else {
+        activationKind = await activateNewRegistrationInTx(
+          tx,
+          order.id,
+          input.paymentRef,
+          input.paidAt,
+          input.performedBy
+        )
+        isRenewal = activationKind === 'RENEWED'
+      }
       order = await tx.registrationOrder.findUniqueOrThrow({
         where: { id: order.id },
         include: { subscriber: { select: { outstandingBalance: true } } },
       })
     }
-    return { outcome: 'ALREADY_SETTLED', order, isRenewal }
+    return { outcome: 'ALREADY_SETTLED', order, isRenewal, activationKind }
   }
 
   if (order.orderStatus !== 'PENDING_PAYMENT') {
@@ -226,7 +347,7 @@ export async function settleRegistrationOrderInTx(
         details: { paidAt: input.paidAt, expiresAt: order.expiresAt, paymentRef: input.paymentRef },
       },
     })
-    return { outcome: 'EXPIRED', order, isRenewal }
+    return { outcome: 'EXPIRED', order, isRenewal, activationKind: null }
   }
 
   if (isRenewal && (order.subscriber?.outstandingBalance || 0) > 0) {
@@ -255,11 +376,25 @@ export async function settleRegistrationOrderInTx(
 
   if (isRenewal) {
     await processRenewalSubscriptionInTx(tx, order.id, input.paymentRef, input.paidAt)
+    await ensureMembershipQrCredentialInTx(tx, order.subscriberId!)
+    activationKind = 'RENEWED'
+  } else {
+    activationKind = await activateNewRegistrationInTx(
+      tx,
+      order.id,
+      input.paymentRef,
+      input.paidAt,
+      input.performedBy
+    )
+    isRenewal = activationKind === 'RENEWED'
+  }
+
+  if (activationKind) {
     order = await tx.registrationOrder.findUniqueOrThrow({
       where: { id: order.id },
       include: { subscriber: { select: { outstandingBalance: true } } },
     })
   }
 
-  return { outcome: 'SETTLED', order, isRenewal }
+  return { outcome: 'SETTLED', order, isRenewal, activationKind }
 }

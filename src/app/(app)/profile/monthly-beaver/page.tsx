@@ -90,10 +90,10 @@ export default async function MonthlyBeaverPage() {
             take: 3,
         })
 
-        // Có đơn hàng đã thanh toán → hiển thị trạng thái chờ cấp QR
+        // Giữ fallback cho đơn cũ hoặc giao dịch đang được tự động hoàn tất.
         if (pendingOrders.length > 0) {
             const orderStatusLabels: Record<string, { label: string; style: string; Icon: any }> = {
-                PAID: { label: 'Đã thanh toán — Chờ cấp QR', style: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800', Icon: ClockIcon },
+                PAID: { label: 'Đã thanh toán — Đang cấp QR', style: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800', Icon: ClockIcon },
                 PENDING_PAYMENT: { label: 'Chờ thanh toán', style: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800', Icon: CreditCardIcon },
             }
 
@@ -107,7 +107,7 @@ export default async function MonthlyBeaverPage() {
                         <div>
                             <h3 className="font-bold text-neutral-900 dark:text-white">Đơn đăng ký Monthly Beaver đang được xử lý!</h3>
                             <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-                                Bạn đã đăng ký thành công. QR sẽ xuất hiện tại đây sau khi hồ sơ được cấp; bạn cũng có thể nhận bản in tại quầy.
+                                Thanh toán đã được ghi nhận. Hệ thống đang tự động kích hoạt gói và cấp QR thành viên.
                             </p>
                         </div>
                     </div>
@@ -149,15 +149,15 @@ export default async function MonthlyBeaverPage() {
                         <div className="mt-3 space-y-3">
                             <div className="flex items-start gap-3">
                                 <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-600 dark:bg-primary-900/30">1</div>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400">Đến quầy lễ tân tại chi nhánh bạn đã đăng ký</p>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">Chờ hệ thống hoàn tất kích hoạt trong ít phút</p>
                             </div>
                             <div className="flex items-start gap-3">
                                 <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-600 dark:bg-primary-900/30">2</div>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400">Nhân viên sẽ cấp QR thành viên cho bạn</p>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">QR sẽ tự động xuất hiện trong hồ sơ này</p>
                             </div>
                             <div className="flex items-start gap-3">
                                 <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-600 dark:bg-primary-900/30">3</div>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400">Quay lại trang này để theo dõi gói dịch vụ và lịch sử check-in</p>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">Nếu trạng thái không đổi sau 5 phút, vui lòng liên hệ nhân viên</p>
                             </div>
                         </div>
                     </div>

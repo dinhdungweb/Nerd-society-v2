@@ -63,16 +63,21 @@ export async function ensureMembershipQrCredential(subscriberId: string) {
   }
 }
 
-export async function issueMembershipQrCredentialInTx(
+export async function ensureMembershipQrCredentialInTx(
   tx: Prisma.TransactionClient,
   subscriberId: string
 ) {
   const existing = await tx.membershipQrCredential.findUnique({ where: { subscriberId } })
-  if (!existing) {
-    return tx.membershipQrCredential.create({
-      data: { subscriberId, publicId: randomUUID() },
-    })
-  }
+  return existing || tx.membershipQrCredential.create({
+    data: { subscriberId, publicId: randomUUID() },
+  })
+}
+
+export async function issueMembershipQrCredentialInTx(
+  tx: Prisma.TransactionClient,
+  subscriberId: string
+) {
+  const existing = await ensureMembershipQrCredentialInTx(tx, subscriberId)
   if (existing.status === 'ACTIVE') return existing
 
   return tx.membershipQrCredential.update({

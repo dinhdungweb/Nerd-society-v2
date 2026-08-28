@@ -19,11 +19,11 @@ const faqs = [
   },
   {
     q: 'Thời hạn gói bắt đầu từ khi nào?',
-    a: 'Gói bắt đầu tính ngay khi Nerd cấp QR thành viên, không chờ đến lần check-in đầu tiên. Ngày bắt đầu và ngày hết hạn được hiển thị trong hồ sơ Monthly Beaver.',
+    a: 'Gói bắt đầu tính ngay khi thanh toán được xác nhận. Hệ thống tự động cấp QR thành viên và hiển thị ngày bắt đầu, ngày hết hạn trong hồ sơ Monthly Beaver.',
   },
   {
     q: 'Refund được không?',
-    a: 'Sau khi QR được cấp, gói đã bắt đầu tính thời hạn. Nếu cần hủy trước lúc được cấp QR, vui lòng liên hệ quầy để được kiểm tra trạng thái đơn và chính sách hoàn tiền.',
+    a: 'Sau khi thanh toán được xác nhận, QR và gói được kích hoạt tự động. Nếu cần hủy, vui lòng liên hệ quầy để được kiểm tra trạng thái đơn và chính sách hoàn tiền.',
   },
   {
     q: 'QR bị lộ hoặc bị mất thì sao?',

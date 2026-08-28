@@ -21,6 +21,7 @@
     "test:qr-checkin": "tsx scripts/test-qr-checkin.ts",
     "test:qr-checkin:integration": "tsx scripts/test-qr-checkin-integration.ts",
     "test:qr-checkin:api": "tsx scripts/test-qr-checkin-api.ts",
+    "test:monthly-beaver:integration": "tsx scripts/test-monthly-beaver-settlement-integration.ts",
     "repair:monthly-beaver": "tsx scripts/repair-monthly-beaver.ts"
   },
   "dependencies": {

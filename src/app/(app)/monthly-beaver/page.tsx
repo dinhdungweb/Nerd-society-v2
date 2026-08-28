@@ -152,8 +152,11 @@ export default function MonthlyBeaverPage() {
           if (res.ok) {
             const data = await res.json();
             const order = Array.isArray(data) ? data[0] : data;
-            if (order?.orderStatus === 'PAID') {
+            if (order?.orderStatus === 'ACTIVATED') {
+              setError('');
               setStep(4);
+            } else if (order?.orderStatus === 'PAID') {
+              setError('Đã nhận thanh toán, hệ thống đang tự động cấp QR...');
             }
           }
         } catch (err) {
@@ -387,7 +390,7 @@ export default function MonthlyBeaverPage() {
           <div className="mt-10 flex items-start gap-3 rounded-2xl border border-primary-200/60 bg-primary-50 p-5">
             <LightBulbIcon className="h-5 w-5 flex-shrink-0 text-primary-600 mt-0.5" />
             <p className="text-sm text-neutral-600">
-              Gói bắt đầu tính từ <strong className="text-neutral-900">lần đầu bạn đến quán</strong>, không phải từ lúc mua — yên tâm đăng ký trước!
+              Gói và QR được <strong className="text-neutral-900">tự động kích hoạt ngay khi thanh toán thành công</strong>.
             </p>
           </div>
           </>
@@ -807,7 +810,7 @@ export default function MonthlyBeaverPage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckIcon className="h-4 w-4 flex-shrink-0 text-primary-500 mt-0.5" />
-                  Gói bắt đầu tính thời hạn ngay khi QR được cấp
+                  Gói và QR đã được tự động kích hoạt ngay sau khi thanh toán
                 </li>
                 <li className="flex items-start gap-2">
                   <BoltIcon className="h-4 w-4 flex-shrink-0 text-primary-500 mt-0.5" />
@@ -816,7 +819,7 @@ export default function MonthlyBeaverPage() {
               </ul>
               <div className="flex items-center gap-1.5 mt-3 text-xs text-neutral-400">
                 <ClockIcon className="h-3.5 w-3.5" />
-                Không cần chờ lần check-in đầu tiên để kích hoạt
+                Bạn có thể dùng QR để check-in ngay
               </div>
             </div>
 

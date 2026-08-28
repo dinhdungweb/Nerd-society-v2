@@ -4,7 +4,6 @@ import { canNerdNightReceivePayment } from '@/lib/nerd-night/registration-state'
 import { prisma } from '@/lib/prisma'
 import { settleRegistrationOrderInTx } from '@/lib/subscription/order-lifecycle'
 import { validateRegistrationPayment } from '@/lib/subscription/payment-validation'
-import { ensureMembershipQrCredential } from '@/lib/subscription/qr-credential'
 import { notifySubscriptionSuccess } from '@/lib/subscription/zalo-notifications'
 import { getVietQRConfig } from '@/lib/vietqr'
 import { ensureUserWalletAccount } from '@/lib/wallet-account'
@@ -573,10 +572,9 @@ export async function POST(request: NextRequest) {
                     console.error('[VietQR Sync] Subscription email error:', emailError)
                 }
 
-                if (settlement.isRenewal) {
-                    await ensureMembershipQrCredential(regOrder.subscriberId!)
+                if (settlement.activationKind) {
                     try {
-                        await notifySubscriptionSuccess(regOrder.id, 'RENEWED')
+                        await notifySubscriptionSuccess(regOrder.id, settlement.activationKind)
                     } catch (notificationError) {
                         console.error('[VietQR Sync] Subscription notification error:', notificationError)
                     }

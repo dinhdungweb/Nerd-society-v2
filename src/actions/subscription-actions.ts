@@ -13,13 +13,10 @@ import { businessDateOnly } from '@/lib/subscription/date-utils';
 import { getRenewalEligibility, RENEWAL_WINDOW_DAYS } from '@/lib/subscription/renewal-policy';
 import {
   buildMembershipQrPayload,
-  ensureMembershipQrCredential,
   issueMembershipQrCredentialInTx,
 } from '@/lib/subscription/qr-credential';
 import {
   createRegistrationOrderWithCode,
-  getPlanEndDate,
-  PLAN_HOURS_MIN,
   settleRegistrationOrderInTx,
 } from '@/lib/subscription/order-lifecycle';
 import { notifySubscriptionSuccess } from '@/lib/subscription/zalo-notifications';
@@ -244,6 +241,12 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
   try {
     const result = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`wallet:${walletAccount.wallet.id}`}))`;
+      if (!order.userId) {
+        await tx.registrationOrder.update({
+          where: { id: order.id },
+          data: { userId: user.id },
+        });
+      }
       const settlement = await settleRegistrationOrderInTx(tx, {
         orderId: order.id,
         paidAt,
@@ -281,14 +284,8 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
         externalTransactionId,
         description: `Thanh toán gói Monthly Beaver ${settlement.order.orderCode}`,
       });
-      const updatedOrder = await tx.registrationOrder.update({
-        where: { id: settlement.order.id },
-        data: { userId: settlement.order.userId || user.id },
-      });
-
       return {
         settlement,
-        order: updatedOrder,
         walletTransaction: walletResult.transaction,
         currentBalance: walletResult.balanceAfter,
       };
@@ -298,10 +295,9 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
       return { success: false, error: 'Đơn đăng ký đã hết hạn. Ví Nerd chưa bị trừ tiền.' };
     }
 
-    if (result.settlement.isRenewal && result.settlement.order.subscriberId) {
-      await ensureMembershipQrCredential(result.settlement.order.subscriberId);
+    if (result.settlement.activationKind) {
       try {
-        await notifySubscriptionSuccess(result.settlement.order.id, 'RENEWED');
+        await notifySubscriptionSuccess(result.settlement.order.id, result.settlement.activationKind);
       } catch (zaloError) {
         console.error('[payRegistrationOrderWithWallet] Zalo notification error:', zaloError);
       }
@@ -349,10 +345,9 @@ export async function confirmPayment(orderId: string, paymentRef?: string) {
       return { success: false, error: 'Đơn đăng ký đã hết hạn và không thể xác nhận thanh toán.' };
     }
 
-    if (settlement.isRenewal && settlement.order.subscriberId) {
-      await ensureMembershipQrCredential(settlement.order.subscriberId);
+    if (settlement.activationKind) {
       try {
-        await notifySubscriptionSuccess(settlement.order.id, 'RENEWED');
+        await notifySubscriptionSuccess(settlement.order.id, settlement.activationKind);
       } catch (zaloError) {
         console.error('[confirmPayment] Zalo notification error:', zaloError);
       }
@@ -566,42 +561,12 @@ export async function getRegistrationOrders(filters?: {
 export async function issueQrAndCreate(orderId: string, staffName: string) {
   const order = await prisma.registrationOrder.findUnique({
     where: { id: orderId },
-    include: { user: { select: { id: true, phone: true, email: true } } },
   });
   if (!order) return { success: false, error: 'Đơn không tồn tại' };
   if (order.orderStatus !== 'PAID') return { success: false, error: 'Đơn chưa thanh toán' };
 
-  const orderBelongsToUser = contactMatches(order, order.user);
-  const [byUser, byPhone] = await Promise.all([
-    order.userId && orderBelongsToUser
-      ? prisma.subscriber.findUnique({ where: { userId: order.userId } })
-      : Promise.resolve(null),
-    prisma.subscriber.findUnique({ where: { phone: order.phone } }),
-  ]);
-  if (byUser && byPhone && byUser.id !== byPhone.id) {
-    return { success: false, error: 'Tài khoản và số điện thoại đang thuộc hai hồ sơ khác nhau.' };
-  }
-
-  const existingSubscriber = byUser || byPhone;
-  if (existingSubscriber) {
-    const renewed = await prisma.$transaction(async (tx) => {
-      await tx.subscriber.update({
-        where: { id: existingSubscriber.id },
-        data: {
-          fullName: order.fullName,
-          email: order.email,
-          photoUrl: order.selfieUrl,
-          branchPrimary: order.branchPrimary,
-          ...(orderBelongsToUser && order.userId ? { userId: order.userId } : {}),
-        },
-      });
-      await tx.registrationOrder.update({
-        where: { id: order.id },
-        data: {
-          subscriberId: existingSubscriber.id,
-          userId: orderBelongsToUser ? order.userId : null,
-        },
-      });
+  try {
+    const result = await prisma.$transaction(async (tx) => {
       const settlement = await settleRegistrationOrderInTx(tx, {
         orderId: order.id,
         paidAt: order.paidAt || new Date(),
@@ -609,100 +574,37 @@ export async function issueQrAndCreate(orderId: string, staffName: string) {
         performedBy: staffName,
         auditAction: 'payment_confirmed_before_qr_issue',
       });
-      const credential = await issueMembershipQrCredentialInTx(tx, existingSubscriber.id);
-      const subscription = settlement.order.subscriptionId
-        ? await tx.subscription.findUnique({ where: { id: settlement.order.subscriptionId } })
-        : null;
-      return { settlement, credential, subscription };
+      if (!settlement.order.subscriberId || !settlement.order.subscriptionId) {
+        throw new Error('Không thể kích hoạt hồ sơ Monthly Beaver')
+      }
+      const credential = await issueMembershipQrCredentialInTx(tx, settlement.order.subscriberId);
+      const [subscriber, subscription] = await Promise.all([
+        tx.subscriber.findUniqueOrThrow({ where: { id: settlement.order.subscriberId } }),
+        tx.subscription.findUniqueOrThrow({ where: { id: settlement.order.subscriptionId } }),
+      ]);
+      return { settlement, credential, subscriber, subscription };
     });
 
-    if (order.userId && orderBelongsToUser) await ensureUserWalletAccount(order.userId);
-    try {
-      await notifySubscriptionSuccess(order.id, 'RENEWED');
-    } catch (zaloError) {
-      console.error('[issueQrAndCreate] Zalo notification error:', zaloError);
+    if (order.userId) await ensureUserWalletAccount(order.userId);
+    if (result.settlement.activationKind) {
+      try {
+        await notifySubscriptionSuccess(order.id, result.settlement.activationKind);
+      } catch (zaloError) {
+        console.error('[issueQrAndCreate] Zalo notification error:', zaloError);
+      }
     }
     revalidatePath('/admin/subscriptions');
     revalidatePath('/profile/monthly-beaver');
     return {
       success: true,
-      subscriber: existingSubscriber,
-      subscription: renewed.subscription,
-      credential: renewed.credential,
-      qrPayload: buildMembershipQrPayload(renewed.credential),
+      subscriber: result.subscriber,
+      subscription: result.subscription,
+      credential: result.credential,
+      qrPayload: buildMembershipQrPayload(result.credential),
     };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Không thể cấp QR' };
   }
-
-  const result = await prisma.$transaction(async (tx) => {
-    const subscriber = await tx.subscriber.create({
-      data: {
-        fullName: order.fullName,
-        phone: order.phone,
-        email: order.email,
-        photoUrl: order.selfieUrl,
-        branchPrimary: order.branchPrimary,
-        userId: orderBelongsToUser ? order.userId : null,
-      },
-    });
-
-    const totalMin = PLAN_HOURS_MIN[order.planType];
-    const issuedAt = new Date();
-    const startDate = businessDateOnly(issuedAt);
-    const endDate = getPlanEndDate(startDate, order.planType);
-    const subscription = await tx.subscription.create({
-      data: {
-        subscriberId: subscriber.id,
-        planType: order.planType,
-        pricePaid: order.amount,
-        status: 'ACTIVE',
-        activationDate: issuedAt,
-        startDate,
-        endDate,
-        totalHoursMin: totalMin > 0 ? totalMin : null,
-        dailyLimitMin: ['MONTHLY_LIMITED', 'MONTHLY_UNLIMITED'].includes(order.planType) ? 480 : null,
-        paymentMethod: order.paymentMethod,
-        paymentRef: order.paymentRef,
-      },
-    });
-    const credential = await issueMembershipQrCredentialInTx(tx, subscriber.id);
-    await tx.registrationOrder.update({
-      where: { id: orderId },
-      data: {
-        orderStatus: 'ACTIVATED',
-        assignedBy: staffName,
-        assignedAt: issuedAt,
-        subscriberId: subscriber.id,
-        subscriptionId: subscription.id,
-        userId: orderBelongsToUser ? order.userId : null,
-      },
-    });
-    await tx.subscriptionAuditLog.create({
-      data: {
-        action: 'qr_issued',
-        entityType: 'registration_order',
-        entityId: orderId,
-        performedBy: staffName,
-        details: {
-          subscriberId: subscriber.id,
-          subscriberName: subscriber.fullName,
-          activationPolicy: 'qr_issued',
-          startDate,
-          endDate,
-        },
-      },
-    });
-    return { subscriber, subscription, credential };
-  });
-
-  if (order.userId && orderBelongsToUser) await ensureUserWalletAccount(order.userId);
-  try {
-    await notifySubscriptionSuccess(order.id, 'REGISTERED');
-  } catch (zaloError) {
-    console.error('[issueQrAndCreate] Zalo notification error:', zaloError);
-  }
-  revalidatePath('/admin/subscriptions');
-  revalidatePath('/profile/monthly-beaver');
-  return { success: true, ...result, qrPayload: buildMembershipQrPayload(result.credential) };
 }
 
 /**

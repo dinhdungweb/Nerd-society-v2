@@ -767,13 +767,13 @@ export async function sendSubscriptionPaidEmail(order: any) {
             04 đồ uống pha chế tâm huyết gửi tặng bạn — voucher kẹp sẵn trong phong bì chào mừng.
         </p>
         
-        <h2 style="color: #9B7850; font-size: 16px; margin-top: 32px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">KÍCH HOẠT THẺ</h2>
-        <p class="p">Thẻ của bạn được kích hoạt ở lần tab đầu tiên — không phải ngày mua. Bạn cứ thong thả: khi nào sẵn sàng bắt đầu, tab thẻ tại quầy là gói chạy.</p>
-        <p class="p">Gói có hiệu lực 30 ngày kể từ lần tab đầu tiên đó.</p>
+        <h2 style="color: #9B7850; font-size: 16px; margin-top: 32px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">KÍCH HOẠT QR</h2>
+        <p class="p">Gói và QR thành viên của bạn đã được kích hoạt tự động ngay khi thanh toán được xác nhận. Bạn có thể mở hồ sơ Monthly Beaver và dùng QR để check-in tại quầy.</p>
+        <p class="p">Ngày bắt đầu và ngày hết hạn được hiển thị trong hồ sơ Monthly Beaver của bạn.</p>
         
         <h2 style="color: #9B7850; font-size: 16px; margin-top: 32px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">CÁCH SỬ DỤNG</h2>
-        <p class="p">Tab vào — tab ra. Mỗi lần đến, tab thẻ để check-in. Khi về, tab thẻ để check-out. Vậy là xong.</p>
-        <p class="p">Dùng được cả hai cơ sở. Một thẻ cho cả HTM và Tây Sơn.</p>
+        <p class="p">Quét vào — quét ra. Mỗi lần đến, quét QR để check-in. Khi về, quét lại QR để check-out. Vậy là xong.</p>
+        <p class="p">Dùng được cả hai cơ sở. Một QR cho cả HTM và Tây Sơn.</p>
         <p class="p"><strong>Cần gửi đồ?</strong> Nếu bạn có nhu cầu dùng locker, nói với các bạn nhân viên nhé — thành viên được ưu tiên sử dụng.</p>
         <p class="p"><strong>Tối đa 8h mỗi ngày.</strong> Giới hạn 8h tính theo ngày, dùng chung cho cả hai cơ sở (ví dụ: 4h ở HTM buổi sáng thì còn 4h cho Tây Sơn buổi chiều).</p>
         <p class="p"><strong>Nếu ngồi quá 8h:</strong> phần vượt được tính theo giá giờ lẻ 15.000đ/h, cộng dồn lại và thanh toán trước lần check-in kế tiếp.</p>

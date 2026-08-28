@@ -105,7 +105,7 @@ const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick, registrationOpen =
               transition={{ duration: 0.6, delay: 0.8 }}
               className="mt-4 text-sm text-neutral-400"
             >
-              Thời hạn bắt đầu khi QR thành viên được cấp
+              Thanh toán thành công là QR và gói được kích hoạt tự động
             </motion.p>
 
             {/* Stats */}
