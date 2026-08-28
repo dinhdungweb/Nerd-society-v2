@@ -20,10 +20,21 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const search = url.searchParams.get('search') || undefined;
     const status = url.searchParams.get('status') || undefined;
+    const branch = url.searchParams.get('branch') || undefined;
+    const planType = url.searchParams.get('planType') || undefined;
+    const subscriptionStatus = url.searchParams.get('subscriptionStatus') || undefined;
     const page = Number.parseInt(url.searchParams.get('page') || '1', 10);
     const limit = Number.parseInt(url.searchParams.get('limit') || '20', 10);
 
-    const subscribers = await getSubscribers({ search, status, page, limit });
+    const subscribers = await getSubscribers({
+      search,
+      status,
+      branch,
+      planType,
+      subscriptionStatus,
+      page,
+      limit,
+    });
     return NextResponse.json(subscribers);
   } catch (err) {
     console.error('[Admin Subscribers GET]', err);

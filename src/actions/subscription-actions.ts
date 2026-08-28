@@ -27,6 +27,7 @@ import {
   sendSubscriptionPaidEmail,
 } from '@/lib/email';
 import { isMonthlyBeaverRegistrationOpen } from '@/lib/monthly-beaver-registration';
+import type { PlanType, Prisma, SubscriberStatus, SubscriptionStatus } from '@prisma/client';
 
 // ============= REGISTRATION (Khách đăng ký online) =============
 
@@ -613,16 +614,54 @@ export async function issueQrAndCreate(orderId: string, staffName: string) {
 export async function getSubscribers(filters?: {
   status?: string;
   search?: string;
+  branch?: string;
+  planType?: string;
+  subscriptionStatus?: string;
   page?: number;
   limit?: number;
 }) {
-  const where: Record<string, unknown> = {};
-  if (filters?.status) where.status = filters.status;
+  const where: Prisma.SubscriberWhereInput = {};
+  const subscriberStatuses: SubscriberStatus[] = ['ACTIVE', 'EXPIRED', 'SUSPENDED'];
+  const planTypes: PlanType[] = ['WEEKLY_LIMITED', 'MONTHLY_LIMITED', 'MONTHLY_UNLIMITED'];
+  const subscriptionStatuses: SubscriptionStatus[] = [
+    'PENDING_PAYMENT',
+    'PENDING_ACTIVATION',
+    'ACTIVE',
+    'EXPIRED',
+    'CANCELLED',
+    'RENEWED',
+  ];
+  const subscriberStatus = subscriberStatuses.includes(filters?.status as SubscriberStatus)
+    ? (filters!.status as SubscriberStatus)
+    : null;
+  const planType = planTypes.includes(filters?.planType as PlanType)
+    ? (filters!.planType as PlanType)
+    : null;
+  const subscriptionStatus = subscriptionStatuses.includes(
+    filters?.subscriptionStatus as SubscriptionStatus
+  )
+    ? (filters!.subscriptionStatus as SubscriptionStatus)
+    : null;
+  const noSubscription = filters?.subscriptionStatus === 'NO_SUBSCRIPTION';
+
+  if (subscriberStatus) where.status = subscriberStatus;
+  if (filters?.branch && ['HTM', 'TS'].includes(filters.branch)) {
+    where.branchPrimary = filters.branch;
+  }
   if (filters?.search) {
     where.OR = [
       { fullName: { contains: filters.search, mode: 'insensitive' } },
       { phone: { contains: filters.search } },
     ];
+  }
+  const subscriptionWhere: Prisma.SubscriptionWhereInput = {};
+  if (planType) subscriptionWhere.planType = planType;
+  if (subscriptionStatus) subscriptionWhere.status = subscriptionStatus;
+  const hasSubscriptionFilter = Boolean(planType || subscriptionStatus);
+  if (noSubscription) {
+    where.subscriptions = { none: {} };
+  } else if (hasSubscriptionFilter) {
+    where.subscriptions = { some: subscriptionWhere };
   }
 
   const today = businessDateOnly();
@@ -650,6 +689,7 @@ export async function getSubscribers(filters?: {
           },
         },
         subscriptions: {
+          ...(hasSubscriptionFilter ? { where: subscriptionWhere } : {}),
           orderBy: { createdAt: 'desc' },
           take: 1,
           include: {

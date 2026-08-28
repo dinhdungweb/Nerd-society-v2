@@ -15,7 +15,8 @@ import {
   UserGroupIcon,
   GlobeAltIcon,
   ChartBarIcon,
-  QrCodeIcon
+  QrCodeIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 // Components
@@ -63,6 +64,9 @@ export default function SubscriptionsAdminClient() {
   const [selectedOrder, setSelectedOrder] = useState<RegistrationOrder | null>(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [subscriberBranch, setSubscriberBranch] = useState('');
+  const [subscriberPlan, setSubscriberPlan] = useState('');
+  const [subscriberStatus, setSubscriberStatus] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [historySubscriber, setHistorySubscriber] = useState<{ id: string; name: string } | null>(null);
 
@@ -91,6 +95,9 @@ export default function SubscriptionsAdminClient() {
           limit: String(PAGE_SIZE),
         });
         if (searchTerm) params.set('search', searchTerm);
+        if (subscriberBranch) params.set('branch', subscriberBranch);
+        if (subscriberPlan) params.set('planType', subscriberPlan);
+        if (subscriberStatus) params.set('subscriptionStatus', subscriberStatus);
 
         const res = await fetch(`/api/admin/subscriptions/subscribers?${params}`);
         if (res.ok) {
@@ -106,7 +113,16 @@ export default function SubscriptionsAdminClient() {
       console.error('Fetch error:', err);
     }
     setLoading(false);
-  }, [activeTab, filterStatus, orderPage, searchTerm, subscriberPage]);
+  }, [
+    activeTab,
+    filterStatus,
+    orderPage,
+    searchTerm,
+    subscriberBranch,
+    subscriberPage,
+    subscriberPlan,
+    subscriberStatus,
+  ]);
 
   useEffect(() => {
     fetchData();
@@ -317,6 +333,73 @@ export default function SubscriptionsAdminClient() {
 
           {activeTab === 'subscribers' && (
             <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                <div className="flex items-center gap-2 px-1 text-sm font-bold text-neutral-500">
+                  <FunnelIcon className="h-4 w-4" />
+                  Bộ lọc
+                </div>
+                <select
+                  value={subscriberBranch}
+                  onChange={(event) => {
+                    setSubscriberBranch(event.target.value);
+                    setSubscriberPage(1);
+                  }}
+                  aria-label="Lọc theo cơ sở"
+                  className="rounded-xl border-none bg-neutral-100 px-4 py-2 text-sm font-bold text-neutral-700 focus:ring-2 focus:ring-primary-500 dark:bg-neutral-800 dark:text-neutral-300"
+                >
+                  <option value="">Tất cả cơ sở</option>
+                  <option value="HTM">HTM</option>
+                  <option value="TS">Tây Sơn</option>
+                </select>
+                <select
+                  value={subscriberPlan}
+                  onChange={(event) => {
+                    setSubscriberPlan(event.target.value);
+                    setSubscriberPage(1);
+                  }}
+                  aria-label="Lọc theo gói"
+                  className="rounded-xl border-none bg-neutral-100 px-4 py-2 text-sm font-bold text-neutral-700 focus:ring-2 focus:ring-primary-500 dark:bg-neutral-800 dark:text-neutral-300"
+                >
+                  <option value="">Tất cả gói</option>
+                  <option value="WEEKLY_LIMITED">Tuần Limited</option>
+                  <option value="MONTHLY_LIMITED">Tháng Limited</option>
+                  <option value="MONTHLY_UNLIMITED">Tháng Unlimited</option>
+                </select>
+                <select
+                  value={subscriberStatus}
+                  onChange={(event) => {
+                    setSubscriberStatus(event.target.value);
+                    setSubscriberPage(1);
+                  }}
+                  aria-label="Lọc theo trạng thái gói"
+                  className="rounded-xl border-none bg-neutral-100 px-4 py-2 text-sm font-bold text-neutral-700 focus:ring-2 focus:ring-primary-500 dark:bg-neutral-800 dark:text-neutral-300"
+                >
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="PENDING_ACTIVATION">Chờ cấp QR</option>
+                  <option value="EXPIRED">Hết hạn</option>
+                  <option value="RENEWED">Đã gia hạn</option>
+                  <option value="NO_SUBSCRIPTION">Dùng Ví Nerd</option>
+                </select>
+                {(subscriberBranch || subscriberPlan || subscriberStatus) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubscriberBranch('');
+                      setSubscriberPlan('');
+                      setSubscriberStatus('');
+                      setSubscriberPage(1);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-white"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                    Xóa lọc
+                  </button>
+                )}
+                <span className="ml-auto px-1 text-sm font-medium text-neutral-400">
+                  {subscriberPagination.total.toLocaleString('vi-VN')} hội viên
+                </span>
+              </div>
               <SubscriberTable
                 subscribers={subscribers}
                 loading={loading}
