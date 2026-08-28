@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'crypto'
+import { Prisma } from '@prisma/client'
 
 const QR_PREFIX = 'NS1'
 
@@ -58,8 +59,31 @@ export async function ensureMembershipQrCredential(subscriberId: string) {
 
   return {
     credential,
-    payload: buildMembershipQrPayload(credential),
+    payload: credential.status === 'ACTIVE' ? buildMembershipQrPayload(credential) : null,
   }
+}
+
+export async function issueMembershipQrCredentialInTx(
+  tx: Prisma.TransactionClient,
+  subscriberId: string
+) {
+  const existing = await tx.membershipQrCredential.findUnique({ where: { subscriberId } })
+  if (!existing) {
+    return tx.membershipQrCredential.create({
+      data: { subscriberId, publicId: randomUUID() },
+    })
+  }
+  if (existing.status === 'ACTIVE') return existing
+
+  return tx.membershipQrCredential.update({
+    where: { id: existing.id },
+    data: {
+      version: { increment: 1 },
+      status: 'ACTIVE',
+      rotatedAt: new Date(),
+      lastUsedAt: null,
+    },
+  })
 }
 
 export async function rotateMembershipQrCredential(subscriberId: string) {

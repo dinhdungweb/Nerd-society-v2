@@ -75,8 +75,11 @@ export default function RenewPlanModal({
           if (res.ok) {
             const data = await res.json();
             const order = Array.isArray(data) ? data[0] : data;
-            if (order?.orderStatus === 'PAID') {
+            if (order?.orderStatus === 'ACTIVATED') {
+              setError('');
               setStep(3);
+            } else if (order?.orderStatus === 'PAID') {
+              setError('Đã nhận thanh toán, hệ thống đang hoàn tất gia hạn...');
             }
           }
         } catch (err) {

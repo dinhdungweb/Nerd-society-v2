@@ -200,7 +200,7 @@ export default async function MonthlyBeaverPage() {
         </div>
     ) : null
 
-    const { payload: membershipQrPayload } = await ensureMembershipQrCredential(subscriber.id)
+    const { credential: membershipCredential, payload: membershipQrPayload } = await ensureMembershipQrCredential(subscriber.id)
 
     const activeSub = subscriber.subscriptions.find(s => s.status === 'ACTIVE' || s.status === 'PENDING_ACTIVATION')
     const renewalEligibility = getRenewalEligibility(activeSub)
@@ -371,7 +371,11 @@ export default async function MonthlyBeaverPage() {
                             <span className="text-sm font-semibold">QR thành viên</span>
                         </div>
                         <div className="mt-4">
-                            <MembershipQrCard payload={membershipQrPayload} memberName={subscriber.fullName} />
+                            <MembershipQrCard
+                                payload={membershipQrPayload}
+                                status={membershipCredential.status}
+                                memberName={subscriber.fullName}
+                            />
                         </div>
                     </aside>
                 </div>

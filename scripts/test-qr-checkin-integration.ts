@@ -8,6 +8,17 @@ import { checkoutSubscriptionSessionInTx } from '../src/lib/subscription/session
 
 process.env.QR_SIGNING_SECRET = 'integration-test-secret-with-at-least-32-bytes'
 
+const databaseName = (() => {
+  try {
+    return new URL(process.env.DATABASE_URL || '').pathname.toLowerCase()
+  } catch {
+    return ''
+  }
+})()
+if (process.env.ALLOW_TEST_DATABASE_MUTATIONS !== 'true' && !/(^|[_/-])test([_/-]|$)/.test(databaseName)) {
+  throw new Error('Integration test bị chặn: hãy dùng database test hoặc đặt ALLOW_TEST_DATABASE_MUTATIONS=true.')
+}
+
 type TestResult = { name: string; ok: boolean; detail?: string; ms: number }
 type TestMember = Awaited<ReturnType<typeof createMember>>
 
@@ -41,6 +52,7 @@ async function createMember(
     debt?: number
     walletBalance?: number | null
     credentialStatus?: 'ACTIVE' | 'REVOKED'
+    subscriberStatus?: 'ACTIVE' | 'EXPIRED' | 'SUSPENDED'
   } = {}
 ) {
   const id = next(label)
@@ -76,6 +88,7 @@ async function createMember(
       userId: user?.id,
       outstandingBalance: options.debt || 0,
       branchPrimary: 'HTM',
+      status: options.subscriberStatus || 'ACTIVE',
     },
   })
 
@@ -274,6 +287,25 @@ async function main() {
     const blocked = await scan(member, htm)
     assert.equal(blocked.code, 'BLOCK_DEBT')
     assert.equal(await prisma.subscriptionSession.count({ where: { subscriberId: member.subscriber.id } }), 0)
+  })
+
+  await run('Hội viên bị khóa/hết hiệu lực bị chặn dù có gói hoặc Ví Nerd', async () => {
+    const suspended = await createMember('suspended_member', {
+      subscription: 'active',
+      subscriberStatus: 'SUSPENDED',
+    })
+    const expired = await createMember('expired_member', {
+      walletBalance: 100_000,
+      subscriberStatus: 'EXPIRED',
+    })
+    assert.equal((await scan(suspended, htm)).code, 'BLOCK_MEMBER_STATUS')
+    assert.equal((await scan(expired, htm)).code, 'BLOCK_MEMBER_STATUS')
+    assert.equal(
+      await prisma.subscriptionSession.count({
+        where: { subscriberId: { in: [suspended.subscriber.id, expired.subscriber.id] } },
+      }),
+      0
+    )
   })
 
   await run('Gói hết hạn bị chặn và chuyển EXPIRED', async () => {

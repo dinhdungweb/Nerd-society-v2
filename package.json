@@ -20,7 +20,8 @@
     "test:zbs:live": "tsx scripts/test-zbs-send.ts",
     "test:qr-checkin": "tsx scripts/test-qr-checkin.ts",
     "test:qr-checkin:integration": "tsx scripts/test-qr-checkin-integration.ts",
-    "test:qr-checkin:api": "tsx scripts/test-qr-checkin-api.ts"
+    "test:qr-checkin:api": "tsx scripts/test-qr-checkin-api.ts",
+    "repair:monthly-beaver": "tsx scripts/repair-monthly-beaver.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

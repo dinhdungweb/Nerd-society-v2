@@ -11,10 +11,19 @@ import { applyWalletTransactionInTx, refundRegistrationOrderToWallet } from '@/l
 import { authOptions } from '@/lib/auth';
 import { businessDateOnly } from '@/lib/subscription/date-utils';
 import { getRenewalEligibility, RENEWAL_WINDOW_DAYS } from '@/lib/subscription/renewal-policy';
-import { buildMembershipQrPayload, ensureMembershipQrCredential } from '@/lib/subscription/qr-credential';
+import {
+  buildMembershipQrPayload,
+  ensureMembershipQrCredential,
+  issueMembershipQrCredentialInTx,
+} from '@/lib/subscription/qr-credential';
+import {
+  createRegistrationOrderWithCode,
+  getPlanEndDate,
+  PLAN_HOURS_MIN,
+  settleRegistrationOrderInTx,
+} from '@/lib/subscription/order-lifecycle';
 import { notifySubscriptionSuccess } from '@/lib/subscription/zalo-notifications';
 import { getServerSession } from 'next-auth';
-import { randomUUID } from 'crypto';
 import {
   sendAdminNewSubscriptionOrderEmail,
   sendSubscriptionOrderEmail,
@@ -30,18 +39,6 @@ const PLAN_PRICES: Record<string, number> = {
   MONTHLY_UNLIMITED: 1199000,
 };
 
-const PLAN_HOURS_MIN: Record<string, number> = {
-  WEEKLY_LIMITED: 15 * 60,
-  MONTHLY_LIMITED: 0, // Không giới hạn tổng giờ/tháng, chỉ có daily cap 8h
-  MONTHLY_UNLIMITED: 0,
-};
-
-const PLAN_DURATION_DAYS: Record<string, number> = {
-  WEEKLY_LIMITED: 7,
-  MONTHLY_LIMITED: 30,
-  MONTHLY_UNLIMITED: 30,
-};
-
 function getRenewalDebtMessage(outstandingBalance: number) {
   return `Bạn đang còn công nợ ${outstandingBalance.toLocaleString('vi-VN')}đ. Vui lòng thanh toán công nợ trước khi gia hạn.`;
 }
@@ -49,6 +46,17 @@ function getRenewalDebtMessage(outstandingBalance: number) {
 function normalizePhone(phone?: string | null) {
   const digits = phone?.replace(/\D/g, '') || '';
   return digits.startsWith('84') && digits.length > 9 ? `0${digits.slice(2)}` : digits;
+}
+
+function phoneCandidates(phone?: string | null) {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return [];
+  const values = new Set([phone?.trim() || '', normalized]);
+  if (normalized.startsWith('0')) {
+    values.add(`84${normalized.slice(1)}`);
+    values.add(`+84${normalized.slice(1)}`);
+  }
+  return Array.from(values).filter(Boolean);
 }
 function contactMatches(
   order: { phone: string; email?: string | null },
@@ -62,22 +70,6 @@ function contactMatches(
     !!order.email && !!user.email && order.email.trim().toLowerCase() === user.email.trim().toLowerCase();
 
   return phoneMatches || emailMatches;
-}
-
-/**
- * Tạo mã đơn hàng: NERD-YYYYMMDD-XXX
- */
-async function generateOrderCode(): Promise<string> {
-  const today = new Date();
-  const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-  const count = await prisma.registrationOrder.count({
-    where: {
-      createdAt: {
-        gte: new Date(today.toISOString().split('T')[0]),
-      },
-    },
-  });
-  return `MB-${dateStr}-${String(count + 1).padStart(3, '0')}`;
 }
 
 import { generateOfficialQR, getVietQRConfig } from '@/lib/vietqr';
@@ -122,25 +114,39 @@ export async function createRegistrationOrder(data: {
     : null;
   const linkedUserId = signedInUser && contactMatches(data, signedInUser) ? signedInUser.id : null;
 
-  const orderCode = await generateOrderCode();
+  const existingSubscriber = await prisma.subscriber.findFirst({
+    where: {
+      OR: [
+        ...(session?.user?.id ? [{ userId: session.user.id }] : []),
+        ...(phoneCandidates(data.phone).length ? [{ phone: { in: phoneCandidates(data.phone) } }] : []),
+      ],
+    },
+    select: { id: true },
+  });
+  if (existingSubscriber) {
+    return {
+      success: false,
+      error: 'Bạn đã có hồ sơ Monthly Beaver. Vui lòng sử dụng chức năng gia hạn trong hồ sơ.',
+      errorCode: 'EXISTING_SUBSCRIBER' as const,
+      redirectTo: '/profile/monthly-beaver',
+    };
+  }
+
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
 
-  const order = await prisma.registrationOrder.create({
-    data: {
-      orderCode,
-      fullName: data.fullName,
-      phone: data.phone,
-      email: data.email,
-      branchPrimary: data.branchPrimary,
-      planType: data.planType as 'WEEKLY_LIMITED' | 'MONTHLY_LIMITED' | 'MONTHLY_UNLIMITED',
-      selfieUrl: data.selfieUrl,
-      amount,
-      paymentMethod: data.paymentMethod,
-      orderStatus: 'PENDING_PAYMENT',
-      expiresAt,
-      userId: linkedUserId,
-    },
+  const order = await createRegistrationOrderWithCode({
+    fullName: data.fullName,
+    phone: data.phone,
+    email: data.email,
+    branchPrimary: data.branchPrimary,
+    planType: data.planType,
+    selfieUrl: data.selfieUrl,
+    amount,
+    paymentMethod: data.paymentMethod,
+    orderStatus: 'PENDING_PAYMENT',
+    expiresAt,
+    userId: linkedUserId,
   });
 
   // Tạo mã QR từ API chính thức để hỗ trợ xác nhận tự động
@@ -151,12 +157,12 @@ export async function createRegistrationOrder(data: {
     try {
       qrUrl = await generateOfficialQR({
         amount,
-        description: orderCode,
+        description: order.orderCode,
       });
     } catch (error) {
       console.error('[createRegistrationOrder] QR Error:', error);
       // Fallback link if API fails
-      qrUrl = `https://img.vietqr.io/image/${bankConfig.bankCode}-${bankConfig.accountNumber}-compact2.png?amount=${amount}&addInfo=${orderCode}&accountName=${encodeURIComponent(bankConfig.accountName)}`;
+      qrUrl = `https://img.vietqr.io/image/${bankConfig.bankCode}-${bankConfig.accountNumber}-compact2.png?amount=${amount}&addInfo=${order.orderCode}&accountName=${encodeURIComponent(bankConfig.accountName)}`;
     }
   }
 
@@ -190,20 +196,19 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
   ]);
 
   if (!order || !user) return { success: false, error: 'Không tìm thấy đơn đăng ký' };
-  if (order.orderStatus === 'CANCELLED') return { success: false, error: 'Đơn đăng ký đã bị hủy' };
+  if (['CANCELLED', 'ORDER_EXPIRED'].includes(order.orderStatus)) {
+    return { success: false, error: 'Đơn đăng ký đã bị hủy hoặc hết hạn' };
+  }
 
   const canPayOrder =
     order.userId === user.id ||
-    (!order.userId && (
-      (!!order.email && order.email.toLowerCase() === user.email.toLowerCase()) ||
-      (!!user.phone && order.phone === user.phone)
-    ));
+    (!order.userId && contactMatches(order, user));
 
   if (!canPayOrder) {
     return { success: false, error: 'Bạn không có quyền thanh toán đơn đăng ký này' };
   }
 
-  if (order.orderStatus === 'PAID') {
+  if (['PAID', 'ACTIVATED'].includes(order.orderStatus)) {
     const walletAccount = await ensureUserWalletAccount(user.id);
     return {
       success: true,
@@ -238,34 +243,32 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const freshOrder = await tx.registrationOrder.findUnique({
-        where: { id: order.id },
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`wallet:${walletAccount.wallet.id}`}))`;
+      const settlement = await settleRegistrationOrderInTx(tx, {
+        orderId: order.id,
+        paidAt,
+        paymentRef: externalTransactionId,
+        paymentMethod: 'wallet',
+        performedBy: 'customer',
+        auditAction: 'payment_confirmed_wallet',
       });
-
-      if (!freshOrder) throw new Error('Không tìm thấy đơn đăng ký');
-      if (freshOrder.orderStatus === 'PAID') {
-        const existing = await tx.walletTransaction.findUnique({
-          where: { externalTransactionId },
-        });
+      if (settlement.outcome === 'EXPIRED') {
         return {
-          order: freshOrder,
-          walletTransaction: existing,
+          settlement,
+          walletTransaction: null,
           currentBalance: walletAccount.wallet.balance,
         };
       }
-      if (freshOrder.orderStatus !== 'PENDING_PAYMENT') {
-        throw new Error('Không thể thanh toán đơn đăng ký ở trạng thái hiện tại');
-      }
-
-      if (freshOrder.subscriberId) {
-        const renewalSubscriber = await tx.subscriber.findUnique({
-          where: { id: freshOrder.subscriberId },
-          select: { outstandingBalance: true },
-        });
-        const outstandingBalance = renewalSubscriber?.outstandingBalance || 0;
-        if (outstandingBalance > 0) {
-          throw new Error(getRenewalDebtMessage(outstandingBalance));
-        }
+      if (settlement.outcome === 'ALREADY_SETTLED') {
+        const [existingTransaction, currentWallet] = await Promise.all([
+          tx.walletTransaction.findUnique({ where: { externalTransactionId } }),
+          tx.wallet.findUnique({ where: { id: walletAccount.wallet.id }, select: { balance: true } }),
+        ]);
+        return {
+          settlement,
+          walletTransaction: existingTransaction,
+          currentBalance: currentWallet?.balance ?? walletAccount.wallet.balance,
+        };
       }
 
       const walletResult = await applyWalletTransactionInTx(tx, {
@@ -274,58 +277,38 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
         amount: -amount,
         source: 'MONTHLY_BEAVER',
         referenceType: 'registration_order',
-        referenceId: freshOrder.id,
+        referenceId: settlement.order.id,
         externalTransactionId,
-        description: `Thanh toán gói Monthly Beaver ${freshOrder.orderCode}`,
+        description: `Thanh toán gói Monthly Beaver ${settlement.order.orderCode}`,
       });
-
       const updatedOrder = await tx.registrationOrder.update({
-        where: { id: freshOrder.id },
-        data: {
-          orderStatus: 'PAID',
-          paidAt,
-          paymentMethod: 'wallet',
-          paymentRef: walletResult.transaction.id,
-          userId: freshOrder.userId || user.id,
-        },
-      });
-
-      await tx.subscriptionAuditLog.create({
-        data: {
-          action: 'payment_confirmed_wallet',
-          entityType: 'registration_order',
-          entityId: freshOrder.id,
-          performedBy: 'customer',
-          details: {
-            orderCode: freshOrder.orderCode,
-            walletTransactionId: walletResult.transaction.id,
-            amount,
-          },
-        },
+        where: { id: settlement.order.id },
+        data: { userId: settlement.order.userId || user.id },
       });
 
       return {
+        settlement,
         order: updatedOrder,
         walletTransaction: walletResult.transaction,
         currentBalance: walletResult.balanceAfter,
-        isRenewal: !!freshOrder.subscriberId,
       };
     });
 
-    if (result.isRenewal) {
-      await prisma.$transaction(async (tx) => {
-        await processRenewalSubscription(tx, result.order.id, result.walletTransaction?.id || null);
-      });
-      if (result.order.subscriberId) await ensureMembershipQrCredential(result.order.subscriberId);
+    if (result.settlement.outcome === 'EXPIRED') {
+      return { success: false, error: 'Đơn đăng ký đã hết hạn. Ví Nerd chưa bị trừ tiền.' };
+    }
+
+    if (result.settlement.isRenewal && result.settlement.order.subscriberId) {
+      await ensureMembershipQrCredential(result.settlement.order.subscriberId);
       try {
-        await notifySubscriptionSuccess(result.order.id, 'RENEWED');
+        await notifySubscriptionSuccess(result.settlement.order.id, 'RENEWED');
       } catch (zaloError) {
         console.error('[payRegistrationOrderWithWallet] Zalo notification error:', zaloError);
       }
     }
 
     try {
-      await sendSubscriptionPaidEmail(result.order);
+      await sendSubscriptionPaidEmail(result.settlement.order);
     } catch (emailError) {
       console.error('[payRegistrationOrderWithWallet] Subscription email error:', emailError);
     }
@@ -337,7 +320,7 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
 
     return {
       success: true,
-      order: result.order,
+      order: result.settlement.order,
       currentBalance: result.currentBalance,
       walletTransaction: result.walletTransaction,
       message: 'Thanh toán bằng Ví Nerd thành công',
@@ -352,57 +335,41 @@ export async function payRegistrationOrderWithWallet(orderId: string) {
  * Admin: Xác nhận thanh toán đơn
  */
 export async function confirmPayment(orderId: string, paymentRef?: string) {
-  const renewalOrder = await prisma.registrationOrder.findUnique({
-    where: { id: orderId },
-    select: {
-      subscriberId: true,
-      subscriber: { select: { outstandingBalance: true } },
-    },
-  });
-  const outstandingBalance = renewalOrder?.subscriber?.outstandingBalance || 0;
-  if (renewalOrder?.subscriberId && outstandingBalance > 0) {
-    return { success: false, error: getRenewalDebtMessage(outstandingBalance) };
-  }
-
-  const order = await prisma.registrationOrder.update({
-    where: { id: orderId },
-    data: {
-      orderStatus: 'PAID',
-      paidAt: new Date(),
-      paymentRef,
-    },
-  });
-
-  await prisma.subscriptionAuditLog.create({
-    data: {
-      action: 'payment_confirmed',
-      entityType: 'registration_order',
-      entityId: orderId,
-      performedBy: 'admin',
-      details: { paymentRef, orderCode: order.orderCode },
-    },
-  });
-
-  if (order.subscriberId) {
-    await prisma.$transaction(async (tx) => {
-      await processRenewalSubscription(tx, order.id, paymentRef || null);
-    });
-    await ensureMembershipQrCredential(order.subscriberId);
-    try {
-      await notifySubscriptionSuccess(order.id, 'RENEWED');
-    } catch (zaloError) {
-      console.error('[confirmPayment] Zalo notification error:', zaloError);
-    }
-  }
-
   try {
-    await sendSubscriptionPaidEmail(order);
-  } catch (emailError) {
-    console.error('[confirmPayment] Subscription email error:', emailError);
-  }
+    const settlement = await prisma.$transaction((tx) =>
+      settleRegistrationOrderInTx(tx, {
+        orderId,
+        paidAt: new Date(),
+        paymentRef: paymentRef || null,
+        performedBy: 'admin',
+        auditAction: 'payment_confirmed',
+      })
+    );
+    if (settlement.outcome === 'EXPIRED') {
+      return { success: false, error: 'Đơn đăng ký đã hết hạn và không thể xác nhận thanh toán.' };
+    }
 
-  revalidatePath('/admin/subscriptions');
-  return { success: true, order };
+    if (settlement.isRenewal && settlement.order.subscriberId) {
+      await ensureMembershipQrCredential(settlement.order.subscriberId);
+      try {
+        await notifySubscriptionSuccess(settlement.order.id, 'RENEWED');
+      } catch (zaloError) {
+        console.error('[confirmPayment] Zalo notification error:', zaloError);
+      }
+    }
+
+    try {
+      await sendSubscriptionPaidEmail(settlement.order);
+    } catch (emailError) {
+      console.error('[confirmPayment] Subscription email error:', emailError);
+    }
+
+    revalidatePath('/admin/subscriptions');
+    revalidatePath('/profile/monthly-beaver');
+    return { success: true, order: settlement.order };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Không thể xác nhận thanh toán' };
+  }
 }
 
 /**
@@ -436,127 +403,6 @@ export async function cancelOrder(orderId: string, reason?: string) {
 
   revalidatePath('/admin/subscriptions');
   return { success: true, refund: refundResult };
-}
-
-// ============= RENEWAL HELPERS =============
-
-/**
- * Xử lý tự động tạo Subscription cho đơn gia hạn (nội bộ)
- */
-async function processRenewalSubscription(tx: any, orderId: string, paymentRef: string | null) {
-  const order = await tx.registrationOrder.findUnique({ where: { id: orderId } });
-  if (!order || !order.subscriberId || order.orderStatus !== 'PAID') return null;
-
-  const subscriber = await tx.subscriber.findUnique({ where: { id: order.subscriberId } });
-  if (!subscriber) return null;
-
-  const totalMin = PLAN_HOURS_MIN[order.planType] || 0;
-  const today = businessDateOnly();
-  const currentSubscription = await tx.subscription.findFirst({
-    where: {
-      subscriberId: subscriber.id,
-      status: 'ACTIVE',
-      endDate: { gte: today },
-    },
-    orderBy: { endDate: 'desc' },
-  });
-
-  if (currentSubscription) {
-    if (currentSubscription.planType !== order.planType) {
-      throw new Error('Chỉ có thể gia hạn đúng gói đang sử dụng khi gói hiện tại chưa hết hạn');
-    }
-
-    const endDate = new Date(currentSubscription.endDate);
-    endDate.setUTCDate(endDate.getUTCDate() + (PLAN_DURATION_DAYS[order.planType] || 30));
-
-    const subscription = await tx.subscription.update({
-      where: { id: currentSubscription.id },
-      data: {
-        endDate,
-        ...(totalMin > 0 ? { totalHoursMin: { increment: totalMin } } : {}),
-        paymentMethod: order.paymentMethod,
-        paymentRef,
-      },
-    });
-
-    await tx.registrationOrder.update({
-      where: { id: order.id },
-      data: {
-        subscriptionId: subscription.id,
-        orderStatus: 'ACTIVATED',
-        assignedBy: 'system',
-        assignedAt: new Date(),
-      },
-    });
-
-    await tx.subscriptionAuditLog.create({
-      data: {
-        action: 'renewal_subscription_extended',
-        entityType: 'registration_order',
-        entityId: order.id,
-        performedBy: 'system',
-        details: {
-          credential: 'qr',
-          planType: order.planType,
-          subscriptionId: subscription.id,
-          previousEndDate: currentSubscription.endDate,
-          newEndDate: endDate,
-        },
-      },
-    });
-
-    return subscription;
-  }
-
-  const issuedAt = new Date();
-  const startDate = businessDateOnly(issuedAt);
-  const endDate = new Date(startDate);
-  endDate.setUTCDate(endDate.getUTCDate() + (PLAN_DURATION_DAYS[order.planType] || 30));
-
-  const subscription = await tx.subscription.create({
-    data: {
-      subscriberId: subscriber.id,
-      planType: order.planType,
-      pricePaid: order.amount,
-      status: 'ACTIVE',
-      activationDate: issuedAt,
-      startDate,
-      endDate,
-      totalHoursMin: totalMin > 0 ? totalMin : null,
-      dailyLimitMin: (order.planType === 'MONTHLY_LIMITED' || order.planType === 'MONTHLY_UNLIMITED') ? 480 : null,
-      paymentMethod: order.paymentMethod,
-      paymentRef: paymentRef,
-    },
-  });
-
-  await tx.registrationOrder.update({
-    where: { id: order.id },
-    data: {
-      subscriptionId: subscription.id,
-      orderStatus: 'ACTIVATED',
-      assignedBy: 'system',
-      assignedAt: issuedAt,
-    },
-  });
-
-  await tx.subscriptionAuditLog.create({
-    data: {
-      action: 'renewal_subscription_activated',
-      entityType: 'registration_order',
-      entityId: order.id,
-      performedBy: 'system',
-      details: {
-        credential: 'qr',
-        planType: order.planType,
-        subscriptionId: subscription.id,
-        activationPolicy: 'qr_issued',
-        startDate,
-        endDate,
-      },
-    },
-  });
-
-  return subscription;
 }
 
 /**
@@ -625,26 +471,22 @@ export async function createRenewalOrder(data: {
   const amount = PLAN_PRICES[data.planType];
   if (!amount) return { success: false, error: 'Gói không hợp lệ' };
 
-  const orderCode = await generateOrderCode();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
 
-  const order = await prisma.registrationOrder.create({
-    data: {
-      orderCode,
-      fullName: subscriber.fullName,
-      phone: subscriber.phone,
-      email: subscriber.email,
-      branchPrimary: subscriber.branchPrimary || 'HTM',
-      planType: data.planType,
-      selfieUrl: subscriber.photoUrl || '/placeholder-selfie.jpg',
-      amount,
-      paymentMethod: data.paymentMethod,
-      orderStatus: 'PENDING_PAYMENT',
-      expiresAt,
-      userId: session.user.id,
-      subscriberId: subscriber.id, // Đánh dấu là đơn gia hạn
-    },
+  const order = await createRegistrationOrderWithCode({
+    fullName: subscriber.fullName,
+    phone: subscriber.phone,
+    email: subscriber.email,
+    branchPrimary: subscriber.branchPrimary || 'HTM',
+    planType: data.planType,
+    selfieUrl: subscriber.photoUrl || '/placeholder-selfie.jpg',
+    amount,
+    paymentMethod: data.paymentMethod,
+    orderStatus: 'PENDING_PAYMENT',
+    expiresAt,
+    userId: session.user.id,
+    subscriberId: subscriber.id,
   });
 
   let qrUrl = '';
@@ -652,9 +494,9 @@ export async function createRenewalOrder(data: {
 
   if (data.paymentMethod === 'online') {
     try {
-      qrUrl = await generateOfficialQR({ amount, description: orderCode });
+      qrUrl = await generateOfficialQR({ amount, description: order.orderCode });
     } catch (error) {
-      qrUrl = `https://img.vietqr.io/image/${bankConfig.bankCode}-${bankConfig.accountNumber}-compact2.png?amount=${amount}&addInfo=${orderCode}&accountName=${encodeURIComponent(bankConfig.accountName)}`;
+      qrUrl = `https://img.vietqr.io/image/${bankConfig.bankCode}-${bankConfig.accountNumber}-compact2.png?amount=${amount}&addInfo=${order.orderCode}&accountName=${encodeURIComponent(bankConfig.accountName)}`;
     }
   }
 
@@ -740,22 +582,11 @@ export async function issueQrAndCreate(orderId: string, staffName: string) {
     return { success: false, error: 'Tài khoản và số điện thoại đang thuộc hai hồ sơ khác nhau.' };
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    let subscriber = byUser || byPhone;
-    if (!subscriber) {
-      subscriber = await tx.subscriber.create({
-        data: {
-          fullName: order.fullName,
-          phone: order.phone,
-          email: order.email,
-          photoUrl: order.selfieUrl,
-          branchPrimary: order.branchPrimary,
-          userId: orderBelongsToUser ? order.userId : null,
-        },
-      });
-    } else {
-      subscriber = await tx.subscriber.update({
-        where: { id: subscriber.id },
+  const existingSubscriber = byUser || byPhone;
+  if (existingSubscriber) {
+    const renewed = await prisma.$transaction(async (tx) => {
+      await tx.subscriber.update({
+        where: { id: existingSubscriber.id },
         data: {
           fullName: order.fullName,
           email: order.email,
@@ -764,13 +595,60 @@ export async function issueQrAndCreate(orderId: string, staffName: string) {
           ...(orderBelongsToUser && order.userId ? { userId: order.userId } : {}),
         },
       });
-    }
+      await tx.registrationOrder.update({
+        where: { id: order.id },
+        data: {
+          subscriberId: existingSubscriber.id,
+          userId: orderBelongsToUser ? order.userId : null,
+        },
+      });
+      const settlement = await settleRegistrationOrderInTx(tx, {
+        orderId: order.id,
+        paidAt: order.paidAt || new Date(),
+        paymentRef: order.paymentRef,
+        performedBy: staffName,
+        auditAction: 'payment_confirmed_before_qr_issue',
+      });
+      const credential = await issueMembershipQrCredentialInTx(tx, existingSubscriber.id);
+      const subscription = settlement.order.subscriptionId
+        ? await tx.subscription.findUnique({ where: { id: settlement.order.subscriptionId } })
+        : null;
+      return { settlement, credential, subscription };
+    });
 
-    const totalMin = PLAN_HOURS_MIN[order.planType] || 0;
+    if (order.userId && orderBelongsToUser) await ensureUserWalletAccount(order.userId);
+    try {
+      await notifySubscriptionSuccess(order.id, 'RENEWED');
+    } catch (zaloError) {
+      console.error('[issueQrAndCreate] Zalo notification error:', zaloError);
+    }
+    revalidatePath('/admin/subscriptions');
+    revalidatePath('/profile/monthly-beaver');
+    return {
+      success: true,
+      subscriber: existingSubscriber,
+      subscription: renewed.subscription,
+      credential: renewed.credential,
+      qrPayload: buildMembershipQrPayload(renewed.credential),
+    };
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const subscriber = await tx.subscriber.create({
+      data: {
+        fullName: order.fullName,
+        phone: order.phone,
+        email: order.email,
+        photoUrl: order.selfieUrl,
+        branchPrimary: order.branchPrimary,
+        userId: orderBelongsToUser ? order.userId : null,
+      },
+    });
+
+    const totalMin = PLAN_HOURS_MIN[order.planType];
     const issuedAt = new Date();
     const startDate = businessDateOnly(issuedAt);
-    const endDate = new Date(startDate);
-    endDate.setUTCDate(endDate.getUTCDate() + (PLAN_DURATION_DAYS[order.planType] || 30));
+    const endDate = getPlanEndDate(startDate, order.planType);
     const subscription = await tx.subscription.create({
       data: {
         subscriberId: subscriber.id,
@@ -786,12 +664,7 @@ export async function issueQrAndCreate(orderId: string, staffName: string) {
         paymentRef: order.paymentRef,
       },
     });
-    const existingCredential = await tx.membershipQrCredential.findUnique({
-      where: { subscriberId: subscriber.id },
-    });
-    const credential = existingCredential || await tx.membershipQrCredential.create({
-      data: { subscriberId: subscriber.id, publicId: randomUUID() },
-    });
+    const credential = await issueMembershipQrCredentialInTx(tx, subscriber.id);
     await tx.registrationOrder.update({
       where: { id: orderId },
       data: {

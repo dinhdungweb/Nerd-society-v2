@@ -229,6 +229,10 @@ export default function MonthlyBeaverPage() {
         if (result.bankInfo) setBankInfo(result.bankInfo);
         setStep(3);
       } else {
+        if (result.errorCode === 'EXISTING_SUBSCRIBER' && result.redirectTo) {
+          window.location.assign(result.redirectTo);
+          return;
+        }
         setError(result.error || 'Có lỗi xảy ra');
       }
     } catch (err) {

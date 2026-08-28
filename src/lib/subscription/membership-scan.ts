@@ -30,6 +30,8 @@ function jsonSafe<T>(value: T): T {
 
 function failureCode(result: CheckInResult): MembershipScanOutcome {
   switch (result.errorType) {
+    case 'BLOCK_MEMBER_STATUS':
+      return 'BLOCK_MEMBER_STATUS'
     case 'BLOCK_DEBT':
       return 'BLOCK_DEBT'
     case 'BLOCK_EXPIRED':

@@ -95,6 +95,7 @@ function resultLabel(code?: string) {
     CHECK_OUT_SUCCESS: 'Check-out thành công',
     DUPLICATE_IGNORED: 'Đã bỏ qua lượt quét lặp',
     BLOCK_CROSS_BRANCH: 'Đang mở session ở cơ sở khác',
+    BLOCK_MEMBER_STATUS: 'Hội viên đang bị khóa',
     BLOCK_DEBT: 'Còn công nợ',
     BLOCK_EXPIRED: 'Gói đã hết hạn',
     BLOCK_DAILY_LIMIT: 'Đã hết quota',

@@ -18,7 +18,11 @@ interface Props {
 }
 
 export default function SubscriberTable({ subscribers, loading, onDelete, onViewHistory, actionLoading }: Props) {
-  const [qrData, setQrData] = useState<{ subscriber: Subscriber; payload: string } | null>(null)
+  const [qrData, setQrData] = useState<{
+    subscriber: Subscriber
+    payload: string | null
+    status: 'ACTIVE' | 'REVOKED'
+  } | null>(null)
   const [qrLoading, setQrLoading] = useState(false)
   const qrRef = useRef<HTMLDivElement>(null)
 
@@ -28,7 +32,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
     const data = await response.json()
     setQrLoading(false)
     if (!response.ok) return alert(data.error || 'Không thể cấp QR')
-    setQrData({ subscriber, payload: data.payload })
+    setQrData({ subscriber, payload: data.payload, status: data.credential.status })
   }
 
   const rotateQr = async () => {
@@ -38,7 +42,7 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
     const data = await response.json()
     setQrLoading(false)
     if (!response.ok) return alert(data.error || 'Không thể cấp lại QR')
-    setQrData({ ...qrData, payload: data.payload })
+    setQrData({ ...qrData, payload: data.payload, status: data.credential.status })
   }
 
   const downloadQr = () => {
@@ -126,12 +130,22 @@ export default function SubscriberTable({ subscribers, loading, onDelete, onView
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-xl dark:bg-neutral-900" onClick={(event) => event.stopPropagation()}>
             <h3 className="text-xl font-black dark:text-white">QR của {qrData.subscriber.fullName}</h3>
             <p className="mt-1 text-sm text-neutral-500">{qrData.subscriber.phone}</p>
-            <div ref={qrRef} className="mx-auto mt-5 inline-block rounded-2xl border bg-white p-4">
-              <QRCodeSVG value={qrData.payload} size={230} level="M" marginSize={1} />
-            </div>
+            {qrData.payload && qrData.status === 'ACTIVE' ? (
+              <div ref={qrRef} className="mx-auto mt-5 inline-block rounded-2xl border bg-white p-4">
+                <QRCodeSVG value={qrData.payload} size={230} level="M" marginSize={1} />
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-bold text-red-700">
+                QR đã bị khóa. Cấp lại để tạo mã mới; QR cũ vẫn bị vô hiệu.
+              </div>
+            )}
             <div className="mt-5 grid grid-cols-2 gap-2">
-              <button onClick={downloadQr} className="rounded-xl border border-neutral-300 px-3 py-2 font-bold">Tải QR</button>
-              <button onClick={printQr} className="rounded-xl border border-neutral-300 px-3 py-2 font-bold">In QR</button>
+              {qrData.payload && qrData.status === 'ACTIVE' && (
+                <>
+                  <button onClick={downloadQr} className="rounded-xl border border-neutral-300 px-3 py-2 font-bold">Tải QR</button>
+                  <button onClick={printQr} className="rounded-xl border border-neutral-300 px-3 py-2 font-bold">In QR</button>
+                </>
+              )}
               <button disabled={qrLoading} onClick={() => void rotateQr()} className="col-span-2 rounded-xl bg-red-600 px-3 py-2 font-bold text-white disabled:opacity-50">Cấp lại và vô hiệu QR cũ</button>
               <button onClick={() => setQrData(null)} className="col-span-2 rounded-xl bg-neutral-100 px-3 py-2 font-bold">Đóng</button>
             </div>

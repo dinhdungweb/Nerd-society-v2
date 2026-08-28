@@ -28,11 +28,42 @@ export async function expireOverdueSubscriptions(today: Date = businessDateOnly(
   })
 }
 
+export async function expireOverdueRegistrationOrders(now: Date = new Date()) {
+  const orders = await prisma.registrationOrder.findMany({
+    where: { orderStatus: 'PENDING_PAYMENT', expiresAt: { lt: now } },
+    select: { id: true, orderCode: true, expiresAt: true },
+  })
+  if (!orders.length) return 0
+
+  return prisma.$transaction(async (tx) => {
+    let expiredCount = 0
+    for (const order of orders) {
+      const updated = await tx.registrationOrder.updateMany({
+        where: { id: order.id, orderStatus: 'PENDING_PAYMENT', expiresAt: { lt: now } },
+        data: { orderStatus: 'ORDER_EXPIRED' },
+      })
+      if (!updated.count) continue
+      expiredCount += 1
+      await tx.subscriptionAuditLog.create({
+        data: {
+          action: 'AUTO_EXPIRE_REGISTRATION_ORDER',
+          entityType: 'REGISTRATION_ORDER',
+          entityId: order.id,
+          performedBy: 'system',
+          details: { orderCode: order.orderCode, expiresAt: order.expiresAt?.toISOString() },
+        },
+      })
+    }
+    return expiredCount
+  })
+}
+
 export async function runSubscriptionMaintenance() {
-  const [expired, autoCheckouts, expiringNotifications] = await Promise.all([
+  const [expired, expiredOrders, autoCheckouts, expiringNotifications] = await Promise.all([
     expireOverdueSubscriptions(),
+    expireOverdueRegistrationOrders(),
     autoCheckOutStaleSessions(),
     notifyExpiringSubscriptions(),
   ])
-  return { expired, autoCheckouts: autoCheckouts.length, expiringNotifications }
+  return { expired, expiredOrders, autoCheckouts: autoCheckouts.length, expiringNotifications }
 }

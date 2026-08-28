@@ -13,6 +13,7 @@ const MIN_WALLET_BALANCE = DEFAULT_RATE_PER_HOUR / 4
 const OVERAGE_RATE_PER_MINUTE = 250
 const AUTO_CLOSE_AFTER_MS = 10 * 60 * 60 * 1000
 export type CheckInErrorType =
+  | 'BLOCK_MEMBER_STATUS'
   | 'BLOCK_DEBT'
   | 'BLOCK_EXPIRED'
   | 'BLOCK_LOW_BALANCE'
@@ -90,6 +91,20 @@ export async function checkInSubscriberInTx(
 
   if (!subscriber) {
     return { success: false, message: 'Không tìm thấy hội viên.', errorType: 'NOT_FOUND' }
+  }
+
+  if (subscriber.status !== 'ACTIVE') {
+    return {
+      success: false,
+      message: subscriber.status === 'SUSPENDED'
+        ? 'Tài khoản hội viên đang bị tạm khóa.'
+        : 'Tài khoản hội viên không còn hoạt động.',
+      subscriberId: subscriber.id,
+      subscriberName: subscriber.fullName,
+      subscriberPhoto: subscriber.photoUrl,
+      branch,
+      errorType: 'BLOCK_MEMBER_STATUS',
+    }
   }
 
   const existingSession = await tx.subscriptionSession.findFirst({

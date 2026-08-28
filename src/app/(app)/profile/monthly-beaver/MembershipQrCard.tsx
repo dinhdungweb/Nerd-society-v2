@@ -1,12 +1,30 @@
 'use client'
 
-import { ArrowDownTrayIcon, PrinterIcon } from '@heroicons/react/24/outline'
+import { ArrowDownTrayIcon, LockClosedIcon, PrinterIcon } from '@heroicons/react/24/outline'
 import { QRCodeSVG } from 'qrcode.react'
 import { useRef } from 'react'
 import { printMembershipQr } from '@/lib/print-membership-qr'
 
-export default function MembershipQrCard({ payload, memberName }: { payload: string; memberName: string }) {
+export default function MembershipQrCard({
+  payload,
+  status,
+  memberName,
+}: {
+  payload: string | null
+  status: 'ACTIVE' | 'REVOKED'
+  memberName: string
+}) {
   const container = useRef<HTMLDivElement>(null)
+
+  if (!payload || status === 'REVOKED') {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-center text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+        <LockClosedIcon className="mx-auto size-9" />
+        <p className="mt-3 text-sm font-bold">QR đã bị khóa — liên hệ nhân viên</p>
+        <p className="mt-1 text-xs">Mã QR cũ không thể dùng để check-in.</p>
+      </div>
+    )
+  }
 
   const download = () => {
     const svg = container.current?.querySelector('svg')

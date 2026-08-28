@@ -4,6 +4,17 @@ import { createHmac, randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../src/lib/prisma'
 
+const databaseName = (() => {
+  try {
+    return new URL(process.env.DATABASE_URL || '').pathname.toLowerCase()
+  } catch {
+    return ''
+  }
+})()
+if (process.env.ALLOW_TEST_DATABASE_MUTATIONS !== 'true' && !/(^|[_/-])test([_/-]|$)/.test(databaseName)) {
+  throw new Error('API integration test bị chặn: hãy dùng database test hoặc đặt ALLOW_TEST_DATABASE_MUTATIONS=true.')
+}
+
 const baseUrl = process.env.QR_TEST_BASE_URL || 'http://localhost:3000'
 const prefix = `qrapitest_${Date.now()}_${randomUUID().slice(0, 6)}_`
 const staffId = `${prefix}staff`

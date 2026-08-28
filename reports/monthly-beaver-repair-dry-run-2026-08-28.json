@@ -1,0 +1,9 @@
+{
+  "mode": "DRY_RUN",
+  "runDate": "2026-08-28",
+  "paidRenewals": [],
+  "duplicateGroups": [],
+  "repairedRenewals": 0,
+  "repairedDuplicateGroups": 0,
+  "note": "No database records were changed. Run --apply only after creating and verifying a database backup."
+}

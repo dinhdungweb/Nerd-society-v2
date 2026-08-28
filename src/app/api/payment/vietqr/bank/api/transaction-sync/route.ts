@@ -2,6 +2,11 @@ import { sendBookingEmail } from '@/lib/email'
 import { extractNerdNightPaymentIdentity, normalizeBankAccount } from '@/lib/nerd-night/payment-matching'
 import { canNerdNightReceivePayment } from '@/lib/nerd-night/registration-state'
 import { prisma } from '@/lib/prisma'
+import { settleRegistrationOrderInTx } from '@/lib/subscription/order-lifecycle'
+import { validateRegistrationPayment } from '@/lib/subscription/payment-validation'
+import { ensureMembershipQrCredential } from '@/lib/subscription/qr-credential'
+import { notifySubscriptionSuccess } from '@/lib/subscription/zalo-notifications'
+import { getVietQRConfig } from '@/lib/vietqr'
 import { ensureUserWalletAccount } from '@/lib/wallet-account'
 import { applyWalletTransaction, processVietQRWalletTopup, recordBankTransaction } from '@/lib/wallet-ledger'
 import { WalletTransactionSource } from '@prisma/client'
@@ -457,79 +462,127 @@ export async function POST(request: NextRequest) {
 
         if (prefix === 'MB' || prefix === 'NP') {
             const regOrder = await prisma.registrationOrder.findFirst({
-                where: {
-                    orderCode: extractedCode,
-                    orderStatus: 'PENDING_PAYMENT',
-                },
+                where: { orderCode: extractedCode },
             })
 
             if (regOrder) {
-                await prisma.$transaction([
-                    prisma.registrationOrder.update({
-                        where: { id: regOrder.id },
-                        data: {
-                            orderStatus: 'PAID',
-                            paidAt: finalPaidAt,
-                            paymentRef: transactionid,
-                        },
-                    }),
-                    prisma.subscriptionAuditLog.create({
-                        data: {
-                            action: 'payment_confirmed_webhook',
-                            entityType: 'registration_order',
-                            entityId: regOrder.id,
-                            performedBy: 'system_webhook',
-                            details: {
-                                transactionid,
-                                amount: Math.round(transactionAmount),
-                                orderCode: extractedCode,
-                            },
-                        },
-                    }),
-                    prisma.bankTransaction.update({
+                const receivedAmount = Math.round(transactionAmount)
+                const validation = validateRegistrationPayment({
+                    expectedAmount: regOrder.amount,
+                    receivedAmount,
+                    expectedAccount: getVietQRConfig().accountNumber,
+                    receivedAccount: bankaccount,
+                    expiresAt: regOrder.expiresAt,
+                    paidAt: finalPaidAt,
+                })
+
+                if (!validation.valid && validation.reason !== 'PAID_AFTER_EXPIRY') {
+                    await prisma.bankTransaction.update({
+                        where: { id: bankTransaction.id },
+                        data: { status: 'ERROR', note: validation.note },
+                    })
+                    return jsonOk('Registration payment mismatch; manual reconciliation required', transactionid)
+                }
+
+                const paymentIsNoLongerValid =
+                    regOrder.orderStatus === 'CANCELLED' ||
+                    regOrder.orderStatus === 'ORDER_EXPIRED' ||
+                    (!validation.valid && validation.reason === 'PAID_AFTER_EXPIRY')
+
+                if (paymentIsNoLongerValid) {
+                    if (regOrder.orderStatus === 'PENDING_PAYMENT') {
+                        await prisma.$transaction(async (tx) => {
+                            await tx.registrationOrder.update({
+                                where: { id: regOrder.id },
+                                data: { orderStatus: 'ORDER_EXPIRED' },
+                            })
+                            await tx.subscriptionAuditLog.create({
+                                data: {
+                                    action: 'order_expired_on_payment',
+                                    entityType: 'registration_order',
+                                    entityId: regOrder.id,
+                                    performedBy: 'system_webhook',
+                                    details: { paidAt: finalPaidAt, expiresAt: regOrder.expiresAt, transactionid },
+                                },
+                            })
+                        })
+                    }
+
+                    const creditResult = await creditCancelledPaymentToWallet({
+                        bankTransactionId: bankTransaction.id,
+                        externalTransactionId: transactionid,
+                        amount: receivedAmount,
+                        userId: regOrder.userId,
+                        email: regOrder.email,
+                        phone: regOrder.phone,
+                        source: 'MONTHLY_BEAVER',
+                        referenceType: 'registration_order',
+                        referenceId: regOrder.id,
+                        description: `Cộng Ví Nerd cho khoản thanh toán không còn hợp lệ của ${regOrder.orderCode}`,
+                        rawPayload: body,
+                    })
+                    return jsonOk(
+                        creditResult.credited
+                            ? 'Expired registration payment credited to wallet'
+                            : 'Expired registration payment needs reconciliation',
+                        transactionid
+                    )
+                }
+
+                if (regOrder.orderStatus === 'PAID' || regOrder.orderStatus === 'ACTIVATED') {
+                    const creditResult = await creditCancelledPaymentToWallet({
+                        bankTransactionId: bankTransaction.id,
+                        externalTransactionId: transactionid,
+                        amount: receivedAmount,
+                        userId: regOrder.userId,
+                        email: regOrder.email,
+                        phone: regOrder.phone,
+                        source: 'MONTHLY_BEAVER',
+                        referenceType: 'registration_order_extra_payment',
+                        referenceId: regOrder.id,
+                        description: `Cộng Ví Nerd cho khoản thanh toán thêm của ${regOrder.orderCode}`,
+                        rawPayload: body,
+                    })
+                    return jsonOk(
+                        creditResult.credited
+                            ? 'Additional registration payment credited to wallet'
+                            : 'Additional registration payment needs reconciliation',
+                        transactionid
+                    )
+                }
+
+                const settlement = await prisma.$transaction(async (tx) => {
+                    const result = await settleRegistrationOrderInTx(tx, {
+                        orderId: regOrder.id,
+                        paidAt: finalPaidAt,
+                        paymentRef: transactionid,
+                        performedBy: 'system_webhook',
+                        auditAction: 'payment_confirmed_webhook',
+                    })
+                    await tx.bankTransaction.update({
                         where: { id: bankTransaction.id },
                         data: { status: 'MATCHED', note: `Matched registration order ${regOrder.orderCode}` },
-                    }),
-                ])
+                    })
+                    return result
+                })
 
                 try {
                     const { sendSubscriptionPaidEmail } = await import('@/lib/email')
-                    await sendSubscriptionPaidEmail(regOrder)
+                    await sendSubscriptionPaidEmail(settlement.order)
                 } catch (emailError) {
                     console.error('[VietQR Sync] Subscription email error:', emailError)
                 }
 
+                if (settlement.isRenewal) {
+                    await ensureMembershipQrCredential(regOrder.subscriberId!)
+                    try {
+                        await notifySubscriptionSuccess(regOrder.id, 'RENEWED')
+                    } catch (notificationError) {
+                        console.error('[VietQR Sync] Subscription notification error:', notificationError)
+                    }
+                }
+
                 return jsonOk('RegistrationOrder processed successfully', transactionid)
-            }
-
-            const cancelledOrder = await prisma.registrationOrder.findFirst({
-                where: {
-                    orderCode: extractedCode,
-                    orderStatus: 'CANCELLED',
-                },
-            })
-
-            if (cancelledOrder) {
-                const creditResult = await creditCancelledPaymentToWallet({
-                    bankTransactionId: bankTransaction.id,
-                    externalTransactionId: transactionid,
-                    amount: Math.round(transactionAmount),
-                    userId: cancelledOrder.userId,
-                    email: cancelledOrder.email,
-                    phone: cancelledOrder.phone,
-                    source: 'MONTHLY_BEAVER',
-                    referenceType: 'registration_order',
-                    referenceId: cancelledOrder.id,
-                    description: `Cộng ví do thanh toán sau khi đơn ${cancelledOrder.orderCode} đã hủy`,
-                    rawPayload: body,
-                })
-
-                return jsonOk(
-                    creditResult.credited
-                        ? 'Cancelled registration order payment credited to wallet'
-                        : 'Cancelled registration order payment needs reconciliation',
-                    transactionid
-                )
             }
         }
 
