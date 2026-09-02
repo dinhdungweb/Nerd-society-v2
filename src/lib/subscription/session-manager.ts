@@ -11,7 +11,6 @@ import { Prisma } from '@prisma/client'
 
 const MIN_WALLET_BALANCE = DEFAULT_RATE_PER_HOUR / 4
 const OVERAGE_RATE_PER_MINUTE = 250
-const AUTO_CLOSE_AFTER_MS = 10 * 60 * 60 * 1000
 export type CheckInErrorType =
   | 'BLOCK_MEMBER_STATUS'
   | 'BLOCK_DEBT'
@@ -486,23 +485,4 @@ export function checkoutSubscriptionSession(sessionId: string, options: Checkout
       )
       return result
     })
-}
-
-export async function autoCheckOutStaleSessions() {
-  const cutoff = new Date(Date.now() - AUTO_CLOSE_AFTER_MS)
-  const sessions = await prisma.subscriptionSession.findMany({
-    where: { checkOutTime: null, status: 'ACTIVE', checkInTime: { lt: cutoff } },
-  })
-  const results = []
-  for (const session of sessions) {
-    const checkOutTime = new Date(session.checkInTime.getTime() + AUTO_CLOSE_AFTER_MS)
-    results.push(
-      await checkoutSubscriptionSession(session.id, {
-        checkOutTime,
-        source: 'system_auto',
-        performedBy: 'system',
-      })
-    )
-  }
-  return results
 }

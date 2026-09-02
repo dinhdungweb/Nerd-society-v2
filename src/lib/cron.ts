@@ -187,7 +187,8 @@ export function initCronJobs() {
         checkCheckinReminders()
     })
 
-    // Run every 15 minutes - local subscription expiration and stale-session cleanup
+    // Run every 15 minutes - subscription expiration and notifications.
+    // Open Monthly Beaver sessions are never checked out automatically.
     cron.schedule('*/15 * * * *', () => {
         syncSubscriberStatuses()
     })

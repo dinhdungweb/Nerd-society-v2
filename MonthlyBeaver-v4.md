@@ -199,16 +199,13 @@ Khách TAP THẺ RA
 ## 5.1. Quên check-out
 
 ```
-CRON JOB chạy mỗi 30 phút:
-  
-  Find sessions WHERE status = 'active' AND check_in < (now - 10h)
-  
-  For each:
-    → force check-out: check_out = check_in + 8h (cap)
-    → duration_minutes = 480
-    → status = 'force_closed'
-    → Tính charge tương tự check-out flow bình thường
-    → Notify: "Bạn quên tap ra — phiên tự đóng sau 8h"
+Hệ thống không tự động check-out.
+
+Phiên tiếp tục ở trạng thái active cho đến khi:
+  → Khách tap lại QR/thẻ để check-out; hoặc
+  → Nhân viên check-out thủ công trên màn hình Staff.
+
+Các phiên mở lâu hơn 8 giờ được hiển thị cảnh báo để nhân viên kiểm tra.
 ```
 
 ## 5.2. Cảnh báo gần hết cap
