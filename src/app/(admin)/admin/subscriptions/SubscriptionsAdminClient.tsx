@@ -16,7 +16,8 @@ import {
   GlobeAltIcon,
   ChartBarIcon,
   QrCodeIcon,
-  XMarkIcon
+  XMarkIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 
 // Components
@@ -218,6 +219,13 @@ export default function SubscriptionsAdminClient() {
     { key: 'report', label: 'Báo cáo', icon: ChartBarIcon },
   ];
 
+  const subscriberExportParams = new URLSearchParams();
+  if (searchTerm) subscriberExportParams.set('search', searchTerm);
+  if (subscriberBranch) subscriberExportParams.set('branch', subscriberBranch);
+  if (subscriberPlan) subscriberExportParams.set('planType', subscriberPlan);
+  if (subscriberStatus) subscriberExportParams.set('subscriptionStatus', subscriberStatus);
+  const subscriberExportUrl = `/api/admin/subscriptions/export?${subscriberExportParams.toString()}`;
+
   return (
     <div className="mx-auto w-full px-4 py-8 sm:px-6 lg:px-8">
       {/* Header Section */}
@@ -399,6 +407,14 @@ export default function SubscriptionsAdminClient() {
                 <span className="ml-auto px-1 text-sm font-medium text-neutral-400">
                   {subscriberPagination.total.toLocaleString('vi-VN')} hội viên
                 </span>
+                <a
+                  href={subscriberExportUrl}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+                  title="Xuất toàn bộ thông tin hội viên theo bộ lọc hiện tại"
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
+                  Xuất CSV đầy đủ
+                </a>
               </div>
               <SubscriberTable
                 subscribers={subscribers}
