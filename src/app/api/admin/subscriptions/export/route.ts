@@ -26,16 +26,6 @@ const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
   RENEWED: 'Gói cũ đã được gia hạn hoặc gộp vào gói hiện tại',
 }
 
-const ORDER_STATUS_LABELS: Record<string, string> = {
-  PENDING_PAYMENT: 'Đơn đang chờ thanh toán',
-  PAID: 'Đơn đã thanh toán, hệ thống đang hoàn tất kích hoạt',
-  QR_ISSUED: 'Đơn đã được cấp QR',
-  CARD_ASSIGNED: 'Đơn cũ đã được gán thẻ thành viên',
-  ACTIVATED: 'Đơn đã hoàn tất và kích hoạt gói',
-  CANCELLED: 'Đơn đã bị hủy',
-  ORDER_EXPIRED: 'Đơn đã hết hạn thanh toán',
-}
-
 const QR_STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'QR đang hoạt động và có thể check-in',
   REVOKED: 'QR đã bị khóa hoặc thu hồi',
@@ -50,84 +40,30 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   ADMIN: 'Nhân viên xác nhận thanh toán',
 }
 
-const SESSION_STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'Đang check-in, chưa check-out',
-  COMPLETED: 'Đã check-out và hoàn tất',
-  FORCE_CLOSED: 'Phiên được nhân viên đóng thủ công',
-}
-
-const SESSION_SOURCE_LABELS: Record<string, string> = {
-  qr: 'Quét QR thành viên',
-  wallet: 'Check-in bằng Ví Nerd',
-  legacy_card: 'Thẻ thành viên cũ',
-  mytime: 'Máy chấm công MyTime',
-}
-
 const HEADERS = [
   'STT',
   'Họ và tên hội viên',
   'Số điện thoại hội viên',
   'Email hội viên',
-  'Cơ sở đăng ký chính',
-  'Trạng thái hồ sơ hội viên',
-  'Có liên kết tài khoản website',
-  'Email tài khoản website',
-  'Số điện thoại tài khoản website',
-  'Ngày tạo hồ sơ hội viên',
-  'Ngày cập nhật hồ sơ gần nhất',
-  'Ảnh hồ sơ',
-  'Mã thẻ thành viên cũ',
-  'Mã nhân viên trên máy chấm công',
-  'Ghi chú nội bộ',
-  'Hạng thành viên',
-  'Mã Ví Nerd',
-  'Trạng thái Ví Nerd',
-  'Số dư Ví Nerd hiện tại (VNĐ)',
-  'Công nợ cần thanh toán (VNĐ)',
+  'Cơ sở đăng ký',
+  'Trạng thái hội viên',
   'Trạng thái QR thành viên',
-  'Phiên bản QR',
-  'Ngày cấp QR',
-  'Ngày cấp lại QR gần nhất',
-  'Lần sử dụng QR gần nhất',
   'Gói hiện tại',
-  'Trạng thái chi tiết của gói',
-  'Giá gói đã thanh toán (VNĐ)',
-  'Ngày mua gói',
-  'Thời điểm kích hoạt gói',
+  'Trạng thái gói',
   'Ngày bắt đầu sử dụng',
-  'Ngày cuối cùng còn được sử dụng',
+  'Ngày cuối cùng được sử dụng',
   'Thời hạn còn lại',
-  'Tổng định mức của gói',
-  'Thời lượng chuyển tiếp từ gói trước',
-  'Tổng thời lượng đã sử dụng',
+  'Giá gói đã thanh toán (VNĐ)',
+  'Ngày thanh toán hoặc mua gói',
+  'Phương thức thanh toán',
+  'Tổng định mức',
+  'Thời lượng đã sử dụng',
   'Định mức còn lại',
-  'Giới hạn sử dụng mỗi ngày',
-  'Phương thức thanh toán của gói',
-  'Mã tham chiếu thanh toán của gói',
-  'Tổng số gói trong lịch sử',
+  'Giới hạn mỗi ngày',
+  'Số dư Ví Nerd (VNĐ)',
+  'Công nợ (VNĐ)',
   'Tổng số phiên check-in',
-  'Tổng thời lượng thực tế đã check-in',
-  'Tổng thời lượng vượt định mức',
-  'Tổng tiền phát sinh từ phiên sử dụng (VNĐ)',
-  'Thời điểm check-in gần nhất',
-  'Thời điểm check-out gần nhất',
-  'Trạng thái phiên gần nhất',
-  'Nguồn tạo phiên gần nhất',
-  'Cơ sở của phiên gần nhất',
-  'Tổng số lượt quét QR đã ghi nhận',
-  'Tổng số đơn đăng ký và gia hạn',
-  'Mã đơn gần nhất',
-  'Trạng thái chi tiết của đơn gần nhất',
-  'Ngày tạo đơn gần nhất',
-  'Ngày thanh toán đơn gần nhất',
-  'Số tiền của đơn gần nhất (VNĐ)',
-  'Phương thức thanh toán của đơn gần nhất',
-  'Mã tham chiếu thanh toán của đơn gần nhất',
-  'Người hoặc hệ thống kích hoạt đơn gần nhất',
-  'Thời điểm kích hoạt đơn gần nhất',
-  'Hạn thanh toán của đơn gần nhất',
-  'Mã hồ sơ hội viên trong hệ thống',
-  'Mã gói hiện tại trong hệ thống',
+  'Lần check-in gần nhất',
 ] as const
 
 function readableLabel(labels: Record<string, string>, value?: string | null, empty = 'Chưa ghi nhận') {
@@ -235,55 +171,33 @@ export async function GET(request: Request) {
       include: {
         user: {
           select: {
-            email: true,
-            phone: true,
-            wallet: { select: { walletCode: true, balance: true, status: true } },
+            wallet: { select: { balance: true } },
           },
         },
-        qrCredential: true,
+        qrCredential: { select: { status: true } },
         subscriptions: {
           ...(hasSubscriptionFilter ? { where: subscriptionWhere } : {}),
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
-        registrationOrders: { orderBy: { createdAt: 'desc' }, take: 1 },
+        registrationOrders: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { paidAt: true },
+        },
         sessions: {
           orderBy: { checkInTime: 'desc' },
           take: 1,
-          select: {
-            branch: true,
-            checkInTime: true,
-            checkOutTime: true,
-            status: true,
-            source: true,
-          },
+          select: { checkInTime: true },
         },
-        _count: {
-          select: {
-            subscriptions: true,
-            registrationOrders: true,
-            sessions: true,
-            membershipScans: true,
-          },
-        },
+        _count: { select: { sessions: true } },
       },
     })
-
-    const subscriberIds = subscribers.map((subscriber) => subscriber.id)
-    const sessionStats = subscriberIds.length
-      ? await prisma.subscriptionSession.groupBy({
-          by: ['subscriberId'],
-          where: { subscriberId: { in: subscriberIds } },
-          _sum: { durationMin: true, overageMin: true, amountCharged: true },
-        })
-      : []
-    const sessionStatsBySubscriber = new Map(sessionStats.map((item) => [item.subscriberId, item._sum]))
 
     const rows = subscribers.map((subscriber, index) => {
       const subscription = subscriber.subscriptions[0]
       const order = subscriber.registrationOrders[0]
       const latestSession = subscriber.sessions[0]
-      const stats = sessionStatsBySubscriber.get(subscriber.id)
       const wallet = subscriber.user?.wallet
       const totalQuota =
         subscription?.totalHoursMin === null || subscription?.totalHoursMin === undefined
@@ -296,80 +210,33 @@ export async function GET(request: Request) {
         'Họ và tên hội viên': subscriber.fullName,
         'Số điện thoại hội viên': subscriber.phone,
         'Email hội viên': subscriber.email || '',
-        'Cơ sở đăng ký chính': branchLabel(subscriber.branchPrimary),
-        'Trạng thái hồ sơ hội viên': readableLabel(SUBSCRIBER_STATUS_LABELS, subscriber.status),
-        'Có liên kết tài khoản website': subscriber.userId ? 'Có' : 'Không',
-        'Email tài khoản website': subscriber.user?.email || '',
-        'Số điện thoại tài khoản website': subscriber.user?.phone || '',
-        'Ngày tạo hồ sơ hội viên': formatDate(subscriber.createdAt, true),
-        'Ngày cập nhật hồ sơ gần nhất': formatDate(subscriber.updatedAt, true),
-        'Ảnh hồ sơ': subscriber.photoUrl || '',
-        'Mã thẻ thành viên cũ': subscriber.cardNo || '',
-        'Mã nhân viên trên máy chấm công': subscriber.mytimeEmpId || '',
-        'Ghi chú nội bộ': subscriber.notes || '',
-        'Hạng thành viên': subscriber.loyaltyTier,
-        'Mã Ví Nerd': wallet?.walletCode || subscriber.walletCode || '',
-        'Trạng thái Ví Nerd': wallet
-          ? readableLabel({ ACTIVE: 'Ví đang hoạt động', LOCKED: 'Ví đang bị khóa' }, wallet.status)
-          : 'Chưa có Ví Nerd',
-        'Số dư Ví Nerd hiện tại (VNĐ)': wallet?.balance ?? subscriber.walletBalance,
-        'Công nợ cần thanh toán (VNĐ)': subscriber.outstandingBalance,
+        'Cơ sở đăng ký': branchLabel(subscriber.branchPrimary),
+        'Trạng thái hội viên': readableLabel(SUBSCRIBER_STATUS_LABELS, subscriber.status),
         'Trạng thái QR thành viên': subscriber.qrCredential
           ? readableLabel(QR_STATUS_LABELS, subscriber.qrCredential.status)
           : 'Chưa được cấp QR thành viên',
-        'Phiên bản QR': subscriber.qrCredential?.version || '',
-        'Ngày cấp QR': formatDate(subscriber.qrCredential?.issuedAt, true),
-        'Ngày cấp lại QR gần nhất': formatDate(subscriber.qrCredential?.rotatedAt, true),
-        'Lần sử dụng QR gần nhất': formatDate(subscriber.qrCredential?.lastUsedAt, true),
         'Gói hiện tại': subscription
           ? readableLabel(PLAN_LABELS, subscription.planType)
           : 'Không có gói — sử dụng Ví Nerd',
-        'Trạng thái chi tiết của gói': subscription
+        'Trạng thái gói': subscription
           ? readableLabel(SUBSCRIPTION_STATUS_LABELS, subscription.status)
           : 'Không có gói thành viên',
-        'Giá gói đã thanh toán (VNĐ)': subscription?.pricePaid || 0,
-        'Ngày mua gói': formatDate(subscription?.purchasedAt, true),
-        'Thời điểm kích hoạt gói': formatDate(subscription?.activationDate, true),
         'Ngày bắt đầu sử dụng': formatDate(subscription?.startDate),
-        'Ngày cuối cùng còn được sử dụng': formatDate(subscription?.endDate),
+        'Ngày cuối cùng được sử dụng': formatDate(subscription?.endDate),
         'Thời hạn còn lại': remainingDuration(subscription?.endDate),
-        'Tổng định mức của gói': formatMinutes(totalQuota),
-        'Thời lượng chuyển tiếp từ gói trước': formatMinutes(subscription?.carriedHoursMin),
-        'Tổng thời lượng đã sử dụng': formatMinutes(subscription?.usedHoursMin),
+        'Giá gói đã thanh toán (VNĐ)': subscription?.pricePaid || 0,
+        'Ngày thanh toán hoặc mua gói': formatDate(order?.paidAt || subscription?.purchasedAt, true),
+        'Phương thức thanh toán': readableLabel(PAYMENT_METHOD_LABELS, subscription?.paymentMethod),
+        'Tổng định mức': formatMinutes(totalQuota),
+        'Thời lượng đã sử dụng': formatMinutes(subscription?.usedHoursMin),
         'Định mức còn lại': totalQuota === null ? 'Áp dụng giới hạn theo ngày' : formatMinutes(remainingQuota),
-        'Giới hạn sử dụng mỗi ngày': subscription?.dailyLimitMin
+        'Giới hạn mỗi ngày': subscription?.dailyLimitMin
           ? `${formatMinutes(subscription.dailyLimitMin)} mỗi ngày`
           : 'Không áp dụng giới hạn theo ngày',
-        'Phương thức thanh toán của gói': readableLabel(PAYMENT_METHOD_LABELS, subscription?.paymentMethod),
-        'Mã tham chiếu thanh toán của gói': subscription?.paymentRef || '',
-        'Tổng số gói trong lịch sử': subscriber._count.subscriptions,
+        'Số dư Ví Nerd (VNĐ)': wallet?.balance ?? subscriber.walletBalance,
+        'Công nợ (VNĐ)': subscriber.outstandingBalance,
         'Tổng số phiên check-in': subscriber._count.sessions,
-        'Tổng thời lượng thực tế đã check-in': formatMinutes(stats?.durationMin),
-        'Tổng thời lượng vượt định mức': formatMinutes(stats?.overageMin),
-        'Tổng tiền phát sinh từ phiên sử dụng (VNĐ)': stats?.amountCharged || 0,
-        'Thời điểm check-in gần nhất': formatDate(latestSession?.checkInTime, true),
-        'Thời điểm check-out gần nhất': formatDate(latestSession?.checkOutTime, true),
-        'Trạng thái phiên gần nhất': latestSession
-          ? readableLabel(SESSION_STATUS_LABELS, latestSession.status)
-          : 'Chưa có phiên check-in',
-        'Nguồn tạo phiên gần nhất': latestSession ? readableLabel(SESSION_SOURCE_LABELS, latestSession.source) : '',
-        'Cơ sở của phiên gần nhất': latestSession ? branchLabel(latestSession.branch) : '',
-        'Tổng số lượt quét QR đã ghi nhận': subscriber._count.membershipScans,
-        'Tổng số đơn đăng ký và gia hạn': subscriber._count.registrationOrders,
-        'Mã đơn gần nhất': order?.orderCode || '',
-        'Trạng thái chi tiết của đơn gần nhất': order
-          ? readableLabel(ORDER_STATUS_LABELS, order.orderStatus)
-          : 'Chưa có đơn đăng ký liên kết',
-        'Ngày tạo đơn gần nhất': formatDate(order?.createdAt, true),
-        'Ngày thanh toán đơn gần nhất': formatDate(order?.paidAt, true),
-        'Số tiền của đơn gần nhất (VNĐ)': order?.amount || 0,
-        'Phương thức thanh toán của đơn gần nhất': readableLabel(PAYMENT_METHOD_LABELS, order?.paymentMethod),
-        'Mã tham chiếu thanh toán của đơn gần nhất': order?.paymentRef || '',
-        'Người hoặc hệ thống kích hoạt đơn gần nhất': order?.assignedBy || '',
-        'Thời điểm kích hoạt đơn gần nhất': formatDate(order?.assignedAt, true),
-        'Hạn thanh toán của đơn gần nhất': formatDate(order?.expiresAt, true),
-        'Mã hồ sơ hội viên trong hệ thống': subscriber.id,
-        'Mã gói hiện tại trong hệ thống': subscription?.id || '',
+        'Lần check-in gần nhất': formatDate(latestSession?.checkInTime, true),
       }
       return HEADERS.map((header) => row[header])
     })
