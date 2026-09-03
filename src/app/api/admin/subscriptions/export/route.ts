@@ -390,7 +390,7 @@ export async function GET(request: Request) {
     return new Response(`\uFEFF${csv}`, {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="monthly-beaver-full-${timestamp}.csv"`,
+        'Content-Disposition': `attachment; filename="monthly-beaver-${timestamp}.csv"`,
         'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff',
       },

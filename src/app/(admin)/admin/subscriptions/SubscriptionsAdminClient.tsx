@@ -410,10 +410,10 @@ export default function SubscriptionsAdminClient() {
                 <a
                   href={subscriberExportUrl}
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-                  title="Xuất toàn bộ thông tin hội viên theo bộ lọc hiện tại"
+                  title="Xuất thông tin hội viên theo bộ lọc hiện tại"
                 >
                   <ArrowDownTrayIcon className="h-4 w-4" />
-                  Xuất CSV đầy đủ
+                  Xuất CSV
                 </a>
               </div>
               <SubscriberTable
