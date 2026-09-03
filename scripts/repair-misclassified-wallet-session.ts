@@ -158,6 +158,26 @@ async function main() {
     : []
   const paidFromWallet = walletCharges.reduce((sum, item) => sum + Math.abs(item.amount), 0)
   const originalDebt = Math.max(0, session.amountCharged - paidFromWallet)
+  const debtPaymentsAfterSession = subscriber.user?.wallet
+    ? await prisma.walletTransaction.findMany({
+        where: {
+          walletId: subscriber.user.wallet.id,
+          type: 'OVERAGE_PAYMENT',
+          referenceType: 'subscriber',
+          referenceId: subscriber.id,
+          amount: { lt: 0 },
+          createdAt: { gte: session.checkOutTime! },
+        },
+        orderBy: { createdAt: 'asc' },
+      })
+    : []
+  const paidErroneousDebtFromWallet = Math.min(
+    originalDebt,
+    debtPaymentsAfterSession.reduce((sum, item) => sum + Math.abs(item.amount), 0)
+  )
+  const remainingErroneousDebt = originalDebt - paidErroneousDebtFromWallet
+  const erroneousDebtToRemove = Math.min(subscriber.outstandingBalance, remainingErroneousDebt)
+  const unaccountedDebtReduction = remainingErroneousDebt - erroneousDebtToRemove
   const correct = await prisma.$transaction((tx) =>
     calculateCorrectUsage(
       tx,
@@ -168,7 +188,8 @@ async function main() {
       session.durationMin!
     )
   )
-  const debtAfterRepair = subscriber.outstandingBalance - originalDebt + correct.expectedCharge
+  const debtAfterRepair = subscriber.outstandingBalance - erroneousDebtToRemove + correct.expectedCharge
+  const refundToWallet = paidFromWallet + paidErroneousDebtFromWallet
 
   const preview = {
     mode: apply ? 'APPLY' : 'DRY_RUN',
@@ -193,8 +214,16 @@ async function main() {
       planType: subscription.planType,
       statusBefore: subscription.status,
     },
-    refundToWallet: paidFromWallet,
-    erroneousDebtToRemove: originalDebt,
+    refundToWallet,
+    originalWalletChargeToRefund: paidFromWallet,
+    paidErroneousDebtToRefund: paidErroneousDebtFromWallet,
+    erroneousDebtToRemove,
+    unaccountedDebtReduction,
+    debtPaymentTransactions: debtPaymentsAfterSession.map((item) => ({
+      id: item.id,
+      createdAt: item.createdAt,
+      amount: item.amount,
+    })),
     usageByDate: correct.usage.map((item) => ({
       usageDate: item.segment.usageDate,
       minutes: item.segment.minutes,
@@ -242,6 +271,25 @@ async function main() {
     if (livePaidFromWallet !== paidFromWallet) {
       throw new Error('Giao dịch gốc đã thay đổi sau dry-run; vui lòng chạy lại đối soát.')
     }
+    const liveDebtPaymentsAfterSession = liveSubscriber.user?.wallet
+      ? await tx.walletTransaction.findMany({
+          where: {
+            walletId: liveSubscriber.user.wallet.id,
+            type: 'OVERAGE_PAYMENT',
+            referenceType: 'subscriber',
+            referenceId: liveSubscriber.id,
+            amount: { lt: 0 },
+            createdAt: { gte: liveSession.checkOutTime! },
+          },
+        })
+      : []
+    const livePaidErroneousDebtFromWallet = Math.min(
+      liveSession.amountCharged - livePaidFromWallet,
+      liveDebtPaymentsAfterSession.reduce((sum, item) => sum + Math.abs(item.amount), 0)
+    )
+    if (livePaidErroneousDebtFromWallet !== paidErroneousDebtFromWallet) {
+      throw new Error('Lịch sử thanh toán công nợ đã thay đổi sau dry-run; vui lòng chạy lại đối soát.')
+    }
     const access = await ensureMembershipAccessInTx(tx, subscriber.id, 'repair-misclassified-session')
     if (!access.subscription || access.subscription.status !== 'ACTIVE') {
       throw new Error('Không thể xác minh và kích hoạt gói đã thanh toán; không sửa dữ liệu tài chính.')
@@ -262,17 +310,24 @@ async function main() {
     }
 
     const liveOriginalDebt = Math.max(0, liveSession.amountCharged - livePaidFromWallet)
-    const liveDebtAfterRepair = liveSubscriber.outstandingBalance - liveOriginalDebt + liveCorrect.expectedCharge
+    const liveRemainingErroneousDebt = liveOriginalDebt - livePaidErroneousDebtFromWallet
+    const liveErroneousDebtToRemove = Math.min(
+      liveSubscriber.outstandingBalance,
+      liveRemainingErroneousDebt
+    )
+    const liveDebtAfterRepair =
+      liveSubscriber.outstandingBalance - liveErroneousDebtToRemove + liveCorrect.expectedCharge
     if (liveDebtAfterRepair < 0) {
       throw new Error('Công nợ hiện tại thấp hơn phần nợ cần xóa; dừng để tránh hoàn trùng.')
     }
 
+    const liveRefundToWallet = livePaidFromWallet + livePaidErroneousDebtFromWallet
     let walletBalanceAfter = liveSubscriber.user?.wallet?.balance || 0
-    if (liveSubscriber.user?.wallet && livePaidFromWallet > 0) {
+    if (liveSubscriber.user?.wallet && liveRefundToWallet > 0) {
       const refund = await applyWalletTransactionInTx(tx, {
         walletId: liveSubscriber.user.wallet.id,
         type: 'REFUND',
-        amount: livePaidFromWallet,
+        amount: liveRefundToWallet,
         source: 'SYSTEM',
         referenceType: 'subscription_session',
         referenceId: liveSession.id,
@@ -346,8 +401,12 @@ async function main() {
           subscriptionId: access.subscription.id,
           originalAmountCharged: session.amountCharged,
           correctedAmountCharged: liveCorrect.expectedCharge,
-          walletRefund: livePaidFromWallet,
-          debtRemoved: liveOriginalDebt - liveCorrect.expectedCharge,
+          walletRefund: liveRefundToWallet,
+          originalWalletChargeRefund: livePaidFromWallet,
+          paidErroneousDebtRefund: livePaidErroneousDebtFromWallet,
+          debtRemoved: liveErroneousDebtToRemove,
+          unaccountedDebtReduction: liveRemainingErroneousDebt - liveErroneousDebtToRemove,
+          debtPaymentTransactionIds: liveDebtPaymentsAfterSession.map((item) => item.id),
           outstandingBalanceAfter: liveDebtAfterRepair,
         },
       },
