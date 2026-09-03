@@ -81,7 +81,7 @@ export async function checkInSubscriberInTx(
     where: { id: subscriberId },
     include: {
       subscriptions: {
-        where: { status: 'ACTIVE' },
+        where: { status: { in: ['ACTIVE', 'PENDING_ACTIVATION'] } },
         orderBy: { createdAt: 'desc' },
       },
       user: { select: { wallet: { select: { id: true, balance: true, status: true } } } },
@@ -140,7 +140,25 @@ export async function checkInSubscriberInTx(
     }
   }
 
-  const subscription = subscriber.subscriptions[0]
+  const subscription = subscriber.subscriptions.find((item) => item.status === 'ACTIVE')
+  const pendingSubscription = subscriber.subscriptions.find(
+    (item) => item.status === 'PENDING_ACTIVATION'
+  )
+
+  // A paid-but-not-activated plan must never silently fall back to wallet billing.
+  // QR credentials and subscriptions are stored separately, so legacy records can
+  // have a scannable QR while their subscription is still pending activation.
+  if (!subscription && pendingSubscription) {
+    return {
+      success: false,
+      message: 'Gói Monthly Beaver đang chờ kích hoạt. Vui lòng liên hệ nhân viên trước khi check-in.',
+      errorType: 'NO_ELIGIBLE_ACCOUNT',
+      planType: pendingSubscription.planType,
+      walletBalance: subscriber.user?.wallet?.balance || 0,
+      ...identity,
+    }
+  }
+
   if (subscription) {
     if (subscription.status === 'ACTIVE' && subscription.endDate && subscription.endDate < today) {
       await tx.subscription.update({ where: { id: subscription.id }, data: { status: 'EXPIRED' } })

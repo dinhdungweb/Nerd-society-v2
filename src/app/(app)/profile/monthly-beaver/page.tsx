@@ -17,7 +17,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { ensureUserWalletAccount } from '@/lib/wallet-account'
 import { isMonthlyBeaverRegistrationOpen } from '@/lib/monthly-beaver-registration'
-import { ensureMembershipQrCredential } from '@/lib/subscription/qr-credential'
+import { ensureMembershipAccess } from '@/lib/subscription/membership-access'
 import { getRenewalEligibility } from '@/lib/subscription/renewal-policy'
 import MembershipQrCard from './MembershipQrCard'
 
@@ -31,7 +31,7 @@ const planLabels: Record<string, string> = {
 
 const subStatusLabels: Record<string, { label: string; style: string }> = {
     ACTIVE: { label: 'Đang hoạt động', style: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
-    PENDING_ACTIVATION: { label: 'Chờ cấp QR', style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    PENDING_ACTIVATION: { label: 'Chờ kích hoạt', style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
     EXPIRED: { label: 'Đã hết hạn', style: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400' },
     SUSPENDED: { label: 'Tạm dừng', style: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
     CANCELLED: { label: 'Đã hủy', style: 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-500' },
@@ -200,7 +200,10 @@ export default async function MonthlyBeaverPage() {
         </div>
     ) : null
 
-    const { credential: membershipCredential, payload: membershipQrPayload } = await ensureMembershipQrCredential(subscriber.id)
+    const { credential: membershipCredential, payload: membershipQrPayload } = await ensureMembershipAccess(
+        subscriber.id,
+        session.user.id
+    )
 
     const activeSub = subscriber.subscriptions.find(s => s.status === 'ACTIVE' || s.status === 'PENDING_ACTIVATION')
     const renewalEligibility = getRenewalEligibility(activeSub)

@@ -65,7 +65,7 @@ export const STATUS_LABELS: Record<string, { label: string; color: any; bg?: str
   CANCELLED: { label: 'Đã hủy', color: 'red' },
   ORDER_EXPIRED: { label: 'Hết hạn', color: 'zinc' },
   // Sub status
-  PENDING_ACTIVATION: { label: 'Chờ cấp QR', color: 'amber' },
+  PENDING_ACTIVATION: { label: 'Chờ kích hoạt', color: 'amber' },
   ACTIVE: { label: 'Active', color: 'emerald' },
   EXPIRED: { label: 'Hết hạn', color: 'red' },
   RENEWED: { label: 'Đã gia hạn', color: 'blue' },

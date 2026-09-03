@@ -1,6 +1,6 @@
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { ensureMembershipQrCredential } from '@/lib/subscription/qr-credential'
+import { ensureMembershipAccess } from '@/lib/subscription/membership-access'
 import { getServerSession } from 'next-auth'
 import { NextResponse } from 'next/server'
 
@@ -14,6 +14,6 @@ export async function GET() {
   })
   if (!subscriber) return NextResponse.json({ error: 'Không tìm thấy hồ sơ hội viên' }, { status: 404 })
 
-  const { credential, payload } = await ensureMembershipQrCredential(subscriber.id)
+  const { credential, payload } = await ensureMembershipAccess(subscriber.id, session.user.id)
   return NextResponse.json({ payload, status: credential.status, memberName: subscriber.fullName, photoUrl: subscriber.photoUrl })
 }

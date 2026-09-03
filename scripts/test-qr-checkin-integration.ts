@@ -2,8 +2,9 @@ import 'dotenv/config'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { prisma } from '../src/lib/prisma'
-import { buildMembershipQrPayload } from '../src/lib/subscription/qr-credential'
+import { ensureMembershipAccess } from '../src/lib/subscription/membership-access'
 import { processMembershipQrScan } from '../src/lib/subscription/membership-scan'
+import { buildMembershipQrPayload } from '../src/lib/subscription/qr-credential'
 import { checkoutSubscriptionSessionInTx } from '../src/lib/subscription/session-manager'
 
 process.env.QR_SIGNING_SECRET = 'integration-test-secret-with-at-least-32-bytes'
@@ -103,8 +104,7 @@ async function createMember(
         pricePaid: 1_200_000,
         status: subState === 'pending' ? 'PENDING_ACTIVATION' : 'ACTIVE',
         startDate: subState === 'pending' ? null : daysFromNow(-5),
-        endDate:
-          subState === 'expired' ? daysFromNow(-1) : subState === 'pending' ? null : daysFromNow(20),
+        endDate: subState === 'expired' ? daysFromNow(-1) : subState === 'pending' ? null : daysFromNow(20),
         dailyLimitMin: options.dailyLimitMin === undefined ? 480 : options.dailyLimitMin,
         totalHoursMin: options.totalHoursMin === undefined ? null : options.totalHoursMin,
         usedHoursMin: options.usedHoursMin || 0,
@@ -168,9 +168,11 @@ async function cleanup() {
       OR: [{ performedById: `${prefix}performer` }, { subscriberId: { in: subscriberIds } }],
     },
   })
-  if (sessionIds.length) {
-    await prisma.subscriptionAuditLog.deleteMany({ where: { entityId: { in: sessionIds } } })
-  }
+  await prisma.subscriptionAuditLog.deleteMany({
+    where: {
+      OR: [...(sessionIds.length ? [{ entityId: { in: sessionIds } }] : []), { entityId: { startsWith: prefix } }],
+    },
+  })
   if (walletIds.length) {
     await prisma.walletTransaction.deleteMany({ where: { walletId: { in: walletIds } } })
   }
@@ -352,6 +354,47 @@ async function main() {
     const subscription = await prisma.subscription.findUniqueOrThrow({ where: { id: member.subscription!.id } })
     assert.equal(subscription.status, 'PENDING_ACTIVATION')
     assert.equal(subscription.activationDate, null)
+  })
+
+  await run('Pending subscription never falls back to Nerd Wallet billing', async () => {
+    const member = await createMember('pending_with_wallet', {
+      subscription: 'pending',
+      walletBalance: 200_000,
+    })
+    const result = await scan(member, htm)
+    assert.equal(result.code, 'NO_ELIGIBLE_ACCOUNT')
+    assert.match(result.message, /chờ kích hoạt/i)
+    assert.equal(await prisma.subscriptionSession.count({ where: { subscriberId: member.subscriber.id } }), 0)
+    const wallet = await prisma.wallet.findUniqueOrThrow({ where: { id: member.wallet!.id } })
+    assert.equal(wallet.balance, 200_000)
+  })
+
+  await run('Paid pending subscription is activated when QR access is ensured', async () => {
+    const member = await createMember('activate_on_qr_access', { subscription: 'pending' })
+    const paidAt = almostMinutesAgo(30)
+    const order = await prisma.registrationOrder.create({
+      data: {
+        orderCode: next('paid_order'),
+        fullName: member.subscriber.fullName,
+        phone: member.subscriber.phone,
+        branchPrimary: 'HTM',
+        planType: member.subscription!.planType,
+        selfieUrl: '/test.jpg',
+        orderStatus: 'PAID',
+        paymentMethod: 'bank_transfer',
+        paymentRef: next('payment_ref'),
+        paidAt,
+        amount: member.subscription!.pricePaid,
+        subscriberId: member.subscriber.id,
+        subscriptionId: member.subscription!.id,
+      },
+    })
+    const result = await ensureMembershipAccess(member.subscriber.id, 'integration-test')
+    assert.equal(result.activationKind, 'ACTIVATED_PENDING')
+    assert.equal(result.subscription?.status, 'ACTIVE')
+    assert.ok(result.payload)
+    const savedOrder = await prisma.registrationOrder.findUniqueOrThrow({ where: { id: order.id } })
+    assert.equal(savedOrder.orderStatus, 'ACTIVATED')
   })
 
   await run('Checkout session legacy dù đang có nợ', async () => {

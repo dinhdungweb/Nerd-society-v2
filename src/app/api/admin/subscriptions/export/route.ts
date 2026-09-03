@@ -19,7 +19,7 @@ const SUBSCRIBER_STATUS_LABELS: Record<string, string> = {
 
 const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
   PENDING_PAYMENT: 'Gói đang chờ thanh toán',
-  PENDING_ACTIVATION: 'Đã thanh toán, đang chờ kích hoạt và cấp QR',
+  PENDING_ACTIVATION: 'Đã thanh toán, đang chờ kích hoạt',
   ACTIVE: 'Gói đang hoạt động',
   EXPIRED: 'Gói đã hết hạn',
   CANCELLED: 'Gói đã bị hủy',

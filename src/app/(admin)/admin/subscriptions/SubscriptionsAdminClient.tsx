@@ -384,7 +384,7 @@ export default function SubscriptionsAdminClient() {
                 >
                   <option value="">Tất cả trạng thái</option>
                   <option value="ACTIVE">Active</option>
-                  <option value="PENDING_ACTIVATION">Chờ cấp QR</option>
+                  <option value="PENDING_ACTIVATION">Chờ kích hoạt</option>
                   <option value="EXPIRED">Hết hạn</option>
                   <option value="RENEWED">Đã gia hạn</option>
                   <option value="NO_SUBSCRIPTION">Dùng Ví Nerd</option>
