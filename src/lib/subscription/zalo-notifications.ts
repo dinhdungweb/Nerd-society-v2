@@ -93,6 +93,7 @@ export async function notifyOverageDebt(input: {
     type,
     {
       customer_name: input.subscriberName || subscriber.fullName,
+      session_code: sessionId,
       branch: input.branch || '',
       overage_minutes: String(overageMin),
       amount_due: String(amountCharged),

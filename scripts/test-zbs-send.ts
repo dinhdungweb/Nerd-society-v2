@@ -16,6 +16,7 @@ const SAMPLE_DATA: Record<ZaloTemplateType, Record<string, string>> = {
   },
   OVERAGE_DEBT: {
     customer_name: 'Khách kiểm thử',
+    session_code: 'MBF-20260903-001',
     branch: 'HTM',
     overage_minutes: '30',
     amount_due: '7500',
