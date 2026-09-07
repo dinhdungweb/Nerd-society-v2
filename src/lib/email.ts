@@ -768,8 +768,8 @@ export async function sendSubscriptionPaidEmail(order: any) {
         </p>
         
         <h2 style="color: #9B7850; font-size: 16px; margin-top: 32px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">KÍCH HOẠT QR</h2>
-        <p class="p">Gói và QR thành viên của bạn đã được kích hoạt tự động ngay khi thanh toán được xác nhận. Bạn có thể mở hồ sơ Monthly Beaver và dùng QR để check-in tại quầy.</p>
-        <p class="p">Ngày bắt đầu và ngày hết hạn được hiển thị trong hồ sơ Monthly Beaver của bạn.</p>
+        <p class="p">Gói của bạn đã chuyển sang hoạt động và QR thành viên được cấp tự động ngay khi thanh toán được xác nhận. Bạn có thể mở hồ sơ Monthly Beaver và dùng QR để check-in tại quầy.</p>
+        <p class="p">Bạn cần check-in lần đầu trong vòng 30 ngày kể từ ngày thanh toán; nếu không, gói sẽ hết hạn. Thời hạn sử dụng 30 ngày bắt đầu từ lần check-in đầu tiên và ngày hết hạn sẽ hiển thị trong hồ sơ Monthly Beaver của bạn.</p>
         
         <h2 style="color: #9B7850; font-size: 16px; margin-top: 32px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px;">CÁCH SỬ DỤNG</h2>
         <p class="p">Quét vào — quét ra. Mỗi lần đến, quét QR để check-in. Khi về, quét lại QR để check-out. Vậy là xong.</p>

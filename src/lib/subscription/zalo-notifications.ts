@@ -43,12 +43,22 @@ export function getExpiryReminderTargetDate(today: Date = businessDateOnly()) {
   return targetDate
 }
 
+export const SUBSCRIPTION_REMINDER_DAYS = [3, 1] as const
+
+export function getSubscriptionReminderTargetDate(daysRemaining: number, today: Date = businessDateOnly()) {
+  const targetDate = new Date(today)
+  targetDate.setUTCDate(targetDate.getUTCDate() + daysRemaining)
+  return targetDate
+}
+
 export async function notifySubscriptionSuccess(orderId: string, action: 'REGISTERED' | 'RENEWED') {
   const order = await prisma.registrationOrder.findUnique({
     where: { id: orderId },
     include: { subscriber: true, subscription: true },
   })
-  if (!order?.subscriber?.phone || !order.subscription?.endDate) return null
+  const notificationDate = order?.subscription?.endDate || order?.subscription?.activationDeadline
+  if (!order?.subscriber?.phone || !order.subscription || !notificationDate) return null
+  const waitingForFirstCheckin = !order.subscription.endDate
 
   const type = 'SUBSCRIPTION_SUCCESS' as const
   return sendZaloNotification(
@@ -56,13 +66,53 @@ export async function notifySubscriptionSuccess(orderId: string, action: 'REGIST
     type,
     {
       customer_name: order.subscriber.fullName,
-      action: action === 'RENEWED' ? 'Gia hạn' : 'Đăng ký mới',
+      action: waitingForFirstCheckin
+        ? action === 'RENEWED'
+          ? 'Gia hạn - chờ check-in'
+          : 'Đăng ký mới - chờ check-in'
+        : action === 'RENEWED'
+          ? 'Gia hạn'
+          : 'Đăng ký mới',
       plan_name: planLabel(order.subscription.planType),
       branch: order.subscriber.branchPrimary || order.branchPrimary,
-      expiry_date: formatDate(order.subscription.endDate),
+      expiry_date: formatDate(notificationDate),
     },
     {
       trackingId: createZbsTrackingId(type, `subscription-success:${order.id}:${order.subscription.id}:${action}`),
+    }
+  )
+}
+
+export async function notifySubscriptionActivated(subscriptionId: string) {
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { subscriber: true },
+  })
+  if (
+    !subscription?.subscriber.phone ||
+    !subscription.activationDate ||
+    !subscription.startDate ||
+    !subscription.endDate
+  ) {
+    return null
+  }
+
+  const type = 'SUBSCRIPTION_SUCCESS' as const
+  return sendZaloNotification(
+    subscription.subscriber.phone,
+    type,
+    {
+      customer_name: subscription.subscriber.fullName,
+      action: 'Kích hoạt lần đầu',
+      plan_name: planLabel(subscription.planType),
+      branch: subscription.subscriber.branchPrimary || '',
+      expiry_date: formatDate(subscription.endDate),
+    },
+    {
+      trackingId: createZbsTrackingId(
+        type,
+        `subscription-activated:${subscription.id}:${subscription.activationDate.toISOString()}`
+      ),
     }
   )
 }
@@ -133,10 +183,20 @@ export async function notifyBlockedByDebt(input: {
 }
 
 export async function notifyExpiringSubscriptions(today: Date = businessDateOnly()) {
-  const targetDate = getExpiryReminderTargetDate(today)
+  const targets = SUBSCRIPTION_REMINDER_DAYS.map((daysRemaining) => ({
+    daysRemaining,
+    targetDate: getSubscriptionReminderTargetDate(daysRemaining, today),
+  }))
+  const targetDates = targets.map((target) => target.targetDate)
 
   const subscriptions = await prisma.subscription.findMany({
-    where: { status: 'ACTIVE', endDate: targetDate },
+    where: {
+      status: 'ACTIVE',
+      OR: [
+        { endDate: { in: targetDates } },
+        { startDate: null, endDate: null, activationDeadline: { in: targetDates } },
+      ],
+    },
     include: { subscriber: true },
   })
 
@@ -144,7 +204,12 @@ export async function notifyExpiringSubscriptions(today: Date = businessDateOnly
   let skipped = 0
   let failed = 0
   for (const subscription of subscriptions) {
-    if (!subscription.endDate || !subscription.subscriber.phone) {
+    const waitingForFirstCheckin = !subscription.startDate && !subscription.endDate
+    const reminderDate = waitingForFirstCheckin ? subscription.activationDeadline : subscription.endDate
+    const target = reminderDate
+      ? targets.find((item) => item.targetDate.getTime() === reminderDate.getTime())
+      : undefined
+    if (!reminderDate || !target || !subscription.subscriber.phone) {
       skipped += 1
       continue
     }
@@ -156,14 +221,16 @@ export async function notifyExpiringSubscriptions(today: Date = businessDateOnly
         type,
         {
           customer_name: subscription.subscriber.fullName,
-          plan_name: planLabel(subscription.planType),
-          expiry_date: formatDate(subscription.endDate),
-          days_remaining: '3',
+          plan_name: waitingForFirstCheckin
+            ? `${planLabel(subscription.planType)} (chưa check-in)`
+            : planLabel(subscription.planType),
+          expiry_date: formatDate(reminderDate),
+          days_remaining: String(target.daysRemaining),
         },
         {
           trackingId: createZbsTrackingId(
             type,
-            `subscription-expiring:${subscription.id}:${subscription.endDate.toISOString()}`
+            `subscription-${waitingForFirstCheckin ? 'activation' : 'expiring'}:${subscription.id}:${reminderDate.toISOString()}:${target.daysRemaining}`
           ),
         }
       )

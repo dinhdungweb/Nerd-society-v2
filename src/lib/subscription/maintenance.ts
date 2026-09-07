@@ -4,26 +4,51 @@ import { notifyExpiringSubscriptions } from '@/lib/subscription/zalo-notificatio
 
 export async function expireOverdueSubscriptions(today: Date = businessDateOnly(), subscriberId?: string) {
   const subscriptions = await prisma.subscription.findMany({
-    where: { status: 'ACTIVE', endDate: { lt: today }, ...(subscriberId ? { subscriberId } : {}) },
-    select: { id: true, subscriberId: true, planType: true, endDate: true },
+    where: {
+      status: 'ACTIVE',
+      OR: [
+        { endDate: { lt: today } },
+        { startDate: null, endDate: null, activationDeadline: { lt: today } },
+      ],
+      ...(subscriberId ? { subscriberId } : {}),
+    },
+    select: { id: true, subscriberId: true, planType: true, endDate: true, activationDeadline: true },
   })
   if (!subscriptions.length) return 0
 
   return prisma.$transaction(async (tx) => {
-    const updated = await tx.subscription.updateMany({
-      where: { id: { in: subscriptions.map((item) => item.id) }, status: 'ACTIVE' },
-      data: { status: 'EXPIRED' },
-    })
-    await tx.subscriptionAuditLog.createMany({
-      data: subscriptions.map((item) => ({
-        action: 'AUTO_EXPIRE_SUBSCRIPTION',
-        entityType: 'SUBSCRIPTION',
-        entityId: item.id,
-        performedBy: 'system',
-        details: { subscriberId: item.subscriberId, planType: item.planType, endDate: item.endDate?.toISOString() },
-      })),
-    })
-    return updated.count
+    let expiredCount = 0
+    for (const item of subscriptions) {
+      const updated = await tx.subscription.updateMany({
+        where: {
+          id: item.id,
+          status: 'ACTIVE',
+          ...(item.endDate
+            ? { endDate: { lt: today } }
+            : { startDate: null, endDate: null, activationDeadline: { lt: today } }),
+        },
+        data: { status: 'EXPIRED' },
+      })
+      if (!updated.count) continue
+
+      expiredCount += 1
+      await tx.subscriptionAuditLog.create({
+        data: {
+          action: 'AUTO_EXPIRE_SUBSCRIPTION',
+          entityType: 'SUBSCRIPTION',
+          entityId: item.id,
+          performedBy: 'system',
+          details: {
+            subscriberId: item.subscriberId,
+            planType: item.planType,
+            endDate: item.endDate?.toISOString(),
+            activationDeadline: item.activationDeadline?.toISOString(),
+            reason: item.endDate ? 'term_expired' : 'activation_window_expired',
+          },
+        },
+      })
+    }
+    return expiredCount
   })
 }
 

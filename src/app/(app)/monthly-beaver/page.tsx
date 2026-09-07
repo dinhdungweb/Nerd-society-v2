@@ -390,7 +390,7 @@ export default function MonthlyBeaverPage() {
           <div className="mt-10 flex items-start gap-3 rounded-2xl border border-primary-200/60 bg-primary-50 p-5">
             <LightBulbIcon className="h-5 w-5 flex-shrink-0 text-primary-600 mt-0.5" />
             <p className="text-sm text-neutral-600">
-              Gói và QR được <strong className="text-neutral-900">tự động kích hoạt ngay khi thanh toán thành công</strong>.
+              Gói chuyển sang hoạt động và QR được cấp ngay khi thanh toán. <strong className="text-neutral-900">Check-in lần đầu trong 30 ngày để bắt đầu thời hạn sử dụng</strong>.
             </p>
           </div>
           </>
@@ -810,7 +810,7 @@ export default function MonthlyBeaverPage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckIcon className="h-4 w-4 flex-shrink-0 text-primary-500 mt-0.5" />
-                  Gói và QR đã được tự động kích hoạt ngay sau khi thanh toán
+                  Check-in lần đầu trong 30 ngày; thời hạn sử dụng bắt đầu từ lần đó
                 </li>
                 <li className="flex items-start gap-2">
                   <BoltIcon className="h-4 w-4 flex-shrink-0 text-primary-500 mt-0.5" />

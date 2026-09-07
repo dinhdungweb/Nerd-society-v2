@@ -297,10 +297,8 @@ export default async function MonthlyBeaverPage() {
                                             {activeSub.endDate
                                                 ? new Date(activeSub.endDate).toLocaleDateString('vi-VN')
                                                 : activeSub.activationDeadline
-                                                    ? new Date(activeSub.activationDeadline).toLocaleDateString('vi-VN')
-                                                    : activeSub.dailyLimitMin
-                                                        ? `${activeSub.dailyLimitMin / 60}h/ngày`
-                                                        : '—'}
+                                                    ? `Check-in trước ${new Date(activeSub.activationDeadline).toLocaleDateString('vi-VN')}`
+                                                    : 'Tính từ lần check-in đầu tiên'}
                                         </p>
                                     </div>
                                 </div>

@@ -19,11 +19,11 @@ const faqs = [
   },
   {
     q: 'Thời hạn gói bắt đầu từ khi nào?',
-    a: 'Gói bắt đầu tính ngay khi thanh toán được xác nhận. Hệ thống tự động cấp QR thành viên và hiển thị ngày bắt đầu, ngày hết hạn trong hồ sơ Monthly Beaver.',
+    a: 'Gói chuyển sang hoạt động và QR được cấp ngay khi thanh toán được xác nhận. Bạn cần check-in lần đầu trong vòng 30 ngày kể từ ngày thanh toán; nếu không, gói sẽ hết hạn. Thời hạn sử dụng 30 ngày bắt đầu từ lần check-in đầu tiên.',
   },
   {
     q: 'Refund được không?',
-    a: 'Sau khi thanh toán được xác nhận, QR và gói được kích hoạt tự động. Nếu cần hủy, vui lòng liên hệ quầy để được kiểm tra trạng thái đơn và chính sách hoàn tiền.',
+    a: 'Sau khi thanh toán được xác nhận, gói chuyển sang hoạt động và QR được cấp tự động. Nếu cần hủy, vui lòng liên hệ quầy để được kiểm tra trạng thái đơn và chính sách hoàn tiền.',
   },
   {
     q: 'QR bị lộ hoặc bị mất thì sao?',

@@ -33,6 +33,21 @@ export function localStartOfDay(date: Date = new Date()): Date {
   return new Date(businessDateOnly(date).getTime() - BUSINESS_UTC_OFFSET_MS)
 }
 
+export function businessDateEndExclusive(dateOnly: Date): Date {
+  const nextDate = new Date(dateOnly)
+  nextDate.setUTCDate(nextDate.getUTCDate() + 1)
+  return new Date(nextDate.getTime() - BUSINESS_UTC_OFFSET_MS)
+}
+
+export function getBusinessMonthRange(year: number, month: number) {
+  const startDateOnly = new Date(Date.UTC(year, month - 1, 1))
+  const endDateOnly = new Date(Date.UTC(year, month, 1))
+  return {
+    start: new Date(startDateOnly.getTime() - BUSINESS_UTC_OFFSET_MS),
+    endExclusive: new Date(endDateOnly.getTime() - BUSINESS_UTC_OFFSET_MS),
+  }
+}
+
 export function localDateOnly(date: Date): Date {
   return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
 }
@@ -140,18 +155,26 @@ export function splitMinutesByLocalDay(start: Date, end: Date, totalMinutes: num
     return [{ usageDate: businessDateOnly(start), minutes: totalMinutes }]
   }
 
-  // Session lengths are stored in whole minutes. Assign each minute using the
-  // configured business timezone so deployment server timezone cannot change
-  // the day boundary (notably when the server runs in UTC).
-  const minuteCountByDate = new Map<string, number>()
-  for (let minute = 0; minute < totalMinutes; minute += 1) {
-    const instant = new Date(start.getTime() + minute * 60_000)
-    const key = formatBusinessDate(instant)
-    minuteCountByDate.set(key, (minuteCountByDate.get(key) || 0) + 1)
+  // Preserve the existing rule that a continuous session is split at each
+  // Vietnam calendar-day boundary, but calculate by boundary instead of once
+  // per minute. Runtime is O(number of days), even for a stale session.
+  const segments: Array<{ usageDate: Date; minutes: number }> = []
+  let cursorMs = start.getTime()
+  let remainingMinutes = totalMinutes
+
+  while (remainingMinutes > 0) {
+    const key = formatBusinessDate(new Date(cursorMs))
+    const usageDate = dateOnlyFromYmd(key)
+    const nextDay = new Date(usageDate)
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1)
+    const nextBoundaryMs = nextDay.getTime() - BUSINESS_UTC_OFFSET_MS
+    const minutesUntilBoundary = Math.max(1, Math.ceil((nextBoundaryMs - cursorMs) / 60_000))
+    const minutes = Math.min(remainingMinutes, minutesUntilBoundary)
+
+    segments.push({ usageDate, minutes })
+    remainingMinutes -= minutes
+    cursorMs += minutes * 60_000
   }
 
-  return Array.from(minuteCountByDate, ([key, minutes]) => ({
-    usageDate: dateOnlyFromYmd(key),
-    minutes,
-  }))
+  return segments
 }

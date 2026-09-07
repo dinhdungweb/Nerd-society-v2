@@ -2,7 +2,11 @@ import { getRolePermissions } from '@/lib/apiPermissions'
 import { getStaffSession } from '@/lib/authHelpers'
 import { prisma } from '@/lib/prisma'
 import { processMembershipQrScan } from '@/lib/subscription/membership-scan'
-import { notifyBlockedByDebt, notifyOverageDebt } from '@/lib/subscription/zalo-notifications'
+import {
+  notifyBlockedByDebt,
+  notifyOverageDebt,
+  notifySubscriptionActivated,
+} from '@/lib/subscription/zalo-notifications'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -13,6 +17,11 @@ const scanSchema = z.object({
 })
 
 async function notifyScanResult(result: Awaited<ReturnType<typeof processMembershipQrScan>>) {
+  if (result.code === 'CHECK_IN_SUCCESS' && result.isFirstCheckin && result.subscriptionId) {
+    await notifySubscriptionActivated(result.subscriptionId)
+    return
+  }
+
   if (result.code === 'CHECK_OUT_SUCCESS') {
     await notifyOverageDebt({
       subscriberId: result.subscriberId,

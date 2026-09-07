@@ -318,6 +318,25 @@ async function main() {
     assert.equal(subscription.status, 'EXPIRED')
   })
 
+  await run('Gói vừa hết hạn chuyển sang Ví Nerd ngay trong cùng lần quét', async () => {
+    const member = await createMember('expired_wallet_fallback', {
+      subscription: 'expired',
+      walletBalance: 100_000,
+    })
+    const result = await scan(member, htm)
+    assert.equal(result.code, 'CHECK_IN_SUCCESS')
+    assert.match(result.message, /chuyển sang Ví Nerd/i)
+
+    const [subscription, session, wallet] = await Promise.all([
+      prisma.subscription.findUniqueOrThrow({ where: { id: member.subscription!.id } }),
+      prisma.subscriptionSession.findUniqueOrThrow({ where: { id: result.sessionId! } }),
+      prisma.wallet.findUniqueOrThrow({ where: { id: member.wallet!.id } }),
+    ])
+    assert.equal(subscription.status, 'EXPIRED')
+    assert.equal(session.subscriptionId, null)
+    assert.equal(wallet.balance, 100_000)
+  })
+
   await run('Hết quota ngày bị chặn', async () => {
     const member = await createMember('quota', { subscription: 'active', dailyLimitMin: 480 })
     await prisma.dailyUsage.create({
@@ -369,7 +388,7 @@ async function main() {
     assert.equal(wallet.balance, 200_000)
   })
 
-  await run('Paid pending subscription is activated when QR access is ensured', async () => {
+  await run('Paid entitlement is active while its 30-day term waits for the first check-in', async () => {
     const member = await createMember('activate_on_qr_access', { subscription: 'pending' })
     const paidAt = almostMinutesAgo(30)
     const order = await prisma.registrationOrder.create({
@@ -392,9 +411,45 @@ async function main() {
     const result = await ensureMembershipAccess(member.subscriber.id, 'integration-test')
     assert.equal(result.activationKind, 'ACTIVATED_PENDING')
     assert.equal(result.subscription?.status, 'ACTIVE')
+    assert.equal(result.subscription?.activationDate, null)
+    assert.equal(result.subscription?.startDate, null)
+    assert.equal(result.subscription?.endDate, null)
+    assert.ok(result.subscription?.activationDeadline)
     assert.ok(result.payload)
     const savedOrder = await prisma.registrationOrder.findUniqueOrThrow({ where: { id: order.id } })
     assert.equal(savedOrder.orderStatus, 'ACTIVATED')
+
+    const firstCheckIn = await scan(member, htm)
+    assert.equal(firstCheckIn.code, 'CHECK_IN_SUCCESS')
+    assert.equal(firstCheckIn.isFirstCheckin, true)
+    const started = await prisma.subscription.findUniqueOrThrow({ where: { id: member.subscription!.id } })
+    assert.ok(started.activationDate)
+    assert.ok(started.startDate)
+    assert.ok(started.endDate)
+    assert.equal(started.activationDeadline, null)
+    assert.equal(
+      Math.round((started.endDate!.getTime() - started.startDate!.getTime()) / 86_400_000),
+      29
+    )
+  })
+
+  await run('Unstarted active subscription expires after its 30-day activation window', async () => {
+    const member = await createMember('activation_window_expired', { subscription: 'active' })
+    await prisma.subscription.update({
+      where: { id: member.subscription!.id },
+      data: {
+        activationDate: null,
+        startDate: null,
+        endDate: null,
+        activationDeadline: daysFromNow(-1),
+      },
+    })
+
+    const result = await scan(member, htm)
+    assert.equal(result.code, 'BLOCK_EXPIRED')
+    const expired = await prisma.subscription.findUniqueOrThrow({ where: { id: member.subscription!.id } })
+    assert.equal(expired.status, 'EXPIRED')
+    assert.equal(await prisma.subscriptionSession.count({ where: { subscriberId: member.subscriber.id } }), 0)
   })
 
   await run('Checkout session legacy dù đang có nợ', async () => {
@@ -464,6 +519,56 @@ async function main() {
     const usage = await prisma.dailyUsage.findFirstOrThrow({ where: { subscriberId: member.subscriber.id } })
     assert.equal(usage.totalMin, 500)
     assert.equal(usage.overageMin, 20)
+  })
+
+  await run('Phần phiên sau ngày hết hạn không được dùng quota Monthly', async () => {
+    const member = await createMember('session_crosses_expiry', {
+      subscription: 'active',
+      dailyLimitMin: 480,
+    })
+    const checkInTime = new Date('2026-09-30T23:00:00+07:00')
+    const checkOutTime = new Date('2026-10-01T02:00:00+07:00')
+    await prisma.subscription.update({
+      where: { id: member.subscription!.id },
+      data: {
+        startDate: new Date('2026-09-01T00:00:00.000Z'),
+        endDate: new Date('2026-09-30T00:00:00.000Z'),
+        usedHoursMin: 0,
+      },
+    })
+    const session = await prisma.subscriptionSession.create({
+      data: {
+        subscriberId: member.subscriber.id,
+        subscriptionId: member.subscription!.id,
+        branch: 'HTM',
+        checkInTime,
+        source: 'integration_test',
+        status: 'ACTIVE',
+      },
+    })
+
+    const result = await prisma.$transaction((tx) =>
+      checkoutSubscriptionSessionInTx(tx, session.id, {
+        checkOutTime,
+        source: 'integration_test',
+        performedBy: performer.name,
+      })
+    )
+    assert.equal(result.success, true)
+    assert.equal(result.durationMin, 180)
+    assert.equal(result.overageMin, 120)
+    assert.equal(result.amountCharged, 30_000)
+
+    const [usage, subscription, subscriber] = await Promise.all([
+      prisma.dailyUsage.findFirstOrThrow({ where: { subscriberId: member.subscriber.id } }),
+      prisma.subscription.findUniqueOrThrow({ where: { id: member.subscription!.id } }),
+      prisma.subscriber.findUniqueOrThrow({ where: { id: member.subscriber.id } }),
+    ])
+    assert.equal(usage.usageDate.toISOString(), '2026-09-30T00:00:00.000Z')
+    assert.equal(usage.totalMin, 60)
+    assert.equal(subscription.usedHoursMin, 60)
+    assert.equal(subscription.status, 'EXPIRED')
+    assert.equal(subscriber.outstandingBalance, 30_000)
   })
 
   await run('Hai scan đồng thời chỉ tạo một session', async () => {

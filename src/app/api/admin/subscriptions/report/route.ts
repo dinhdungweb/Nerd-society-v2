@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { getMonthlyReport } from '@/actions/subscription-actions';
 import { getStaffSession } from '@/lib/authHelpers';
 import { getRolePermissions } from '@/lib/apiPermissions';
+import { formatBusinessDate } from '@/lib/subscription/date-utils';
 
 export async function GET(request: Request) {
   try {
@@ -17,8 +18,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     const url = new URL(request.url);
-    const year = parseInt(url.searchParams.get('year') || String(new Date().getFullYear()));
-    const month = parseInt(url.searchParams.get('month') || String(new Date().getMonth() + 1));
+    const [defaultYear, defaultMonth] = formatBusinessDate().split('-').map(Number);
+    const year = parseInt(url.searchParams.get('year') || String(defaultYear));
+    const month = parseInt(url.searchParams.get('month') || String(defaultMonth));
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+      return NextResponse.json({ error: 'Invalid report month' }, { status: 400 });
+    }
 
     const report = await getMonthlyReport(year, month);
     return NextResponse.json(report);

@@ -2,10 +2,14 @@ import 'dotenv/config'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { prisma } from '../src/lib/prisma'
+import { businessDateOnly } from '../src/lib/subscription/date-utils'
 import {
   createRegistrationOrderWithCode,
+  getActivationDeadline,
+  getPlanEndDate,
   settleRegistrationOrderInTx,
 } from '../src/lib/subscription/order-lifecycle'
+import { checkInSubscriber } from '../src/lib/subscription/session-manager'
 
 const databaseName = (() => {
   try {
@@ -85,7 +89,7 @@ async function settle(orderId: string, paidAt: Date, paymentRef: string) {
   )
 }
 
-async function testNewCustomerAutoActivation() {
+async function testNewCustomerStartsTermOnFirstCheckin() {
   const user = await createTestUser('new')
   const order = await createPendingOrder({
     userId: user.id,
@@ -115,14 +119,31 @@ async function testNewCustomerAutoActivation() {
   assert.equal(subscription.status, 'ACTIVE')
   assert.equal(subscription.planType, 'WEEKLY_LIMITED')
   assert.equal(subscription.totalHoursMin, 15 * 60)
-  assert.ok(subscription.startDate)
-  assert.ok(subscription.endDate)
-  assert.equal(
-    Math.round((subscription.endDate!.getTime() - subscription.startDate!.getTime()) / 86_400_000),
-    6
-  )
+  assert.equal(subscription.activationDate, null)
+  assert.equal(subscription.startDate, null)
+  assert.equal(subscription.endDate, null)
+  assert.equal(subscription.activationDeadline?.toISOString(), getActivationDeadline(paidAt).toISOString())
   assert.equal(credential.status, 'ACTIVE')
   assert.equal(credential.version, 1)
+
+  const firstCheckInAt = addUtcDays(paidAt, 5)
+  const checkIn = await checkInSubscriber(subscriber.id, 'HTM', {
+    checkInTime: firstCheckInAt,
+    source: 'integration_test',
+    performedBy: 'integration-test',
+  })
+  assert.equal(checkIn.success, true)
+  assert.equal(checkIn.isFirstCheckin, true)
+
+  const startedSubscription = await prisma.subscription.findUniqueOrThrow({ where: { id: subscription.id } })
+  const expectedStartDate = businessDateOnly(firstCheckInAt)
+  assert.equal(startedSubscription.activationDate?.toISOString(), firstCheckInAt.toISOString())
+  assert.equal(startedSubscription.startDate?.toISOString(), expectedStartDate.toISOString())
+  assert.equal(startedSubscription.activationDeadline, null)
+  assert.equal(
+    startedSubscription.endDate?.toISOString(),
+    getPlanEndDate(expectedStartDate, subscription.planType).toISOString()
+  )
 
   const retry = await settle(order.id, paidAt, `${prefix}_duplicate_payment`)
   assert.equal(retry.outcome, 'ALREADY_SETTLED')
@@ -217,9 +238,9 @@ async function cleanup() {
 
 async function main() {
   try {
-    await testNewCustomerAutoActivation()
+    await testNewCustomerStartsTermOnFirstCheckin()
     await testRenewalKeepsRevokedQrLocked()
-    console.log('PASS: thanh toán tự kích hoạt gói và cấp QR; QR bị thu hồi vẫn giữ khóa khi gia hạn.')
+    console.log('PASS: thanh toán kích hoạt quyền dùng và cấp QR; thời hạn bắt đầu từ check-in đầu tiên; QR bị thu hồi vẫn giữ khóa khi gia hạn.')
   } finally {
     await cleanup()
     await prisma.$disconnect()

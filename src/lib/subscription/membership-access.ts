@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { businessDateOnly } from '@/lib/subscription/date-utils'
-import { getPlanEndDate, PLAN_HOURS_MIN } from '@/lib/subscription/order-lifecycle'
+import { getActivationDeadline, PLAN_HOURS_MIN } from '@/lib/subscription/order-lifecycle'
 import { buildMembershipQrPayload, ensureMembershipQrCredentialInTx } from '@/lib/subscription/qr-credential'
 import { Prisma, type Subscription } from '@prisma/client'
 
@@ -43,24 +42,19 @@ export async function ensureMembershipAccessInTx(
           : null
 
       if (subscriber.status === 'ACTIVE' && paymentEvidence) {
-        const activatedAt =
-          pending.activationDate ||
-          paidOrder?.assignedAt ||
-          subscriber.qrCredential?.issuedAt ||
-          paidOrder?.paidAt ||
-          pending.purchasedAt
-        const startDate = pending.startDate || businessDateOnly(activatedAt)
-        const endDate = pending.endDate || getPlanEndDate(startDate, pending.planType)
+        const entitlementActivatedAt = new Date()
+        const paymentDate = paidOrder?.paidAt || pending.purchasedAt
+        const activationDeadline = pending.activationDeadline || getActivationDeadline(paymentDate)
         const planHoursMin = PLAN_HOURS_MIN[pending.planType]
 
         subscription = await tx.subscription.update({
           where: { id: pending.id },
           data: {
             status: 'ACTIVE',
-            activationDate: activatedAt,
-            startDate,
-            endDate,
-            activationDeadline: null,
+            activationDate: null,
+            startDate: null,
+            endDate: null,
+            activationDeadline,
             totalHoursMin: planHoursMin > 0 ? Math.max(pending.totalHoursMin || 0, planHoursMin) : null,
             dailyLimitMin: ['MONTHLY_LIMITED', 'MONTHLY_UNLIMITED'].includes(pending.planType)
               ? 480
@@ -76,7 +70,7 @@ export async function ensureMembershipAccessInTx(
             orderStatus: 'ACTIVATED',
             subscriberId,
             assignedBy: performedBy,
-            assignedAt: activatedAt,
+            assignedAt: entitlementActivatedAt,
           },
         })
         await tx.subscriptionAuditLog.create({
@@ -88,10 +82,11 @@ export async function ensureMembershipAccessInTx(
             details: {
               subscriberId,
               paymentEvidence,
-              activationPolicy: 'preserve_original_qr_or_payment_time',
-              activationDate: activatedAt,
-              startDate,
-              endDate,
+              activationPolicy: 'first_successful_checkin',
+              activationDeadline: activationDeadline.toISOString(),
+              activationDate: null,
+              startDate: null,
+              endDate: null,
             },
           },
         })

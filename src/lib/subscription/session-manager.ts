@@ -1,11 +1,20 @@
 import { prisma } from '@/lib/prisma'
-import { businessDateOnly, splitMinutesByLocalDay } from '@/lib/subscription/date-utils'
+import {
+  businessDateEndExclusive,
+  businessDateOnly,
+  splitMinutesByLocalDay,
+} from '@/lib/subscription/date-utils'
+import { getPlanEndDate } from '@/lib/subscription/order-lifecycle'
 import {
   DEFAULT_RATE_PER_HOUR,
   getSubscriptionDailyCapMin,
   roundUpToIncrement,
 } from '@/lib/subscription/usage-billing'
-import { notifyBlockedByDebt, notifyOverageDebt } from '@/lib/subscription/zalo-notifications'
+import {
+  notifyBlockedByDebt,
+  notifyOverageDebt,
+  notifySubscriptionActivated,
+} from '@/lib/subscription/zalo-notifications'
 import { applyWalletTransactionInTx } from '@/lib/wallet-ledger'
 import { Prisma } from '@prisma/client'
 
@@ -29,6 +38,7 @@ export type CheckInResult = {
   planType?: string
   branch?: string
   sessionId?: string
+  subscriptionId?: string
   quotaMin?: number
   remainingMin?: number
   walletBalance?: number
@@ -66,6 +76,27 @@ export function calculateIncrementalDailyUsage(input: {
     overageMin,
     incrementalOverageMin,
     incrementalCharge: incrementalOverageMin * OVERAGE_RATE_PER_MINUTE,
+  }
+}
+
+export function splitSessionAtSubscriptionExpiry(input: {
+  checkInTime: Date
+  totalMinutes: number
+  endDate?: Date | null
+}) {
+  if (!input.endDate) {
+    return { coveredMinutes: input.totalMinutes, expiredMinutes: 0 }
+  }
+
+  const expiresAt = businessDateEndExclusive(input.endDate)
+  const minutesStartingBeforeExpiry = Math.ceil(
+    (expiresAt.getTime() - input.checkInTime.getTime()) / 60_000
+  )
+  const coveredMinutes = Math.max(0, Math.min(input.totalMinutes, minutesStartingBeforeExpiry))
+
+  return {
+    coveredMinutes,
+    expiredMinutes: input.totalMinutes - coveredMinutes,
   }
 }
 
@@ -140,7 +171,9 @@ export async function checkInSubscriberInTx(
     }
   }
 
-  const subscription = subscriber.subscriptions.find((item) => item.status === 'ACTIVE')
+  let subscription = subscriber.subscriptions.find((item) => item.status === 'ACTIVE')
+  let expiredPlanType: string | undefined
+  let expiredReason: 'activation_window' | 'term' | undefined
   const pendingSubscription = subscriber.subscriptions.find(
     (item) => item.status === 'PENDING_ACTIVATION'
   )
@@ -159,17 +192,25 @@ export async function checkInSubscriberInTx(
     }
   }
 
+  if (
+    subscription &&
+    (!subscription.startDate || !subscription.endDate) &&
+    subscription.activationDeadline &&
+    subscription.activationDeadline < today
+  ) {
+    await tx.subscription.update({ where: { id: subscription.id }, data: { status: 'EXPIRED' } })
+    expiredPlanType = subscription.planType
+    expiredReason = 'activation_window'
+    subscription = undefined
+  } else if (subscription?.endDate && subscription.endDate < today) {
+    await tx.subscription.update({ where: { id: subscription.id }, data: { status: 'EXPIRED' } })
+    expiredPlanType = subscription.planType
+    expiredReason = 'term'
+    subscription = undefined
+  }
+
   if (subscription) {
-    if (subscription.status === 'ACTIVE' && subscription.endDate && subscription.endDate < today) {
-      await tx.subscription.update({ where: { id: subscription.id }, data: { status: 'EXPIRED' } })
-      return {
-        success: false,
-        message: 'Gói thành viên đã hết hạn.',
-        errorType: 'BLOCK_EXPIRED',
-        planType: subscription.planType,
-        ...identity,
-      }
-    }
+    let isFirstCheckin = false
 
     const totalQuotaMin = subscription.totalHoursMin && subscription.totalHoursMin > 0
       ? subscription.totalHoursMin + subscription.carriedHoursMin
@@ -208,13 +249,44 @@ export async function checkInSubscriberInTx(
       }
     }
 
+    if (!subscription.startDate || !subscription.endDate) {
+      const startDate = today
+      const endDate = getPlanEndDate(startDate, subscription.planType)
+      subscription = await tx.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          activationDate: now,
+          startDate,
+          endDate,
+          activationDeadline: null,
+        },
+      })
+      isFirstCheckin = true
+
+      await tx.subscriptionAuditLog.create({
+        data: {
+          action: 'subscription_term_started_on_first_checkin',
+          entityType: 'subscription',
+          entityId: subscription.id,
+          performedBy: options.performedBy || 'system',
+          details: {
+            subscriberId: subscriber.id,
+            activationPolicy: 'first_successful_checkin',
+            activationDate: now.toISOString(),
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+          },
+        },
+      })
+    }
+
     const session = await tx.subscriptionSession.create({
       data: {
         subscriberId: subscriber.id,
         subscriptionId: subscription.id,
         branch,
         checkInTime: now,
-        isFirstCheckin: false,
+        isFirstCheckin,
         source: options.source || 'qr',
         status: 'ACTIVE',
       },
@@ -237,9 +309,10 @@ export async function checkInSubscriberInTx(
         : `Check-in thành công. Còn ${Math.floor(remainingMin / 60)}h ${remainingMin % 60}m hôm nay.`,
       planType: subscription.planType,
       sessionId: session.id,
+      subscriptionId: subscription.id,
       quotaMin,
       remainingMin,
-      isFirstCheckin: false,
+      isFirstCheckin,
       ...identity,
     }
   }
@@ -247,11 +320,19 @@ export async function checkInSubscriberInTx(
   const wallet = subscriber.user?.wallet
   const walletBalance = wallet?.balance || 0
   if (!wallet || wallet.status !== 'ACTIVE' || walletBalance < MIN_WALLET_BALANCE) {
+    const expiredMessage = expiredReason === 'activation_window'
+      ? 'Gói đã quá hạn kích hoạt và Ví Nerd không đủ để check-in.'
+      : 'Gói đã hết hạn và Ví Nerd không đủ để check-in.'
     return {
       success: false,
-      message: wallet ? 'Số dư Ví Nerd không đủ để check-in.' : 'Không có gói hoặc Ví Nerd hợp lệ.',
+      message: expiredReason
+        ? expiredMessage
+        : wallet
+          ? 'Số dư Ví Nerd không đủ để check-in.'
+          : 'Không có gói hoặc Ví Nerd hợp lệ.',
       walletBalance,
-      errorType: wallet ? 'BLOCK_LOW_BALANCE' : 'NO_ELIGIBLE_ACCOUNT',
+      errorType: wallet ? 'BLOCK_LOW_BALANCE' : expiredReason ? 'BLOCK_EXPIRED' : 'NO_ELIGIBLE_ACCOUNT',
+      planType: expiredPlanType,
       ...identity,
     }
   }
@@ -277,7 +358,9 @@ export async function checkInSubscriberInTx(
 
   return {
     success: true,
-    message: `Check-in thành công. Số dư Ví Nerd: ${walletBalance.toLocaleString('vi-VN')}đ.`,
+    message: expiredReason
+      ? `${expiredReason === 'activation_window' ? 'Gói đã quá hạn kích hoạt' : 'Gói đã hết hạn'}. Đã chuyển sang Ví Nerd; số dư ${walletBalance.toLocaleString('vi-VN')}đ.`
+      : `Check-in thành công. Số dư Ví Nerd: ${walletBalance.toLocaleString('vi-VN')}đ.`,
     sessionId: session.id,
     walletBalance,
     ...identity,
@@ -307,6 +390,8 @@ export async function checkoutSubscriptionSessionInTx(
   let quotaMin: number | undefined
   let remainingMin: number | undefined
   let walletBalanceAfter: number | undefined
+  let subscriptionCoveredMin = 0
+  let afterSubscriptionExpiryMin = 0
 
   if (session.subscriptionId && session.subscription) {
     const totalQuotaMin = session.subscription.totalHoursMin && session.subscription.totalHoursMin > 0
@@ -314,7 +399,15 @@ export async function checkoutSubscriptionSessionInTx(
       : null
     const dailyCapMin = getSubscriptionDailyCapMin(session.subscription)
     quotaMin = totalQuotaMin || dailyCapMin || undefined
-    const segments = splitMinutesByLocalDay(session.checkInTime, now, durationMin)
+    const { coveredMinutes, expiredMinutes } = splitSessionAtSubscriptionExpiry({
+      checkInTime: session.checkInTime,
+      totalMinutes: durationMin,
+      endDate: session.subscription.endDate,
+    })
+    subscriptionCoveredMin = coveredMinutes
+    afterSubscriptionExpiryMin = expiredMinutes
+    const coveredUntil = new Date(session.checkInTime.getTime() + coveredMinutes * 60_000)
+    const segments = splitMinutesByLocalDay(session.checkInTime, coveredUntil, coveredMinutes)
     for (const segment of segments) {
       const before = await tx.dailyUsage.findUnique({
         where: { subscriberId_usageDate: { subscriberId: session.subscriberId, usageDate: segment.usageDate } },
@@ -358,13 +451,23 @@ export async function checkoutSubscriptionSessionInTx(
         remainingMin = Math.max(0, dailyCapMin - calculated.totalMin)
       }
     }
+    if (expiredMinutes > 0) {
+      overageMin += expiredMinutes
+      amountCharged += expiredMinutes * OVERAGE_RATE_PER_MINUTE
+      remainingMin = 0
+    }
     if (totalQuotaMin) {
-      remainingMin = Math.max(0, totalQuotaMin - session.subscription.usedHoursMin - durationMin)
+      remainingMin = expiredMinutes > 0
+        ? 0
+        : Math.max(0, totalQuotaMin - session.subscription.usedHoursMin - coveredMinutes)
     }
 
     await tx.subscription.update({
       where: { id: session.subscriptionId },
-      data: { usedHoursMin: { increment: durationMin } },
+      data: {
+        usedHoursMin: { increment: coveredMinutes },
+        ...(expiredMinutes > 0 ? { status: 'EXPIRED' as const } : {}),
+      },
     })
 
     if (amountCharged > 0) {
@@ -439,6 +542,8 @@ export async function checkoutSubscriptionSessionInTx(
         originalSource: session.source,
         checkOutTime: now.toISOString(),
         durationMin,
+        subscriptionCoveredMin,
+        afterSubscriptionExpiryMin,
         overageMin,
         amountCharged,
       },
@@ -454,6 +559,7 @@ export async function checkoutSubscriptionSessionInTx(
     subscriberName: session.subscriber.fullName,
     subscriberPhoto: session.subscriber.photoUrl,
     planType: session.subscription?.planType,
+    subscriptionId: session.subscriptionId || undefined,
     branch: session.branch,
     sessionId: session.id,
     durationMin,
@@ -472,6 +578,11 @@ export function checkInSubscriber(subscriberId: string, branch: string, options:
       return checkInSubscriberInTx(tx, subscriberId, branch, options)
     })
     .then((result) => {
+      if (result.success && result.isFirstCheckin && result.subscriptionId) {
+        void notifySubscriptionActivated(result.subscriptionId).catch((error) =>
+          console.error('[Subscription Zalo] Activation notification failed:', error)
+        )
+      }
       if (result.errorType === 'BLOCK_DEBT') {
         void notifyBlockedByDebt({
           subscriberId: result.subscriberId,

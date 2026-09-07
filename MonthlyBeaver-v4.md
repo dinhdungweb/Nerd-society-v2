@@ -39,6 +39,7 @@ TABLE: accounts
   plan                VARCHAR         -- 'monthly_unlimited'
   started_at          TIMESTAMP       -- ngày kích hoạt (first tap, NOT purchase date)
   expires_at          TIMESTAMP       -- started_at + 30 days
+  activation_deadline TIMESTAMP       -- hạn first tap: tối đa 30 ngày từ payment
   daily_cap_minutes   INT DEFAULT 480 -- 8h
   discount_code       VARCHAR         -- code giảm 20% book phòng
   
@@ -184,7 +185,7 @@ Khách TAP THẺ RA
 │  └─ duration > remaining? (vượt cap)
 │     → capped_minutes = remaining
 │     → overage_minutes = duration - remaining
-│     → overage_amount = CEIL(overage_minutes / 15) × (15000 / 4)
+│     → overage_amount = overage_minutes × 250đ
 │     → outstanding_balance += overage_amount
 │     → Create transaction (type = 'overage_charge', amount = -overage_amount)
 │     → status = 'completed'
@@ -206,6 +207,11 @@ Phiên tiếp tục ở trạng thái active cho đến khi:
   → Nhân viên check-out thủ công trên màn hình Staff.
 
 Các phiên mở lâu hơn 8 giờ được hiển thị cảnh báo để nhân viên kiểm tra.
+
+Nếu phiên kéo dài qua ngày hết hạn gói:
+  → Phần trước thời điểm hết hạn vẫn tính theo quota subscription.
+  → Phần sau thời điểm hết hạn tính 250đ/phút vào outstanding_balance.
+  → Phiên vẫn không tự đóng.
 ```
 
 ## 5.2. Cảnh báo gần hết cap
@@ -303,17 +309,23 @@ SỐ DƯ THẤP:
 MUA GÓI:
   Web / tại quán → thanh toán 549k
   → Create account: type='subscription', status='active', started_at=NULL
+  → activation_deadline = payment_date + 29 ngày (30 ngày tính cả ngày thanh toán)
   → Create transaction (type='subscription_purchase', amount=+549000)
   → Nhận thẻ ZKTeco + chụp selfie + chọn locker
+  → Notify: "Đã thanh toán. Vui lòng check-in lần đầu trước [activation_deadline]"
 
 KÍCH HOẠT (first tap):
+  → Nếu quá activation_deadline: chuyển expired, từ chối check-in
   → started_at = now, expires_at = now + 30 days
   → Notify: "Gói kích hoạt! HSD đến [date]"
 
 NHẮC GIA HẠN:
-  expires_at - 7 ngày → "Gói hết hạn [date]. Gia hạn: [link]"
-  expires_at - 3 ngày → nhắc lại
+  expires_at - 3 ngày → "Gói hết hạn [date]. Gia hạn: [link]"
   expires_at - 1 ngày → nhắc lần cuối
+
+NHẮC KÍCH HOẠT:
+  activation_deadline - 3 ngày → nhắc check-in lần đầu
+  activation_deadline - 1 ngày → nhắc lần cuối
 
 HẾT HẠN:
   → status = 'expired'
@@ -363,9 +375,9 @@ DISCOUNT CODE:
 | Check-out (wallet) | Phiên [X]h[Y]m. Trừ [A]đ. Còn [B]đ |
 | Gần hết cap | Còn 30 phút nữa là hết 8h hôm nay |
 | Chạm cap | Đã hết 8h. Ngồi thêm tính 15k/h |
-| Quên tap ra | Bạn quên tap ra — phiên tự đóng 8h |
+| Quên tap ra | Phiên vẫn mở; màn hình Staff cảnh báo để kiểm tra |
 | Wallet thấp | Số dư còn [X]đ, đủ ~[Y] phút |
-| Sub 7 ngày trước HH | Gói hết hạn [date]. Gia hạn: [link] |
+| Sub 3 ngày trước HH | Gói hết hạn [date]. Gia hạn: [link] |
 | Sub hết hạn | Gói đã hết hạn. Gia hạn: [link] |
 | Block check-in (nợ) | Thanh toán [X]đ để check-in: [link QR] |
 | Payment OK | Đã nhận [X]đ. Check-in bình thường! |

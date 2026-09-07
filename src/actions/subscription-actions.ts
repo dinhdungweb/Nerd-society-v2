@@ -9,7 +9,7 @@ import { revalidatePath } from 'next/cache';
 import { ensureUserWalletAccount } from '@/lib/wallet-account';
 import { applyWalletTransactionInTx, refundRegistrationOrderToWallet } from '@/lib/wallet-ledger';
 import { authOptions } from '@/lib/auth';
-import { businessDateOnly } from '@/lib/subscription/date-utils';
+import { businessDateOnly, getBusinessMonthRange } from '@/lib/subscription/date-utils';
 import { getRenewalEligibility, RENEWAL_WINDOW_DAYS } from '@/lib/subscription/renewal-policy';
 import {
   buildMembershipQrPayload,
@@ -749,8 +749,7 @@ export async function getActiveSessions(branch?: string) {
  * Báo cáo tháng
  */
 export async function getMonthlyReport(year: number, month: number) {
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0);
+  const { start: startDate, endExclusive: endDateExclusive } = getBusinessMonthRange(year, month);
 
   const [activeSubs, newOrders, revenue, sessions] = await Promise.all([
     // Active subscriptions
@@ -760,7 +759,7 @@ export async function getMonthlyReport(year: number, month: number) {
     // New orders
     prisma.registrationOrder.count({
       where: {
-        createdAt: { gte: startDate, lte: endDate },
+        createdAt: { gte: startDate, lt: endDateExclusive },
         orderStatus: { in: ['PAID', 'QR_ISSUED', 'CARD_ASSIGNED', 'ACTIVATED'] },
       },
     }),
@@ -768,14 +767,14 @@ export async function getMonthlyReport(year: number, month: number) {
     prisma.subscription.aggregate({
       _sum: { pricePaid: true },
       where: {
-        purchasedAt: { gte: startDate, lte: endDate },
+        purchasedAt: { gte: startDate, lt: endDateExclusive },
         status: { not: 'CANCELLED' },
       },
     }),
     // Sessions
     prisma.subscriptionSession.count({
       where: {
-        checkInTime: { gte: startDate, lte: endDate },
+        checkInTime: { gte: startDate, lt: endDateExclusive },
       },
     }),
   ]);

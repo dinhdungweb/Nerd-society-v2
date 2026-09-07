@@ -6,9 +6,12 @@ async function main() {
   const { buildMembershipQrPayload, verifyMembershipQrPayload, fingerprintQrPayload } = await import(
     '../src/lib/subscription/qr-credential'
   )
-  const { calculateIncrementalDailyUsage } = await import('../src/lib/subscription/session-manager')
-  const { splitMinutesByLocalDay } = await import('../src/lib/subscription/date-utils')
-  const { getPlanEndDate, nextRegistrationOrderCode } = await import('../src/lib/subscription/order-lifecycle')
+  const { calculateIncrementalDailyUsage, splitSessionAtSubscriptionExpiry } = await import(
+    '../src/lib/subscription/session-manager'
+  )
+  const { getBusinessMonthRange, splitMinutesByLocalDay } = await import('../src/lib/subscription/date-utils')
+  const { getSubscriptionReminderTargetDate } = await import('../src/lib/subscription/zalo-notifications')
+  const { getActivationDeadline, getPlanEndDate, nextRegistrationOrderCode } = await import('../src/lib/subscription/order-lifecycle')
   const { validateRegistrationPayment } = await import('../src/lib/subscription/payment-validation')
 
   const payload = buildMembershipQrPayload({ publicId: 'member-public-id', version: 3 })
@@ -33,9 +36,38 @@ async function main() {
   )
   assert.deepEqual(segments.map((segment) => segment.minutes), [180, 540])
 
+  const longSegments = splitMinutesByLocalDay(
+    new Date('2026-08-01T12:00:00+07:00'),
+    new Date('2026-09-15T12:00:00+07:00'),
+    45 * 24 * 60
+  )
+  assert.equal(longSegments.reduce((total, segment) => total + segment.minutes, 0), 45 * 24 * 60)
+  assert.equal(longSegments.length, 46)
+
+  assert.deepEqual(
+    splitSessionAtSubscriptionExpiry({
+      checkInTime: new Date('2026-09-30T23:00:00+07:00'),
+      totalMinutes: 180,
+      endDate: new Date('2026-09-30T00:00:00.000Z'),
+    }),
+    { coveredMinutes: 60, expiredMinutes: 120 }
+  )
+
+  const september = getBusinessMonthRange(2026, 9)
+  assert.equal(september.start.toISOString(), '2026-08-31T17:00:00.000Z')
+  assert.equal(september.endExclusive.toISOString(), '2026-09-30T17:00:00.000Z')
+  assert.equal(
+    getSubscriptionReminderTargetDate(1, new Date('2026-09-06T00:00:00.000Z')).toISOString(),
+    '2026-09-07T00:00:00.000Z'
+  )
+
   const startDate = new Date('2026-08-28T00:00:00.000Z')
   assert.equal(getPlanEndDate(startDate, 'WEEKLY_LIMITED').toISOString(), '2026-09-03T00:00:00.000Z')
   assert.equal(getPlanEndDate(startDate, 'MONTHLY_LIMITED').toISOString(), '2026-09-26T00:00:00.000Z')
+  assert.equal(
+    getActivationDeadline(new Date('2026-09-06T20:00:00+07:00')).toISOString(),
+    '2026-10-05T00:00:00.000Z'
+  )
   assert.equal(nextRegistrationOrderCode(startDate), 'MB-20260828-001')
   assert.equal(nextRegistrationOrderCode(startDate, 'MB-20260828-041'), 'MB-20260828-042')
   assert.throws(() => nextRegistrationOrderCode(startDate, 'MB-20260828-999'), /999/)

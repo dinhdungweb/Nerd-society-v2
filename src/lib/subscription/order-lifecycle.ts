@@ -15,6 +15,14 @@ export const PLAN_DURATION_DAYS: Record<PlanType, number> = {
   MONTHLY_UNLIMITED: 30,
 }
 
+export const ACTIVATION_WINDOW_DAYS = 30
+
+export function getActivationDeadline(paidAt: Date) {
+  const deadline = businessDateOnly(paidAt)
+  deadline.setUTCDate(deadline.getUTCDate() + ACTIVATION_WINDOW_DAYS - 1)
+  return deadline
+}
+
 export function getPlanEndDate(startDate: Date, planType: PlanType) {
   const endDate = new Date(startDate)
   endDate.setUTCDate(endDate.getUTCDate() + PLAN_DURATION_DAYS[planType] - 1)
@@ -122,17 +130,16 @@ export async function processRenewalSubscriptionInTx(
     return subscription
   }
 
-  const startDate = businessDateOnly(activatedAt)
-  const endDate = getPlanEndDate(startDate, order.planType)
   const subscription = await tx.subscription.create({
     data: {
       subscriberId: subscriber.id,
       planType: order.planType,
       pricePaid: order.amount,
       status: 'ACTIVE',
-      activationDate: activatedAt,
-      startDate,
-      endDate,
+      activationDate: null,
+      startDate: null,
+      endDate: null,
+      activationDeadline: getActivationDeadline(activatedAt),
       totalHoursMin: totalMin > 0 ? totalMin : null,
       dailyLimitMin: ['MONTHLY_LIMITED', 'MONTHLY_UNLIMITED'].includes(order.planType) ? 480 : null,
       paymentMethod: order.paymentMethod,
@@ -159,9 +166,10 @@ export async function processRenewalSubscriptionInTx(
         credential: 'qr',
         planType: order.planType,
         subscriptionId: subscription.id,
-        activationPolicy: 'payment_confirmed',
-        startDate,
-        endDate,
+        activationPolicy: 'first_successful_checkin',
+        activationDeadline: getActivationDeadline(activatedAt),
+        startDate: null,
+        endDate: null,
       },
     },
   })
@@ -225,8 +233,6 @@ async function activateNewRegistrationInTx(
       userId: order.userId,
     },
   })
-  const startDate = businessDateOnly(activatedAt)
-  const endDate = getPlanEndDate(startDate, order.planType)
   const totalMin = PLAN_HOURS_MIN[order.planType]
   const subscription = await tx.subscription.create({
     data: {
@@ -234,9 +240,10 @@ async function activateNewRegistrationInTx(
       planType: order.planType,
       pricePaid: order.amount,
       status: 'ACTIVE',
-      activationDate: activatedAt,
-      startDate,
-      endDate,
+      activationDate: null,
+      startDate: null,
+      endDate: null,
+      activationDeadline: getActivationDeadline(activatedAt),
       totalHoursMin: totalMin > 0 ? totalMin : null,
       dailyLimitMin: ['MONTHLY_LIMITED', 'MONTHLY_UNLIMITED'].includes(order.planType) ? 480 : null,
       paymentMethod: order.paymentMethod,
@@ -264,9 +271,10 @@ async function activateNewRegistrationInTx(
         subscriberId: subscriber.id,
         subscriptionId: subscription.id,
         credential: 'qr',
-        activationPolicy: 'payment_confirmed',
-        startDate,
-        endDate,
+        activationPolicy: 'first_successful_checkin',
+        activationDeadline: getActivationDeadline(activatedAt),
+        startDate: null,
+        endDate: null,
       },
     },
   })

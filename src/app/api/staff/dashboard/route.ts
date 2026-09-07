@@ -64,7 +64,15 @@ export async function GET(request: Request) {
 
     const recentEvents = await prisma.subscriptionAuditLog.findMany({
       where: {
-        action: { in: ['check_in', 'check_out', 'first_checkin_activation', 'share_rejected'] },
+        action: {
+          in: [
+            'check_in',
+            'check_out',
+            'first_checkin_activation',
+            'subscription_term_started_on_first_checkin',
+            'share_rejected',
+          ],
+        },
         createdAt: { gte: new Date(Date.now() - 8 * 60 * 60 * 1000) },
       },
       orderBy: { createdAt: 'desc' },
