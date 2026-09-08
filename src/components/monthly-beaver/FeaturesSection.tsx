@@ -4,8 +4,6 @@ import React, { FC } from 'react'
 import {
   LockClosedIcon,
   IdentificationIcon,
-  TicketIcon,
-  BriefcaseIcon,
 } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
 
@@ -19,11 +17,6 @@ const features = [
     icon: IdentificationIcon,
     title: 'Quét QR, ngồi luôn',
     desc: 'Không cần đến quầy mỗi lần. Không thanh toán từng buổi. Nhân viên nhớ tên + góc quen',
-  },
-  {
-    icon: TicketIcon,
-    title: '4 voucher đồ uống/tháng',
-    desc: 'Đồ uống cơ bản miễn phí, dùng bất kỳ lúc nào trong tháng',
   },
 ]
 
@@ -49,7 +42,7 @@ const FeaturesSection: FC = () => {
             transition={{ delay: 0.1 }}
             className="mt-4 text-3xl font-bold text-neutral-900 sm:text-4xl dark:text-white"
           >
-            3 đặc quyền hội viên
+            2 đặc quyền hội viên
           </motion.h2>
 
           <motion.p
@@ -64,7 +57,7 @@ const FeaturesSection: FC = () => {
         </div>
 
         {/* Features Grid */}
-        <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto mt-16 grid max-w-4xl gap-8 sm:grid-cols-2">
           {features.map((feature, index) => {
             const IconComponent = feature.icon
             return (

@@ -82,7 +82,6 @@ const PLANS: PlanInfo[] = [
     features: [
       'Priority Check-in (Quét QR, ngồi luôn)',
       'Inspiration Space (Có chỗ tại 2 cơ sở)',
-      'Nerd Drinks (4 voucher mỗi tháng)',
       'The Essentials (Wifi, Locker, 24/7)',
     ],
   },

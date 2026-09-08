@@ -15,7 +15,7 @@ const faqs = [
   },
   {
     q: 'Locker hết slot thì sao?',
-    a: 'HTM 12 slot, TS 6 slot — đăng ký sớm để giữ tủ riêng. Nếu hết slot, bạn vào waitlist nhưng vẫn nhận đầy đủ benefit khác (QR check-in, voucher, giảm pod/MR). Nerd báo ngay khi mở thêm tủ.',
+    a: 'HTM 12 slot, TS 6 slot — đăng ký sớm để giữ tủ riêng. Nếu hết slot, bạn vào waitlist nhưng vẫn nhận đầy đủ benefit khác (QR check-in, giảm pod/MR). Nerd báo ngay khi mở thêm tủ.',
   },
   {
     q: 'Thời hạn gói bắt đầu từ khi nào?',

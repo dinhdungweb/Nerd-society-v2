@@ -18,7 +18,7 @@ const steps = [
   },
   {
     title: 'Nhận QR thành viên',
-    desc: 'QR xuất hiện trong tài khoản; nếu cần, ghé cơ sở để nhận bản in, voucher đồ uống và chìa khóa locker.',
+    desc: 'QR xuất hiện trong tài khoản; nếu cần, ghé cơ sở để nhận bản in và chìa khóa locker.',
     icon: MapPinIcon,
   },
   {

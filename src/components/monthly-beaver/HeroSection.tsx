@@ -62,7 +62,7 @@ const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick, registrationOpen =
               transition={{ duration: 0.6, delay: 0.4 }}
               className="mt-6 max-w-lg text-lg text-neutral-300"
             >
-              Gói thành viên cho những ai xem Nerd như không gian thứ hai. Quét QR vào ngồi luôn, voucher đồ uống mỗi tháng và đặc quyền ưu tiên.
+              Gói thành viên cho những ai xem Nerd như không gian thứ hai. Quét QR vào ngồi luôn và tận hưởng các đặc quyền ưu tiên.
             </motion.p>
 
             {/* Price pills */}
@@ -169,24 +169,6 @@ const HeroSection: FC<HeroSectionProps> = ({ onRegisterClick, registrationOpen =
                 <div>
                   <p className="font-semibold text-white">Inspiration Space</p>
                   <p className="text-sm text-neutral-300">Có chỗ tại 2 cơ sở</p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Nerd Drinks */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.9 }}
-              className="absolute bottom-[25%] left-10 rounded-2xl bg-white/10 p-5 backdrop-blur-md transition-transform hover:scale-105"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex size-12 items-center justify-center rounded-xl bg-primary-500 text-white text-2xl">
-                  ☕
-                </div>
-                <div>
-                  <p className="font-semibold text-white">Nerd Drinks</p>
-                  <p className="text-sm text-neutral-300">4 voucher mỗi tháng</p>
                 </div>
               </div>
             </motion.div>
