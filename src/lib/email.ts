@@ -409,6 +409,7 @@ export async function sendBookingCancelledEmail(booking: any) {
     }
 
     const dbTemplate = await getEmailTemplate('booking_cancelled')
+    const refundPolicyMessage = 'Nếu bạn đã thanh toán cọc và khoản thanh toán đủ điều kiện hoàn, tiền sẽ được tự động hoàn vào Ví Nerd. Vui lòng kiểm tra số dư ví hoặc liên hệ hotline nếu chưa nhận được.'
 
     let subject: string
     let html: string
@@ -416,6 +417,14 @@ export async function sendBookingCancelledEmail(booking: any) {
     if (dbTemplate) {
         subject = replaceVariables(dbTemplate.subject, variables)
         html = replaceVariables(dbTemplate.content, variables)
+            .replace(
+                'Nếu bạn đã thanh toán cọc, vui lòng liên hệ hotline 036 848 3689 để được hỗ trợ hoàn tiền.',
+                refundPolicyMessage
+            )
+            .replace(
+                'Nếu bạn đã chuyển khoản cọc, vui lòng phản hồi email này hoặc gọi hotline để chúng tôi tiến hành hoàn trả.',
+                refundPolicyMessage
+            )
     } else {
         subject = `[Nerd Society] Đặt lịch #${booking.bookingCode} đã bị hủy`
         const content = `
@@ -429,7 +438,7 @@ export async function sendBookingCancelledEmail(booking: any) {
                 <div class="info-item"><span class="info-label">Thời gian</span><span class="info-value">${ICONS.calendar}${variables.date} | ${ICONS.clock}${booking.startTime} - ${booking.endTime}</span></div>
             </div>
 
-            <p class="p">Nếu bạn đã chuyển khoản cọc, vui lòng phản hồi email này hoặc gọi hotline để chúng tôi tiến hành hoàn trả.</p>
+            <p class="p">${refundPolicyMessage}</p>
         `
         html = getBaseTemplate(content, subject)
     }

@@ -73,7 +73,10 @@ export default function BookingDetailModal({ open, setOpen, booking, onRefresh }
             return
         }
 
-        if (!confirm(`Bạn chắc chắn muốn ${action === 'CHECK_IN' ? 'Check-in' : (action === 'CANCEL' ? 'Hủy' : 'Check-out')} booking này?`)) return
+        const confirmationMessage = action === 'CANCEL'
+            ? 'Bạn chắc chắn muốn hủy booking này? Tiền cọc đủ điều kiện sẽ được tự động hoàn vào Ví Nerd.'
+            : `Bạn chắc chắn muốn ${action === 'CHECK_IN' ? 'Check-in' : 'Check-out'} booking này?`
+        if (!confirm(confirmationMessage)) return
 
         setLoading(true)
         try {
@@ -101,7 +104,8 @@ export default function BookingDetailModal({ open, setOpen, booking, onRefresh }
             } else {
                 toast.success(
                     action === 'CHECK_IN' ? 'Check-in thành công' :
-                        action === 'CHECK_OUT' ? 'Check-out thành công' : 'Đã hủy booking'
+                        action === 'CHECK_OUT' ? 'Check-out thành công' :
+                            data.refund?.refunded ? 'Đã hủy booking và hoàn tiền cọc vào Ví Nerd' : 'Đã hủy booking'
                 )
             }
             onRefresh()

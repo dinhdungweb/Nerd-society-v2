@@ -34,7 +34,7 @@ export default function CancelBookingButton({
                 throw new Error(data.error || 'Có lỗi xảy ra')
             }
 
-            toast.success('Đã hủy đặt lịch thành công')
+            toast.success(data.message || 'Đã hủy đặt lịch thành công')
             setIsOpen(false)
             router.refresh()
         } catch (error: any) {
@@ -47,8 +47,8 @@ export default function CancelBookingButton({
     if (!canCancel) {
         return (
             <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
-                {minutesToStart < 120
-                    ? 'Không thể hủy (dưới 2 tiếng trước giờ)'
+                {minutesToStart <= 0
+                    ? 'Không thể hủy sau giờ bắt đầu'
                     : 'Không thể hủy booking này'}
             </div>
         )
@@ -65,7 +65,7 @@ export default function CancelBookingButton({
                     Hủy đặt lịch
                 </button>
                 <p className="text-center text-[10px] text-neutral-400 dark:text-neutral-500 italic">
-                    * Tiền cọc sẽ được hoàn trả vào Ví Nerd
+                    * Tiền cọc đủ điều kiện sẽ được hoàn trả vào Ví Nerd
                 </p>
             </div>
 
@@ -85,10 +85,10 @@ export default function CancelBookingButton({
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
                             <p className="font-semibold text-blue-800 dark:text-blue-300">Chính sách hoàn tiền:</p>
                             <p className="mt-2 text-sm text-blue-700 dark:text-blue-400">
-                                Bạn đang thực hiện hủy <strong>trước giờ bắt đầu 2 tiếng</strong>.
+                                Bạn có thể hủy booking <strong>đến ngay trước giờ bắt đầu</strong>.
                             </p>
                             <p className="mt-1 text-sm font-medium text-blue-800 dark:text-blue-300">
-                                Tiền cọc của bạn sẽ được tự động hoàn trả vào <strong>Ví Nerd</strong> sau khi xác nhận hủy.
+                                Tiền cọc đủ điều kiện sẽ được tự động hoàn trả vào <strong>Ví Nerd</strong> sau khi xác nhận hủy.
                             </p>
                         </div>
 

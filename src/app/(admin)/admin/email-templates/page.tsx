@@ -146,7 +146,7 @@ const prebuiltTemplates: Record<string, { subject: string; content: string }> = 
                 <div class="info-item"><span class="info-label">Thời gian</span><strong>{{date}} | {{startTime}} - {{endTime}}</strong></div>
             </div>
 
-            <p class="p">Nếu bạn đã thanh toán cọc, vui lòng liên hệ hotline 036 848 3689 để được hỗ trợ hoàn tiền.</p>
+            <p class="p">Nếu bạn đã thanh toán cọc và khoản thanh toán đủ điều kiện hoàn, tiền sẽ được tự động hoàn vào Ví Nerd. Vui lòng kiểm tra số dư ví hoặc liên hệ hotline 036 848 3689 nếu chưa nhận được.</p>
         `)
     },
     checkin_reminder: {

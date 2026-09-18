@@ -2,15 +2,12 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { differenceInMinutes } from 'date-fns'
 import { notifyBookingCancelled } from '@/lib/notifications'
 import { refundBookingPaymentToWallet } from '@/lib/wallet-ledger'
 
-const CANCEL_BEFORE_MINUTES = 120 // Cho phép hủy trước 2 tiếng
-
 /**
  * POST /api/booking/[id]/cancel
- * Customer cancels their own booking (before 30 minutes of start time)
+ * Customer cancels their own booking before the start time
  */
 export async function POST(
     request: NextRequest,
@@ -51,17 +48,16 @@ export async function POST(
             }, { status: 400 })
         }
 
-        // Check time - must be at least 30 minutes before start
+        // Check time - cancellation is allowed until the booking starts
         const bookingStart = new Date(booking.date)
         const [hours, minutes] = booking.startTime.split(':').map(Number)
         bookingStart.setHours(hours, minutes, 0, 0)
 
         const now = new Date()
-        const minutesToStart = differenceInMinutes(bookingStart, now)
 
-        if (minutesToStart < CANCEL_BEFORE_MINUTES) {
+        if (bookingStart.getTime() <= now.getTime()) {
             return NextResponse.json({
-                error: `Chỉ có thể hủy trước ${CANCEL_BEFORE_MINUTES} phút. Vui lòng liên hệ staff.`
+                error: 'Không thể hủy booking sau giờ bắt đầu. Vui lòng liên hệ staff.'
             }, { status: 400 })
         }
 
@@ -93,7 +89,9 @@ export async function POST(
 
         return NextResponse.json({
             success: true,
-            message: 'Đã hủy đặt lịch thành công',
+            message: refundResult?.refunded
+                ? 'Đã hủy đặt lịch và hoàn tiền cọc vào Ví Nerd'
+                : 'Đã hủy đặt lịch thành công',
             booking: {
                 id: updatedBooking.id,
                 bookingCode: updatedBooking.bookingCode,
