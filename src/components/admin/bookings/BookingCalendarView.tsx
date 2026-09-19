@@ -474,11 +474,11 @@ export default function BookingCalendarView({
 
             {/* DAY VIEW */}
             {viewMode === 'day' && (
-                <div className="rounded-xl bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 overflow-hidden">
-                    <div className="overflow-x-auto">
+                <div className="rounded-xl bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800">
+                    <div className="booking-calendar-scroll-container">
                         <div className="min-w-[800px]">
                             {/* Header Row */}
-                            <div className="grid border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50"
+                            <div className="booking-calendar-sticky-header grid rounded-t-xl border-b border-neutral-200 bg-neutral-50 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
                                 style={{ gridTemplateColumns: `80px repeat(${rooms.length}, 1fr)` }}>
                                 <div className="p-3 text-xs font-medium uppercase text-neutral-500 dark:text-neutral-400 flex items-center">
                                     <ClockIcon className="size-4 mr-1" />
@@ -576,11 +576,11 @@ export default function BookingCalendarView({
 
             {/* WEEK VIEW */}
             {viewMode === 'week' && (
-                <div className="rounded-xl bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 overflow-hidden">
-                    <div className="overflow-x-auto">
+                <div className="rounded-xl bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800">
+                    <div className="booking-calendar-scroll-container">
                         <div className="min-w-[800px]">
                             {/* Header Row - Days */}
-                            <div className="grid border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50"
+                            <div className="booking-calendar-sticky-header grid rounded-t-xl border-b border-neutral-200 bg-neutral-50 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
                                 style={{ gridTemplateColumns: `repeat(7, minmax(0, 1fr))` }}>
                                 {weekDates.map((date, i) => {
                                     const isDateToday = isSameDay(date, new Date())
