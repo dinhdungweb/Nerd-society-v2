@@ -19,6 +19,8 @@ import { ensureUserWalletAccount } from '@/lib/wallet-account'
 import { isMonthlyBeaverRegistrationOpen } from '@/lib/monthly-beaver-registration'
 import { ensureMembershipAccess } from '@/lib/subscription/membership-access'
 import { getRenewalEligibility } from '@/lib/subscription/renewal-policy'
+import { businessDateOnly, localStartOfDay } from '@/lib/subscription/date-utils'
+import { getSubscriptionDailyCapMin } from '@/lib/subscription/usage-billing'
 import MembershipQrCard from './MembershipQrCard'
 
 export const dynamic = 'force-dynamic'
@@ -45,6 +47,9 @@ export default async function MonthlyBeaverPage() {
     const walletRes = await ensureUserWalletAccount(session.user.id)
     const walletBalance = walletRes.success ? walletRes.wallet.balance : 0
     const walletStatus = walletRes.success ? walletRes.wallet.status : 'INACTIVE'
+    const now = new Date()
+    const today = businessDateOnly(now)
+    const todayStart = localStartOfDay(now)
 
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },
@@ -58,6 +63,10 @@ export default async function MonthlyBeaverPage() {
                     sessions: {
                         orderBy: { checkInTime: 'desc' },
                         take: 10,
+                    },
+                    dailyUsages: {
+                        where: { usageDate: today },
+                        select: { totalMin: true },
                     },
                 },
             },
@@ -214,6 +223,26 @@ export default async function MonthlyBeaverPage() {
     const remainingMinutes = availableMinutes !== null
         ? Math.max(0, availableMinutes - usedMinutes)
         : null
+    const dailyLimitMinutes = getSubscriptionDailyCapMin(activeSub)
+    const activeSession = activeSub
+        ? subscriber.sessions.find(session =>
+            session.subscriptionId === activeSub.id
+            && session.status === 'ACTIVE'
+            && !session.checkOutTime
+        )
+        : null
+    const activeSessionTodayMinutes = activeSession
+        ? Math.max(
+            0,
+            Math.ceil(
+                (now.getTime() - Math.max(activeSession.checkInTime.getTime(), todayStart.getTime())) / 60_000
+            )
+        )
+        : 0
+    const todayUsedMinutes = (subscriber.dailyUsages[0]?.totalMin || 0) + activeSessionTodayMinutes
+    const todayRemainingMinutes = dailyLimitMinutes
+        ? Math.max(0, dailyLimitMinutes - todayUsedMinutes)
+        : null
     const usagePercent = availableMinutes
         ? Math.min(100, Math.round((usedMinutes / availableMinutes) * 100))
         : 0
@@ -272,21 +301,31 @@ export default async function MonthlyBeaverPage() {
                                     </div>
                                 ) : (
                                     <p className="text-sm text-neutral-600 dark:text-neutral-300">
-                                        {activeSub.dailyLimitMin
-                                            ? `Giới hạn ${activeSub.dailyLimitMin / 60}h/ngày. Không giới hạn tổng giờ theo tháng.`
+                                        {dailyLimitMinutes
+                                            ? `Giới hạn ${dailyLimitMinutes / 60}h/ngày. Không giới hạn tổng giờ theo tháng.`
                                             : 'Gói không giới hạn giờ. Hệ thống vẫn theo dõi giới hạn sử dụng trong ngày nếu có.'}
                                     </p>
                                 )}
 
                                 <div className="grid grid-cols-2 border border-neutral-200 dark:border-neutral-800 sm:grid-cols-3">
                                     <div className="border-r border-neutral-200 px-3 py-3 dark:border-neutral-800 sm:px-4 sm:py-4">
-                                        <p className="text-xs font-semibold uppercase text-neutral-500">Đã dùng</p>
-                                        <p className="mt-1 text-base font-bold text-neutral-950 dark:text-white sm:text-lg">{formatMinutes(usedMinutes)}</p>
+                                        <p className="text-xs font-semibold uppercase text-neutral-500">
+                                            {dailyLimitMinutes ? 'Đã dùng hôm nay' : 'Đã dùng'}
+                                        </p>
+                                        <p className="mt-1 text-base font-bold text-neutral-950 dark:text-white sm:text-lg">
+                                            {formatMinutes(dailyLimitMinutes ? todayUsedMinutes : usedMinutes)}
+                                        </p>
                                     </div>
                                     <div className="px-3 py-3 sm:px-4 sm:py-4">
-                                        <p className="text-xs font-semibold uppercase text-neutral-500">Còn lại</p>
+                                        <p className="text-xs font-semibold uppercase text-neutral-500">
+                                            {dailyLimitMinutes ? 'Còn lại hôm nay' : 'Còn lại'}
+                                        </p>
                                         <p className="mt-1 text-base font-bold text-neutral-950 dark:text-white sm:text-lg">
-                                            {remainingMinutes !== null ? formatMinutes(remainingMinutes) : 'Không giới hạn'}
+                                            {todayRemainingMinutes !== null
+                                                ? formatMinutes(todayRemainingMinutes)
+                                                : remainingMinutes !== null
+                                                    ? formatMinutes(remainingMinutes)
+                                                    : 'Không giới hạn'}
                                         </p>
                                     </div>
                                     <div className="col-span-2 border-t border-neutral-200 px-3 py-3 dark:border-neutral-800 sm:col-span-1 sm:border-l sm:border-t-0 sm:px-4 sm:py-4">
